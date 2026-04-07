@@ -1,0 +1,6 @@
+smf:
+  image:
+    tag: "2.7.2"
+upf:
+  image:
+    tag: "2.7.6"

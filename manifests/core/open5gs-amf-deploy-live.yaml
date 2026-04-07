@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "36"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{"deployment.kubernetes.io/revision":"33","meta.helm.sh/release-name":"open5gs","meta.helm.sh/release-namespace":"oran-core"},"labels":{"app.kubernetes.io/instance":"open5gs","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"amf","app.kubernetes.io/version":"2.7.5","helm.sh/chart":"amf-2.3.1"},"name":"open5gs-amf","namespace":"oran-core"},"spec":{"progressDeadlineSeconds":600,"replicas":1,"revisionHistoryLimit":10,"selector":{"matchLabels":{"app.kubernetes.io/instance":"open5gs","app.kubernetes.io/name":"amf"}},"strategy":{"type":"Recreate"},"template":{"metadata":{"annotations":{"config-hash":"d06fe9ae96d6e1a799a16f2d5d3a6bb6a51c519d73ee17c0701436e91cca2ea8","k8s.v1.cni.cncf.io/networks":"[{\"name\":\"n2-net\",\"ips\":[\"10.10.0.101/24\"]}]","kubectl.kubernetes.io/restartedAt":"2026-04-04T18:37:30+01:00"},"labels":{"app.kubernetes.io/instance":"open5gs","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"amf","app.kubernetes.io/version":"2.7.5","helm.sh/chart":"amf-2.3.1"}},"spec":{"affinity":{"podAntiAffinity":{"preferredDuringSchedulingIgnoredDuringExecution":[{"podAffinityTerm":{"labelSelector":{"matchLabels":{"app.kubernetes.io/instance":"open5gs","app.kubernetes.io/name":"amf"}},"topologyKey":"kubernetes.io/hostname"},"weight":1}]}},"containers":[{"args":["open5gs-amfd"],"image":"docker.io/gradiant/open5gs:2.7.5","imagePullPolicy":"IfNotPresent","livenessProbe":{"failureThreshold":5,"initialDelaySeconds":600,"periodSeconds":10,"successThreshold":1,"tcpSocket":{"port":"sbi"},"timeoutSeconds":5},"name":"open5gs-amf","ports":[{"containerPort":7777,"name":"sbi","protocol":"TCP"},{"containerPort":9090,"name":"metrics","protocol":"TCP"},{"containerPort":38412,"name":"ngap","protocol":"SCTP"}],"readinessProbe":{"failureThreshold":5,"initialDelaySeconds":30,"periodSeconds":5,"successThreshold":1,"tcpSocket":{"port":"sbi"},"timeoutSeconds":1},"resources":{},"securityContext":{"runAsNonRoot":true,"runAsUser":999},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","volumeMounts":[{"mountPath":"/opt/open5gs/etc/open5gs/amf.yaml","name":"amf-config-fixed","readOnly":true,"subPath":"AMF_KEY_HERE"}]}],"dnsPolicy":"ClusterFirst","restartPolicy":"Always","schedulerName":"default-scheduler","securityContext":{"fsGroup":999},"serviceAccount":"default","serviceAccountName":"default","terminationGracePeriodSeconds":30,"volumes":[{"configMap":{"defaultMode":420,"name":"open5gs-oai-prep"},"name":"open5gs-oai-prep"},{"configMap":{"defaultMode":420,"name":"open5gs-amf"},"name":"config"},{"configMap":{"defaultMode":420,"name":"open5gs-amf"},"name":"amf-config"},{"configMap":{"name":"AMF_CM_HERE"},"name":"amf-config-fixed"}]}}}}
+    meta.helm.sh/release-name: open5gs
+    meta.helm.sh/release-namespace: oran-core
+  creationTimestamp: "2026-02-28T02:13:27Z"
+  generation: 58
+  labels:
+    app.kubernetes.io/instance: open5gs
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: amf
+    app.kubernetes.io/version: 2.7.5
+    helm.sh/chart: amf-2.3.1
+  name: open5gs-amf
+  namespace: oran-core
+  resourceVersion: "215349"
+  uid: b5b8cf1e-fd96-4427-81af-81dccfb4883f
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: open5gs
+      app.kubernetes.io/name: amf
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        config-hash: d06fe9ae96d6e1a799a16f2d5d3a6bb6a51c519d73ee17c0701436e91cca2ea8
+        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.101/24"]}]'
+        kubectl.kubernetes.io/restartedAt: "2026-04-06T23:57:47+01:00"
+      labels:
+        app.kubernetes.io/instance: open5gs
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: amf
+        app.kubernetes.io/version: 2.7.5
+        helm.sh/chart: amf-2.3.1
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/instance: open5gs
+                  app.kubernetes.io/name: amf
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      containers:
+      - args:
+        - open5gs-amfd
+        image: docker.io/gradiant/open5gs:2.7.5
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 5
+          initialDelaySeconds: 600
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: sbi
+          timeoutSeconds: 5
+        name: open5gs-amf
+        ports:
+        - containerPort: 7777
+          name: sbi
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        - containerPort: 38412
+          name: ngap
+          protocol: SCTP
+        readinessProbe:
+          failureThreshold: 5
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          successThreshold: 1
+          tcpSocket:
+            port: sbi
+          timeoutSeconds: 1
+        resources: {}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /opt/open5gs/etc/open5gs/amf.yaml
+          name: amf-config-fixed
+          readOnly: true
+          subPath: amf.yaml
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 999
+      serviceAccount: default
+      serviceAccountName: default
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: open5gs-oai-prep
+        name: open5gs-oai-prep
+      - configMap:
+          defaultMode: 420
+          name: open5gs-amf
+        name: config
+      - configMap:
+          defaultMode: 420
+          name: open5gs-amf
+        name: amf-config
+      - configMap:
+          defaultMode: 420
+          name: open5gs-oai-prep
+        name: amf-config-fixed
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2026-04-06T22:51:22Z"
+    lastUpdateTime: "2026-04-06T22:58:21Z"
+    message: ReplicaSet "open5gs-amf-566cffd455" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2026-04-07T00:38:50Z"
+    lastUpdateTime: "2026-04-07T00:38:50Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  observedGeneration: 58
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

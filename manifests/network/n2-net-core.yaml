@@ -1,0 +1,16 @@
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"k8s.cni.cncf.io/v1","kind":"NetworkAttachmentDefinition","metadata":{"annotations":{},"name":"n2-net","namespace":"oran-core"},"spec":{"config":"{ \"cniVersion\":\"0.3.1\", \"type\":\"bridge\", \"bridge\":\"br-n2\", \"ipam\": { \"type\":\"host-local\", \"subnet\":\"10.10.0.0/24\", \"rangeStart\":\"10.10.0.100\", \"rangeEnd\":\"10.10.0.200\", \"gateway\":\"10.10.0.1\" } }"}}
+  creationTimestamp: "2026-03-04T01:09:42Z"
+  generation: 2
+  name: n2-net
+  namespace: oran-core
+  resourceVersion: "41140"
+  uid: 078b6610-6094-44b8-ac1b-d326ef8845af
+spec:
+  config: '{ "cniVersion":"0.3.1", "type":"bridge", "bridge":"br-n2", "ipam": { "type":"host-local",
+    "subnet":"10.10.0.0/24", "rangeStart":"10.10.0.100", "rangeEnd":"10.10.0.200",
+    "gateway":"10.10.0.1" } }'
