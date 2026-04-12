@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}')
-UPF_POD=$(kubectl -n oran-core get pod -l app.kubernetes.io/name=upf -o jsonpath='{.items[0].metadata.name}')
+UE_POD=$(kubectl -n oran-ran get pods -l app=oai-nr-ue --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp -o name | tail -n 1 | cut -d/ -f2)
+UPF_POD=$(kubectl -n oran-core get pods -l app.kubernetes.io/name=upf --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp -o name | tail -n 1 | cut -d/ -f2)
 
 kubectl get nodes -o wide
 kubectl -n oran-core get pods -o wide
 kubectl -n oran-ran get pods -o wide
+
+for i in $(seq 1 90); do
+  if kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip addr show oaitun_ue1 >/dev/null 2>&1'; then
+    break
+  fi
+  sleep 2
+done
 
 kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip addr | grep -A2 oaitun_ue1'
 kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip route'
