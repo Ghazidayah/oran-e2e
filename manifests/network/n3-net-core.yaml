@@ -4,12 +4,8 @@ metadata:
   annotations:
     kubectl.kubernetes.io/last-applied-configuration: |
       {"apiVersion":"k8s.cni.cncf.io/v1","kind":"NetworkAttachmentDefinition","metadata":{"annotations":{},"name":"n3-net","namespace":"oran-core"},"spec":{"config":"{ \"cniVersion\":\"0.3.1\", \"type\":\"bridge\", \"bridge\":\"br-n3\", \"ipam\": { \"type\":\"host-local\", \"subnet\":\"10.20.0.0/24\", \"rangeStart\":\"10.20.0.100\", \"rangeEnd\":\"10.20.0.200\", \"gateway\":\"10.20.0.1\" } }"}}
-  creationTimestamp: "2026-03-04T01:09:42Z"
-  generation: 2
   name: n3-net
   namespace: oran-core
-  resourceVersion: "41141"
-  uid: 785aa489-5d0e-492c-b3df-2be680d80ef3
 spec:
   config: '{ "cniVersion":"0.3.1", "type":"bridge", "bridge":"br-n3", "ipam": { "type":"host-local",
     "subnet":"10.20.0.0/24", "rangeStart":"10.20.0.100", "rangeEnd":"10.20.0.200",

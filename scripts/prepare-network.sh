@@ -4,10 +4,13 @@ set -euo pipefail
 sudo netplan generate
 sudo netplan apply
 
-kubectl apply -f manifests/network/n2-net-core.yaml
-kubectl apply -f manifests/network/n3-net-core.yaml
-kubectl apply -f manifests/network/n2-net-ran.yaml
-kubectl apply -f manifests/network/n3-net-ran.yaml
+kubectl -n oran-core delete network-attachment-definition n2-net n3-net --ignore-not-found=true
+kubectl -n oran-ran  delete network-attachment-definition n2-net n3-net --ignore-not-found=true
+
+kubectl create -f manifests/network/n2-net-core.yaml
+kubectl create -f manifests/network/n3-net-core.yaml
+kubectl create -f manifests/network/n2-net-ran.yaml
+kubectl create -f manifests/network/n3-net-ran.yaml
 
 kubectl -n oran-core rollout restart deploy/open5gs-amf
 kubectl -n oran-core rollout restart deploy/open5gs-upf
