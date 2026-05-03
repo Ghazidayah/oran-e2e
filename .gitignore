@@ -1,0 +1,34 @@
+# Python / virtual environments
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and runtime files
+*.log
+*.pid
+*.tmp
+*.bak
+*.backup
+*.swp
+*.swo
+
+# O-RAN local generated evidence
+oran-proof/
+*.pcap
+*.tar.gz
+*.zip
+
+# Dashboard runtime artifacts
+web-dashboard/.venv/
+web-dashboard/*.log
+web-dashboard/app.py.backup-*
+web-dashboard/__pycache__/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
