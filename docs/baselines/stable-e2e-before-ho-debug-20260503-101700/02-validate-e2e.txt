@@ -1,0 +1,74 @@
+NAME       STATUS   ROLES           AGE   VERSION        INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+oran-lab   Ready    control-plane   66d   v1.34.4+k3s1   192.168.1.142   <none>        Ubuntu 22.04.5 LTS   6.8.0-107-generic   containerd://2.1.5-k3s1
+NAME                               READY   STATUS    RESTARTS       AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+open5gs-amf-576f46dd9-qbtjg        1/1     Running   0              26m   10.42.0.14    oran-lab   <none>           <none>
+open5gs-ausf-5b9dfb8fb4-jd84m      1/1     Running   10 (15d ago)   28d   10.42.0.242   oran-lab   <none>           <none>
+open5gs-bsf-76f6b6b5c9-hvwrh       1/1     Running   10 (15d ago)   29d   10.42.0.239   oran-lab   <none>           <none>
+open5gs-mongodb-78599dfd8d-jq8lp   1/1     Running   45 (15d ago)   64d   10.42.0.3     oran-lab   <none>           <none>
+open5gs-nrf-7c878dd995-glj6m       1/1     Running   10 (15d ago)   28d   10.42.0.245   oran-lab   <none>           <none>
+open5gs-nssf-76cf657fdc-7fzvz      1/1     Running   10 (15d ago)   28d   10.42.0.249   oran-lab   <none>           <none>
+open5gs-pcf-6cfccfff98-hrn6p       1/1     Running   19 (13d ago)   28d   10.42.0.241   oran-lab   <none>           <none>
+open5gs-scp-85f5859c88-7544s       1/1     Running   10 (15d ago)   28d   10.42.0.247   oran-lab   <none>           <none>
+open5gs-sepp-6f946584cb-47xwd      1/1     Running   10 (15d ago)   29d   10.42.0.240   oran-lab   <none>           <none>
+open5gs-smf-747ddb55f9-kvx7q       1/1     Running   0              26m   10.42.0.12    oran-lab   <none>           <none>
+open5gs-udm-654984ccd4-2lk67       1/1     Running   10 (15d ago)   28d   10.42.0.243   oran-lab   <none>           <none>
+open5gs-udr-57fdbd6f94-w5q6z       1/1     Running   19 (13d ago)   28d   10.42.0.244   oran-lab   <none>           <none>
+open5gs-upf-5dcd7b5456-262wb       1/1     Running   0              26m   10.42.0.13    oran-lab   <none>           <none>
+open5gs-webui-f97cf6dcd-cg4sb      1/1     Running   9 (15d ago)    29d   10.42.0.246   oran-lab   <none>           <none>
+NAME                         READY   STATUS    RESTARTS        AGE    IP            NODE       NOMINATED NODE   READINESS GATES
+multus-test                  1/1     Running   147 (27m ago)   60d    10.42.0.238   oran-lab   <none>           <none>
+oai-gnb-7cf99c884-kfpl5      1/1     Running   1 (7m3s ago)    7m8s   10.42.0.17    oran-lab   <none>           <none>
+oai-gnb-b-5567f858cc-9zp99   1/1     Running   10 (3m ago)     2d6h   10.42.0.232   oran-lab   <none>           <none>
+oai-nr-ue-659d56d964-ss566   1/1     Running   0               7m3s   10.42.0.18    oran-lab   <none>           <none>
+3: oaitun_ue1: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UNKNOWN group default qlen 500
+    link/none 
+    inet 10.45.0.2/24 scope global oaitun_ue1
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a552:85b8:e746:922a/64 scope link stable-privacy 
+default via 10.42.0.1 dev eth0 
+10.42.0.0/24 dev eth0 proto kernel scope link src 10.42.0.18 
+10.42.0.0/16 via 10.42.0.1 dev eth0 
+10.45.0.0/24 dev oaitun_ue1 proto kernel scope link src 10.45.0.2 
+PING 10.45.0.1 (10.45.0.1) 56(84) bytes of data.
+64 bytes from 10.45.0.1: icmp_seq=1 ttl=64 time=25.9 ms
+64 bytes from 10.45.0.1: icmp_seq=2 ttl=64 time=28.9 ms
+
+--- 10.45.0.1 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+rtt min/avg/max/mdev = 25.924/27.394/28.865/1.470 ms
+PING 8.8.8.8 (8.8.8.8) from 10.45.0.2 oaitun_ue1: 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=112 time=107 ms
+64 bytes from 8.8.8.8: icmp_seq=2 ttl=112 time=101 ms
+64 bytes from 8.8.8.8: icmp_seq=3 ttl=112 time=102 ms
+64 bytes from 8.8.8.8: icmp_seq=4 ttl=112 time=104 ms
+
+--- 8.8.8.8 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3004ms
+rtt min/avg/max/mdev = 100.791/103.345/106.522/2.087 ms
+[32m05/03 09:17:02.541[0m: [[33mamf[0m] [1;32mINFO[0m: gNB-N2[10.10.0.110] connection refused!!! (../src/amf/amf-sm.c:873)
+[32m05/03 09:17:02.541[0m: [[33mamf[0m] [1;32mINFO[0m: [Removed] Number of gNBs is now 0 (../src/amf/context.c:1301)
+[32m05/03 09:17:04.725[0m: [[33mamf[0m] [1;32mINFO[0m: gNB-N2 accepted[10.10.0.110]:46113 in ng-path module (../src/amf/ngap-sctp.c:113)
+[32m05/03 09:17:04.725[0m: [[33mamf[0m] [1;32mINFO[0m: gNB-N2 accepted[10.10.0.110] in master_sm module (../src/amf/amf-sm.c:813)
+[32m05/03 09:17:04.732[0m: [[33mamf[0m] [1;32mINFO[0m: [Added] Number of gNBs is now 1 (../src/amf/context.c:1273)
+[32m05/03 09:17:04.732[0m: [[33mamf[0m] [1;32mINFO[0m: gNB-N2[10.10.0.110] max_num_of_ostreams : 2 (../src/amf/amf-sm.c:860)
+[32m05/03 09:17:07.530[0m: [[33mamf[0m] [1;32mINFO[0m: gNB-N2[10.10.0.110] connection refused!!! (../src/amf/amf-sm.c:873)
+[32m05/03 09:17:07.530[0m: [[33mamf[0m] [1;32mINFO[0m: [Removed] Number of gNBs is now 0 (../src/amf/context.c:1301)
+[32m05/03 09:17:09.044[0m: [[33mamf[0m] [1;32mINFO[0m: gNB-N2 accepted[10.10.0.110]:38601 in ng-path module (../src/amf/ngap-sctp.c:113)
+[32m05/03 09:17:09.044[0m: [[33mamf[0m] [1;32mINFO[0m: gNB-N2 accepted[10.10.0.110] in master_sm module (../src/amf/amf-sm.c:813)
+[32m05/03 09:17:09.048[0m: [[33mamf[0m] [1;32mINFO[0m: [Added] Number of gNBs is now 1 (../src/amf/context.c:1273)
+[32m05/03 09:17:09.048[0m: [[33mamf[0m] [1;32mINFO[0m: gNB-N2[10.10.0.110] max_num_of_ostreams : 2 (../src/amf/amf-sm.c:860)
+[32m05/03 09:21:11.150[0m: [[33mamf[0m] [1;32mINFO[0m: [Added] Number of gNB-UEs is now 1 (../src/amf/context.c:2785)
+[32m05/03 09:21:11.338[0m: [[33mgmm[0m] [1;32mINFO[0m: [imsi-999700000000001] Registration complete (../src/amf/gmm-sm.c:2658)
+[32m05/03 09:21:11.338[0m: [[33mamf[0m] [1;32mINFO[0m: [imsi-999700000000001] Configuration update command (../src/amf/nas-path.c:607)
+[32m05/03 09:21:11.338[0m: [[33mgmm[0m] [1;32mINFO[0m: UE SUPI[imsi-999700000000001] DNN[oai] S_NSSAI[SST:1 SD:0xffffff] smContextRef[NULL] smContextResourceURI[NULL] (../src/amf/gmm-handler.c:1374)
+[32m05/03 09:21:11.386[0m: [[33mamf[0m] [1;32mINFO[0m: [imsi-999700000000001:10:11][0:0:NULL] /nsmf-pdusession/v1/sm-contexts/{smContextRef}/modify (../src/amf/nsmf-handler.c:942)
+[32m05/03 09:21:11.344[0m: [[33msmf[0m] [1;32mINFO[0m: [Added] Number of SMF-Sessions is now 1 (../src/smf/context.c:3113)
+[32m05/03 09:21:11.359[0m: [[33msmf[0m] [1;32mINFO[0m: UE SUPI[imsi-999700000000001] DNN[oai] IPv4[10.45.0.2] IPv6[] (../src/smf/npcf-handler.c:578)
+Defaulted container "open5gs-upf" out of: open5gs-upf, tun-create (init)
+[32m05/03 09:21:11.360[0m: [[33mgtp[0m] [1;32mINFO[0m: gtp_connect() [10.42.0.12]:2152 (../lib/gtp/path.c:60)
+[32m05/03 09:21:11.394[0m: [[33mupf[0m] [1;33mERROR[0m: Invalid packet [IP version:6, Packet Length:48] (../src/upf/gtp-path.c:622)
+[32m05/03 09:21:15.806[0m: [[33mupf[0m] [1;33mERROR[0m: Invalid packet [IP version:6, Packet Length:48] (../src/upf/gtp-path.c:622)
+[32m05/03 09:21:25.022[0m: [[33mupf[0m] [1;33mERROR[0m: Invalid packet [IP version:6, Packet Length:48] (../src/upf/gtp-path.c:622)
+[32m05/03 09:21:42.448[0m: [[33mupf[0m] [1;33mERROR[0m: Invalid packet [IP version:6, Packet Length:48] (../src/upf/gtp-path.c:622)
+[32m05/03 09:22:17.774[0m: [[33mupf[0m] [1;33mERROR[0m: Invalid packet [IP version:6, Packet Length:48] (../src/upf/gtp-path.c:622)
+[32m05/03 09:23:31.501[0m: [[33mupf[0m] [1;33mERROR[0m: Invalid packet [IP version:6, Packet Length:48] (../src/upf/gtp-path.c:622)

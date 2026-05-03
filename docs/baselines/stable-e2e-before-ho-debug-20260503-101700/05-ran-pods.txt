@@ -1,0 +1,5 @@
+NAME                         READY   STATUS    RESTARTS        AGE     IP            NODE       NOMINATED NODE   READINESS GATES
+multus-test                  1/1     Running   147 (27m ago)   60d     10.42.0.238   oran-lab   <none>           <none>
+oai-gnb-7cf99c884-kfpl5      1/1     Running   1 (7m8s ago)    7m13s   10.42.0.17    oran-lab   <none>           <none>
+oai-gnb-b-5567f858cc-9zp99   1/1     Running   10 (3m5s ago)   2d6h    10.42.0.232   oran-lab   <none>           <none>
+oai-nr-ue-659d56d964-ss566   1/1     Running   0               7m8s    10.42.0.18    oran-lab   <none>           <none>

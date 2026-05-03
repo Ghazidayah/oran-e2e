@@ -1,0 +1,15 @@
+NAME                               READY   STATUS    RESTARTS       AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+open5gs-amf-576f46dd9-qbtjg        1/1     Running   0              26m   10.42.0.14    oran-lab   <none>           <none>
+open5gs-ausf-5b9dfb8fb4-jd84m      1/1     Running   10 (15d ago)   28d   10.42.0.242   oran-lab   <none>           <none>
+open5gs-bsf-76f6b6b5c9-hvwrh       1/1     Running   10 (15d ago)   29d   10.42.0.239   oran-lab   <none>           <none>
+open5gs-mongodb-78599dfd8d-jq8lp   1/1     Running   45 (15d ago)   64d   10.42.0.3     oran-lab   <none>           <none>
+open5gs-nrf-7c878dd995-glj6m       1/1     Running   10 (15d ago)   28d   10.42.0.245   oran-lab   <none>           <none>
+open5gs-nssf-76cf657fdc-7fzvz      1/1     Running   10 (15d ago)   28d   10.42.0.249   oran-lab   <none>           <none>
+open5gs-pcf-6cfccfff98-hrn6p       1/1     Running   19 (13d ago)   28d   10.42.0.241   oran-lab   <none>           <none>
+open5gs-scp-85f5859c88-7544s       1/1     Running   10 (15d ago)   28d   10.42.0.247   oran-lab   <none>           <none>
+open5gs-sepp-6f946584cb-47xwd      1/1     Running   10 (15d ago)   29d   10.42.0.240   oran-lab   <none>           <none>
+open5gs-smf-747ddb55f9-kvx7q       1/1     Running   0              26m   10.42.0.12    oran-lab   <none>           <none>
+open5gs-udm-654984ccd4-2lk67       1/1     Running   10 (15d ago)   28d   10.42.0.243   oran-lab   <none>           <none>
+open5gs-udr-57fdbd6f94-w5q6z       1/1     Running   19 (13d ago)   28d   10.42.0.244   oran-lab   <none>           <none>
+open5gs-upf-5dcd7b5456-262wb       1/1     Running   0              26m   10.42.0.13    oran-lab   <none>           <none>
+open5gs-webui-f97cf6dcd-cg4sb      1/1     Running   9 (15d ago)    29d   10.42.0.246   oran-lab   <none>           <none>
