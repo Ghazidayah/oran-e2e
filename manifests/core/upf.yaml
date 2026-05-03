@@ -16,7 +16,7 @@ upf:
     client:
   gtpu:
     server:
-    - dev: net1
+    - address: 10.20.0.101
   session:
     -
       dev: ogstun

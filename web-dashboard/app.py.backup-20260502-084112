@@ -1,0 +1,534 @@
+import os
+import re
+import json
+import time
+import shlex
+import random
+import signal
+import subprocess
+from pathlib import Path
+from datetime import datetime
+from flask import Flask, render_template, jsonify, send_from_directory
+
+BASE_DIR = Path.home() / "oran-e2e-freeze"
+PROOF_DIR = Path.home() / "oran-proof"
+RUNS_DIR = PROOF_DIR / "web-dashboard-runs"
+RUNS_DIR.mkdir(parents=True, exist_ok=True)
+
+LAB_IP = os.environ.get("ORAN_LAB_IP", "192.168.1.142")
+APP_PORT = int(os.environ.get("ORAN_DASHBOARD_PORT", "18080"))
+GRAFANA_URL = f"http://{LAB_IP}:30300"
+PROMETHEUS_URL = f"http://{LAB_IP}:30090"
+
+LAST_OWNERSHIP_FILE = RUNS_DIR / "last-ownership.json"
+TRAFFIC_PROCS = {}
+
+app = Flask(__name__)
+
+def now_id():
+    return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+def run_cmd(cmd, timeout=20):
+    try:
+        p = subprocess.run(
+            cmd,
+            shell=True,
+            cwd=str(BASE_DIR),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+            executable="/bin/bash",
+        )
+        return {"ok": p.returncode == 0, "exit": p.returncode, "output": p.stdout.strip()}
+    except subprocess.TimeoutExpired as e:
+        out = e.stdout or ""
+        return {"ok": False, "exit": 124, "output": str(out).strip() + "\nTIMEOUT"}
+
+def kpods(namespace):
+    r = run_cmd(f"kubectl -n {shlex.quote(namespace)} get pods -o json", timeout=12)
+    if not r["ok"]:
+        return []
+    try:
+        return json.loads(r["output"]).get("items", [])
+    except Exception:
+        return []
+
+def pod_ready(item):
+    statuses = item.get("status", {}).get("containerStatuses", [])
+    if not statuses:
+        return False
+    return all(s.get("ready", False) for s in statuses)
+
+def pod_row(item):
+    meta = item.get("metadata", {})
+    status = item.get("status", {})
+    cs = status.get("containerStatuses", [])
+    restarts = sum(c.get("restartCount", 0) for c in cs)
+    return {
+        "name": meta.get("name", ""),
+        "phase": status.get("phase", ""),
+        "ready": pod_ready(item),
+        "ip": status.get("podIP", ""),
+        "node": status.get("hostIP", ""),
+        "restarts": restarts,
+        "age": meta.get("creationTimestamp", "")
+    }
+
+def find_ran_pods():
+    items = kpods("oran-ran")
+    gnb_a = ""
+    gnb_b = ""
+    ue = ""
+
+    for p in items:
+        name = p.get("metadata", {}).get("name", "")
+        if name.startswith("oai-gnb-b-"):
+            gnb_b = name
+        elif name.startswith("oai-gnb-"):
+            gnb_a = name
+        elif name.startswith("oai-nr-ue-"):
+            ue = name
+
+    return gnb_a, gnb_b, ue
+
+def find_ue_pod():
+    return find_ran_pods()[2]
+
+def exec_in_ue(script, timeout=90):
+    ue = find_ue_pod()
+    if not ue:
+        return {"ok": False, "exit": 1, "output": "No UE pod found"}
+    cmd = f"kubectl -n oran-ran exec {shlex.quote(ue)} -- sh -lc {shlex.quote(script)}"
+    return run_cmd(cmd, timeout=timeout)
+
+def get_ue_tunnel():
+    r = exec_in_ue("ip -o -4 addr show oaitun_ue1 2>/dev/null || true", timeout=10)
+    out = r["output"]
+    m = re.search(r"inet\s+([0-9.]+/\d+)", out)
+    return {
+        "present": "oaitun_ue1" in out,
+        "ip": m.group(1) if m else "",
+        "raw": out
+    }
+
+def parse_ping_loss(output):
+    m = re.search(r"(\d+(?:\.\d+)?)%\s+packet loss", output)
+    return m.group(1) + "%" if m else "unknown"
+
+def parse_throughput(output):
+    m = re.search(r"speed_download_Bps=([0-9.]+)", output)
+    if not m:
+        return "unknown"
+    bps = float(m.group(1)) * 8.0
+    mbps = bps / 1000000.0
+    return f"{mbps:.2f} Mbps"
+
+def create_run_dir(action):
+    d = RUNS_DIR / f"{now_id()}-{action}"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+def save_result(run_dir, action, result, extra=None):
+    out_file = run_dir / "output.log"
+    out_file.write_text(result.get("output", ""), encoding="utf-8", errors="ignore")
+    summary = {
+        "action": action,
+        "time": datetime.now().isoformat(timespec="seconds"),
+        "ok": result.get("ok", False),
+        "exit": result.get("exit", -1),
+        "run_dir": str(run_dir),
+        "log_file": "output.log",
+        "extra": extra or {}
+    }
+    (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return summary
+
+def latest_summaries(limit=8):
+    rows = []
+    for d in sorted(RUNS_DIR.glob("*"), reverse=True):
+        s = d / "summary.json"
+        if s.exists():
+            try:
+                rows.append(json.loads(s.read_text()))
+            except Exception:
+                pass
+        if len(rows) >= limit:
+            break
+    return rows
+
+def load_last_ownership():
+    if not LAST_OWNERSHIP_FILE.exists():
+        return {}
+    try:
+        return json.loads(LAST_OWNERSHIP_FILE.read_text())
+    except Exception:
+        return {}
+
+def run_ci_for_gnb(pod_name, label):
+    if not pod_name:
+        return {"label": label, "pod": "", "ok": False, "output": "pod not found"}
+
+    local_port = random.randint(21000, 25000)
+    pf_log = f"/tmp/oran_pf_{local_port}.log"
+
+    script = f"""
+set +e
+kubectl -n oran-ran port-forward pod/{shlex.quote(pod_name)} {local_port}:9090 > {pf_log} 2>&1 &
+PF=$!
+sleep 3
+echo "POD={pod_name}"
+echo "----- ci get_single_rnti -----"
+timeout 4 bash -lc 'printf "ci get_single_rnti\\r\\n" | nc 127.0.0.1 {local_port}'
+echo "----- ci fetch_du_by_ue_id 1 -----"
+timeout 4 bash -lc 'printf "ci fetch_du_by_ue_id 1\\r\\n" | nc 127.0.0.1 {local_port}'
+kill "$PF" 2>/dev/null || true
+sleep 1
+"""
+    r = run_cmd(script, timeout=18)
+    return {
+        "label": label,
+        "pod": pod_name,
+        "ok": r["ok"],
+        "exit": r["exit"],
+        "output": r["output"]
+    }
+
+def ownership_summary(data):
+    owner = "unknown"
+    active = 0
+    for key in ["gnb_a", "gnb_b"]:
+        out = data.get(key, {}).get("output", "")
+        if "single UE RNTI" in out and "connected to ue_id 1" in out:
+            active += 1
+            owner = key.replace("_", "-").upper()
+    return {"active_ues": active, "serving": owner}
+
+@app.route("/")
+def index():
+    return render_template(
+        "index.html",
+        grafana_url=GRAFANA_URL,
+        prometheus_url=PROMETHEUS_URL,
+        lab_ip=LAB_IP
+    )
+
+@app.route("/api/status")
+def api_status():
+    ran_items = kpods("oran-ran")
+    core_items = kpods("oran-core")
+    mon_items = kpods("monitoring")
+
+    ran = [pod_row(x) for x in ran_items if x.get("metadata", {}).get("name", "").startswith(("oai-gnb", "oai-nr-ue"))]
+    core = [pod_row(x) for x in core_items if x.get("metadata", {}).get("name", "").startswith(("open5gs-amf", "open5gs-smf", "open5gs-upf"))]
+    mon = [pod_row(x) for x in mon_items]
+
+    gnb_a, gnb_b, ue = find_ran_pods()
+    tunnel = get_ue_tunnel()
+    own = load_last_ownership()
+    own_sum = ownership_summary(own)
+
+    return jsonify({
+        "time": datetime.now().isoformat(timespec="seconds"),
+        "links": {
+            "grafana": GRAFANA_URL,
+            "prometheus": PROMETHEUS_URL
+        },
+        "pods": {
+            "gnb_a": gnb_a,
+            "gnb_b": gnb_b,
+            "ue": ue
+        },
+        "ran": ran,
+        "core": core,
+        "monitoring": mon,
+        "counts": {
+            "ran_ready": sum(1 for x in ran if x["ready"]),
+            "ran_total": len(ran),
+            "core_ready": sum(1 for x in core if x["ready"]),
+            "core_total": len(core),
+            "monitoring_ready": sum(1 for x in mon if x["ready"]),
+            "monitoring_total": len(mon),
+            "active_ues": own_sum["active_ues"],
+            "serving": own_sum["serving"]
+        },
+        "ue_tunnel": tunnel,
+        "traffic_active": list(TRAFFIC_PROCS.keys()),
+        "recent_runs": latest_summaries(6)
+    })
+
+@app.route("/api/ownership", methods=["POST"])
+def api_ownership():
+    run_dir = create_run_dir("ci-ownership")
+    gnb_a, gnb_b, ue = find_ran_pods()
+
+    data = {
+        "time": datetime.now().isoformat(timespec="seconds"),
+        "ue": ue,
+        "gnb_a": run_ci_for_gnb(gnb_a, "gNB-A"),
+        "gnb_b": run_ci_for_gnb(gnb_b, "gNB-B")
+    }
+
+    LAST_OWNERSHIP_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    out = json.dumps(data, indent=2)
+    summary = save_result(run_dir, "ci-ownership", {"ok": True, "exit": 0, "output": out}, ownership_summary(data))
+    return jsonify({"summary": summary, "ownership": data})
+
+@app.route("/api/action/<action>", methods=["POST"])
+def api_action(action):
+    run_dir = create_run_dir(action)
+
+    if action == "health":
+        cmd = """
+echo "===== RAN pods ====="
+kubectl -n oran-ran get pods -o wide
+echo
+echo "===== Core pods ====="
+kubectl -n oran-core get pods -o wide
+echo
+echo "===== Monitoring pods ====="
+kubectl -n monitoring get pods -o wide || true
+echo
+echo "===== Services ====="
+kubectl -n monitoring get svc -o wide || true
+"""
+        r = run_cmd(cmd, timeout=40)
+        summary = save_result(run_dir, action, r)
+        return jsonify({"summary": summary})
+
+    if action == "validate":
+        r = run_cmd("timeout 300 ./scripts/validate-e2e.sh", timeout=330)
+        summary = save_result(run_dir, action, r)
+        return jsonify({"summary": summary})
+
+    if action == "ping":
+        script = """
+echo "===== UE tunnel ====="
+ip addr show oaitun_ue1 || true
+echo
+echo "===== Ping DN gateway ====="
+ping -I oaitun_ue1 -c 5 10.45.0.1 || true
+echo
+echo "===== Ping internet ====="
+ping -I oaitun_ue1 -c 4 8.8.8.8 || true
+"""
+        r = exec_in_ue(script, timeout=60)
+        extra = {"packet_loss": parse_ping_loss(r["output"])}
+        summary = save_result(run_dir, action, r, extra)
+        return jsonify({"summary": summary})
+
+    if action == "throughput":
+        script = """
+echo "===== Throughput download test over oaitun_ue1 ====="
+echo "Target: Cloudflare speed test, 10 MB"
+if command -v curl >/dev/null 2>&1; then
+  curl -4 -L --interface oaitun_ue1 --connect-timeout 15 --max-time 90 \
+    -o /dev/null \
+    -w "http_code=%{http_code}\\ntime_total=%{time_total}\\nspeed_download_Bps=%{speed_download}\\nsize_download=%{size_download}\\n" \
+    "https://speed.cloudflare.com/__down?bytes=10000000"
+elif command -v wget >/dev/null 2>&1; then
+  time wget -O /dev/null "https://speed.cloudflare.com/__down?bytes=10000000"
+else
+  echo "Neither curl nor wget is available inside the UE pod."
+  exit 2
+fi
+"""
+        r = exec_in_ue(script, timeout=120)
+        extra = {"throughput": parse_throughput(r["output"])}
+        summary = save_result(run_dir, action, r, extra)
+        return jsonify({"summary": summary})
+
+    if action == "video_stream":
+        script = """
+echo "===== Video-like stream test over oaitun_ue1 ====="
+echo "Target: controlled 50 MB HTTP download"
+if command -v curl >/dev/null 2>&1; then
+  curl -4 -L --interface oaitun_ue1 --connect-timeout 15 --max-time 180 \
+    -o /dev/null \
+    -w "http_code=%{http_code}\\ntime_total=%{time_total}\\nspeed_download_Bps=%{speed_download}\\nsize_download=%{size_download}\\n" \
+    "https://speed.cloudflare.com/__down?bytes=50000000"
+else
+  echo "curl is not available inside the UE pod."
+  exit 2
+fi
+"""
+        r = exec_in_ue(script, timeout=220)
+        extra = {"throughput": parse_throughput(r["output"])}
+        summary = save_result(run_dir, action, r, extra)
+        return jsonify({"summary": summary})
+
+    if action in ["start_light", "start_heavy"]:
+        ue = find_ue_pod()
+        if not ue:
+            r = {"ok": False, "exit": 1, "output": "No UE pod found"}
+            summary = save_result(run_dir, action, r)
+            return jsonify({"summary": summary})
+
+        tag = "light" if action == "start_light" else "heavy"
+        log_file = run_dir / f"{tag}-traffic.log"
+
+        if action == "start_light":
+            loop = f"""
+while true; do
+  echo "===== $(date) light traffic ====="
+  kubectl -n oran-ran exec {shlex.quote(ue)} -- sh -lc 'ping -I oaitun_ue1 -c 3 10.45.0.1 || true'
+  sleep 5
+done
+"""
+        else:
+            loop = f"""
+while true; do
+  echo "===== $(date) heavy traffic ====="
+  kubectl -n oran-ran exec {shlex.quote(ue)} -- sh -lc 'curl -4 -L --interface oaitun_ue1 --connect-timeout 15 --max-time 120 -o /dev/null -w "speed_download_Bps=%{{speed_download}}\\n" "https://speed.cloudflare.com/__down?bytes=25000000" || true'
+  sleep 2
+done
+"""
+        f = open(log_file, "a")
+        proc = subprocess.Popen(loop, shell=True, cwd=str(BASE_DIR), stdout=f, stderr=subprocess.STDOUT, executable="/bin/bash", preexec_fn=os.setsid)
+        TRAFFIC_PROCS[tag] = proc
+        r = {"ok": True, "exit": 0, "output": f"Started {tag} traffic with local PID {proc.pid}. Log: {log_file}"}
+        summary = save_result(run_dir, action, r, {"pid": proc.pid, "traffic": tag})
+        return jsonify({"summary": summary})
+
+    if action == "stop_traffic":
+        stopped = []
+        for tag, proc in list(TRAFFIC_PROCS.items()):
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                stopped.append({"tag": tag, "pid": proc.pid})
+            except Exception:
+                pass
+            TRAFFIC_PROCS.pop(tag, None)
+        r = {"ok": True, "exit": 0, "output": json.dumps({"stopped": stopped}, indent=2)}
+        summary = save_result(run_dir, action, r, {"stopped": stopped})
+        return jsonify({"summary": summary})
+
+    r = {"ok": False, "exit": 1, "output": f"Unknown action: {action}"}
+    summary = save_result(run_dir, action, r)
+    return jsonify({"summary": summary}), 400
+
+
+
+LAST_NET_SAMPLE = {
+    "t": None,
+    "rx": None,
+    "tx": None
+}
+
+def read_ue_net_counters():
+    ue = find_ue_pod()
+    if not ue:
+        return {
+            "ok": False,
+            "error": "No UE pod found",
+            "ue": "",
+            "rx_bytes": 0,
+            "tx_bytes": 0,
+            "t": time.time()
+        }
+
+    script = """
+if [ -d /sys/class/net/oaitun_ue1 ]; then
+  date +%s
+  cat /sys/class/net/oaitun_ue1/statistics/rx_bytes
+  cat /sys/class/net/oaitun_ue1/statistics/tx_bytes
+  ip -o -4 addr show oaitun_ue1 2>/dev/null | awk '{print $4}' || true
+else
+  echo "0"
+  echo "0"
+  echo "0"
+fi
+"""
+    r = exec_in_ue(script, timeout=12)
+    lines = [x.strip() for x in r["output"].splitlines() if x.strip()]
+
+    try:
+        ts = float(lines[0])
+        rx = int(lines[1])
+        tx = int(lines[2])
+        ip = lines[3] if len(lines) > 3 else ""
+        return {
+            "ok": True,
+            "ue": ue,
+            "t": ts,
+            "rx_bytes": rx,
+            "tx_bytes": tx,
+            "ip": ip,
+            "raw": r["output"]
+        }
+    except Exception:
+        return {
+            "ok": False,
+            "error": "Could not parse UE tunnel counters",
+            "ue": ue,
+            "rx_bytes": 0,
+            "tx_bytes": 0,
+            "t": time.time(),
+            "raw": r["output"]
+        }
+
+@app.route("/api/live_metrics")
+def api_live_metrics():
+    global LAST_NET_SAMPLE
+
+    current = read_ue_net_counters()
+
+    rx_mbps = 0.0
+    tx_mbps = 0.0
+
+    if current.get("ok") and LAST_NET_SAMPLE["t"] is not None:
+        dt = max(current["t"] - LAST_NET_SAMPLE["t"], 0.001)
+        drx = max(current["rx_bytes"] - LAST_NET_SAMPLE["rx"], 0)
+        dtx = max(current["tx_bytes"] - LAST_NET_SAMPLE["tx"], 0)
+
+        rx_mbps = (drx * 8.0) / dt / 1000000.0
+        tx_mbps = (dtx * 8.0) / dt / 1000000.0
+
+    if current.get("ok"):
+        LAST_NET_SAMPLE = {
+            "t": current["t"],
+            "rx": current["rx_bytes"],
+            "tx": current["tx_bytes"]
+        }
+
+    return jsonify({
+        "time": datetime.now().isoformat(timespec="seconds"),
+        "ok": current.get("ok", False),
+        "ue": current.get("ue", ""),
+        "ip": current.get("ip", ""),
+        "rx_bytes": current.get("rx_bytes", 0),
+        "tx_bytes": current.get("tx_bytes", 0),
+        "rx_mbps": round(rx_mbps, 3),
+        "tx_mbps": round(tx_mbps, 3),
+        "error": current.get("error", "")
+    })
+
+@app.route("/metrics")
+def prometheus_metrics():
+    current = read_ue_net_counters()
+    rx = current.get("rx_bytes", 0)
+    tx = current.get("tx_bytes", 0)
+    ok = 1 if current.get("ok") else 0
+
+    body = f"""# HELP oran_ue_tunnel_up UE tunnel oaitun_ue1 status
+# TYPE oran_ue_tunnel_up gauge
+oran_ue_tunnel_up {ok}
+# HELP oran_ue_rx_bytes UE tunnel received bytes
+# TYPE oran_ue_rx_bytes counter
+oran_ue_rx_bytes {rx}
+# HELP oran_ue_tx_bytes UE tunnel transmitted bytes
+# TYPE oran_ue_tx_bytes counter
+oran_ue_tx_bytes {tx}
+"""
+    return body, 200, {"Content-Type": "text/plain; version=0.0.4"}
+
+@app.route("/api/runs")
+def api_runs():
+    return jsonify(latest_summaries(20))
+
+@app.route("/logs/<path:run_name>/<path:file_name>")
+def logs(run_name, file_name):
+    return send_from_directory(RUNS_DIR / run_name, file_name)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=APP_PORT)

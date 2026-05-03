@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-gnb-b
+  namespace: oran-ran
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oai-gnb-b
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: oai-gnb-b
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.111/24"]},{"name":"n3-net","ips":["10.20.0.111/24"]}]'
+    spec:
+      containers:
+      - name: oai-gnb-b
+        image: oaisoftwarealliance/oai-gnb:2025.w45
+        imagePullPolicy: IfNotPresent
+        command:
+        - /opt/oai-gnb/bin/nr-softmodem
+        args:
+        - -O
+        - /opt/oai-gnb/etc/gnb.conf
+        - -E
+        - --rfsim
+        - --rfsimulator.serveraddr
+        - 10.43.44.158
+        - --rfsimulator.serverport
+        - "4043"
+        - --log_config.global_log_options
+        - level,nocolor,time
+        env:
+        - name: ASAN_OPTIONS
+          value: detect_leaks=0
+        securityContext:
+          capabilities:
+            add:
+            - SYS_NICE
+        volumeMounts:
+        - mountPath: /opt/oai-gnb/etc/gnb.conf
+          name: gnb-config
+          subPath: gnb.conf
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: gnb-config
+        configMap:
+          name: oai-gnb-b-config

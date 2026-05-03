@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>O-RAN Lab Control Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      margin: 0;
+      background: #020617;
+      color: #e5e7eb;
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      padding: 24px 32px;
+      background: #07111f;
+      border-bottom: 1px solid #1e3a5f;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    button, a.button {
+      background: #1d4ed8;
+      color: white;
+      border: 1px solid #3b82f6;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    button.secondary, a.secondary {
+      background: #0f172a;
+      border-color: #334155;
+    }
+
+    button.danger {
+      background: #991b1b;
+      border-color: #ef4444;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: auto;
+      padding: 28px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .cards {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .two {
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    }
+
+    .card {
+      background: #0f1b2d;
+      border: 1px solid #25405f;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    }
+
+    .card h2, .card h3 {
+      margin-top: 0;
+    }
+
+    .metric {
+      font-size: 34px;
+      font-weight: bold;
+      margin: 14px 0 6px;
+    }
+
+    .ok {
+      color: #4ade80;
+    }
+
+    .warn {
+      color: #facc15;
+    }
+
+    .bad {
+      color: #fb7185;
+    }
+
+    .small {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 9px 8px;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    th {
+      color: #93c5fd;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: 1fr 120px 1fr 120px 1fr;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .arrow {
+      text-align: center;
+      color: #60a5fa;
+      font-weight: bold;
+    }
+
+    pre {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 12px;
+      overflow: auto;
+      min-height: 80px;
+      white-space: pre-wrap;
+    }
+
+    canvas {
+      width: 100%;
+      height: 260px;
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>O-RAN Lab Control Platform</h1>
+    <div class="subtitle">Live validation dashboard for Open5GS, OAI RAN, UE tunnel, traffic, monitoring, and handover readiness.</div>
+  </div>
+  <div class="buttons">
+    <button onclick="reloadStatus()">Reload status</button>
+    <a id="grafanaLink" class="button secondary" target="_blank">Open Grafana</a>
+    <a id="prometheusLink" class="button secondary" target="_blank">Open Prometheus</a>
+  </div>
+</header>
+
+<main>
+  <section class="grid cards">
+    <div class="card">
+      <h3>5G Core</h3>
+      <div id="coreMetric" class="metric">-</div>
+      <div class="small">AMF / SMF / UPF readiness</div>
+    </div>
+
+    <div class="card">
+      <h3>RAN + UE</h3>
+      <div id="ranMetric" class="metric">-</div>
+      <div class="small">gNB-A / gNB-B / NR-UE readiness</div>
+    </div>
+
+    <div class="card">
+      <h3>Monitoring</h3>
+      <div id="monitoringMetric" class="metric">-</div>
+      <div class="small">Prometheus / Grafana stack</div>
+    </div>
+
+    <div class="card">
+      <h3>UE Tunnel</h3>
+      <div id="ueMetric" class="metric">-</div>
+      <div class="small">oaitun_ue1 IP address</div>
+    </div>
+  </section>
+
+  <section class="card section">
+    <h3>Validation Control Buttons</h3>
+    <div class="grid cards">
+      <div>
+        <h3>CI ownership check</h3>
+        <p class="small">Checks which gNB currently owns UE ID 1.</p>
+        <button onclick="runAction('ownership')">Run ownership</button>
+      </div>
+      <div>
+        <h3>E2E validation</h3>
+        <p class="small">Runs validate-e2e.sh and stores evidence.</p>
+        <button onclick="runAction('e2e')">Run E2E</button>
+      </div>
+      <div>
+        <h3>Ping test</h3>
+        <p class="small">Tests DN gateway and internet through oaitun_ue1.</p>
+        <button onclick="runAction('ping')">Run ping</button>
+      </div>
+      <div>
+        <h3>Throughput test</h3>
+        <p class="small">Generates traffic and estimates Mbps.</p>
+        <button onclick="runAction('throughput')">Run throughput</button>
+      </div>
+      <div>
+        <h3>Video-like stream</h3>
+        <p class="small">Starts controlled background download traffic.</p>
+        <button onclick="runAction('stream')">Run stream test</button>
+      </div>
+      <div>
+        <h3>Light traffic</h3>
+        <p class="small">Starts low-rate traffic for stability observation.</p>
+        <button onclick="runAction('light_traffic')">Start light</button>
+      </div>
+      <div>
+        <h3>Heavy traffic</h3>
+        <p class="small">Starts stronger test traffic.</p>
+        <button onclick="runAction('heavy_traffic')">Start heavy</button>
+      </div>
+      <div>
+        <h3>Stop traffic</h3>
+        <p class="small">Stops dashboard-started background traffic.</p>
+        <button class="danger" onclick="runAction('stop_traffic')">Stop traffic</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid two section">
+    <div class="card">
+      <h3>RAN Pods</h3>
+      <table>
+        <thead>
+          <tr><th>Pod</th><th>Ready</th><th>IP</th><th>Restarts</th></tr>
+        </thead>
+        <tbody id="ranTable"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Core Pods</h3>
+      <table>
+        <thead>
+          <tr><th>Pod</th><th>Ready</th><th>IP</th><th>Restarts</th></tr>
+        </thead>
+        <tbody id="coreTable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card section">
+    <h3>Architecture</h3>
+    <div class="architecture">
+      <div class="card">
+        <h3>Cloud Infrastructure</h3>
+        <div class="small">K3s Kubernetes node</div>
+        <div class="small">Multus N2/N3 networks</div>
+        <div class="small">Monitoring namespace</div>
+      </div>
+      <div class="arrow">N2 / N3</div>
+      <div class="card">
+        <h3>5G Core</h3>
+        <div class="small">Open5GS AMF</div>
+        <div class="small">Open5GS SMF</div>
+        <div class="small">Open5GS UPF</div>
+        <div class="small">DNN: oai</div>
+      </div>
+      <div class="arrow">NGAP / GTP-U</div>
+      <div class="card">
+        <h3>RAN and UE</h3>
+        <div class="small">OAI gNB-A PCI 0</div>
+        <div class="small">OAI gNB-B PCI 1</div>
+        <div class="small">OAI NR-UE</div>
+        <div class="small">RFsim socket</div>
+      </div>
+    </div>
+    <p class="small">
+      Current project state: E2E baseline is recoverable. N2 handover trigger path works, but true handover remains under debug because target-side RA/Msg3 fails.
+    </p>
+  </section>
+
+  <section class="card section">
+    <h3>Real-Time UE Data Transfer</h3>
+    <p class="small">Measured from UE tunnel interface oaitun_ue1. Start traffic to make this graph move.</p>
+    <canvas id="trafficCanvas" width="1000" height="260"></canvas>
+    <div class="grid cards section">
+      <div class="card">
+        <h3>Download RX</h3>
+        <div id="rxMbps" class="metric ok">0.000 Mbps</div>
+      </div>
+      <div class="card">
+        <h3>Upload TX</h3>
+        <div id="txMbps" class="metric">0.000 Mbps</div>
+      </div>
+      <div class="card">
+        <h3>UE tunnel IP</h3>
+        <div id="ueIpBox" class="metric">-</div>
+      </div>
+      <div class="card">
+        <h3>Total RX / TX</h3>
+        <div id="bytesBox" class="metric">-</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid two section">
+    <div class="card">
+      <h3>Latest Action Output</h3>
+      <pre id="actionOutput">Ready.</pre>
+    </div>
+
+    <div class="card">
+      <h3>Recent Evidence Runs</h3>
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Action</th><th>Status</th><th>Extra</th></tr>
+        </thead>
+        <tbody id="runsTable"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+let rxHistory = [];
+let txHistory = [];
+
+function clsReady(value, total) {
+  if (value === total && total > 0) return "ok";
+  if (value > 0) return "warn";
+  return "bad";
+}
+
+function podRows(items) {
+  if (!items || items.length === 0) {
+    return '<tr><td colspan="4">No data</td></tr>';
+  }
+
+  return items.map(p => `
+    <tr>
+      <td>${p.name || "-"}</td>
+      <td class="${p.ready ? "ok" : "bad"}">${p.ready ? "READY" : "NOT READY"}</td>
+      <td>${p.ip || "-"}</td>
+      <td>${p.restarts ?? "-"}</td>
+    </tr>
+  `).join("");
+}
+
+async function reloadStatus() {
+  try {
+    const res = await fetch("/api/status?t=" + Date.now());
+    const data = await res.json();
+
+    const c = data.counts || {};
+
+    document.getElementById("coreMetric").textContent = `${c.core_ready ?? 0}/${c.core_total ?? 0}`;
+    document.getElementById("coreMetric").className = "metric " + clsReady(c.core_ready ?? 0, c.core_total ?? 0);
+
+    document.getElementById("ranMetric").textContent = `${c.ran_ready ?? 0}/${c.ran_total ?? 0}`;
+    document.getElementById("ranMetric").className = "metric " + clsReady(c.ran_ready ?? 0, c.ran_total ?? 0);
+
+    document.getElementById("monitoringMetric").textContent = `${c.monitoring_ready ?? 0}/${c.monitoring_total ?? 0}`;
+    document.getElementById("monitoringMetric").className = "metric " + clsReady(c.monitoring_ready ?? 0, c.monitoring_total ?? 0);
+
+    document.getElementById("ueMetric").textContent = c.active_ues ? `${c.active_ues} UE` : "0 UE";
+    document.getElementById("ueMetric").className = c.active_ues > 0 ? "metric ok" : "metric warn";
+
+    document.getElementById("ranTable").innerHTML = podRows(data.ran);
+    document.getElementById("coreTable").innerHTML = podRows(data.core);
+
+    if (data.links) {
+      document.getElementById("grafanaLink").href = data.links.grafana;
+      document.getElementById("prometheusLink").href = data.links.prometheus;
+    }
+
+    if (data.recent_runs) {
+      document.getElementById("runsTable").innerHTML = data.recent_runs.map(r => `
+        <tr>
+          <td>${r.time || "-"}</td>
+          <td>${r.action || "-"}</td>
+          <td>${r.status || "-"}</td>
+          <td>${r.extra || "-"}</td>
+        </tr>
+      `).join("");
+    }
+  } catch (err) {
+    document.getElementById("actionOutput").textContent = "Status reload failed: " + err;
+  }
+}
+
+async function loadMetrics() {
+  try {
+    const res = await fetch("/api/live_metrics?t=" + Date.now());
+    const m = await res.json();
+
+    document.getElementById("rxMbps").textContent = `${Number(m.rx_mbps || 0).toFixed(3)} Mbps`;
+    document.getElementById("txMbps").textContent = `${Number(m.tx_mbps || 0).toFixed(3)} Mbps`;
+    document.getElementById("ueIpBox").textContent = m.ip || "-";
+    document.getElementById("bytesBox").textContent = `${m.rx_bytes || 0} / ${m.tx_bytes || 0}`;
+
+    if (m.ip) {
+      document.getElementById("ueMetric").textContent = m.ip;
+      document.getElementById("ueMetric").className = "metric ok";
+    }
+
+    rxHistory.push(Number(m.rx_mbps || 0));
+    txHistory.push(Number(m.tx_mbps || 0));
+
+    if (rxHistory.length > 60) rxHistory.shift();
+    if (txHistory.length > 60) txHistory.shift();
+
+    drawGraph();
+  } catch (err) {
+    console.log("metrics error", err);
+  }
+}
+
+function drawGraph() {
+  const canvas = document.getElementById("trafficCanvas");
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#020617";
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.strokeStyle = "#1e293b";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = (h / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  const all = rxHistory.concat(txHistory);
+  const max = Math.max(0.1, ...all);
+
+  function line(data, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+
+    data.forEach((v, i) => {
+      const x = (w / 59) * i;
+      const y = h - ((v / max) * (h - 20)) - 10;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+
+    ctx.stroke();
+  }
+
+  line(rxHistory, "#22c55e");
+  line(txHistory, "#60a5fa");
+
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "14px Arial";
+  ctx.fillText("RX Mbps", 18, 24);
+  ctx.fillStyle = "#22c55e";
+  ctx.fillRect(88, 14, 18, 4);
+
+  ctx.fillStyle = "#94a3b8";
+  ctx.fillText("TX Mbps", 130, 24);
+  ctx.fillStyle = "#60a5fa";
+  ctx.fillRect(200, 14, 18, 4);
+}
+
+async function runAction(action) {
+  const out = document.getElementById("actionOutput");
+  out.textContent = "Running " + action + "...";
+
+  try {
+    let res = await fetch("/api/action/" + action, { method: "POST" });
+
+    if (!res.ok) {
+      res = await fetch("/api/run/" + action, { method: "POST" });
+    }
+
+    const data = await res.json();
+    out.textContent = data.output || JSON.stringify(data, null, 2);
+    reloadStatus();
+  } catch (err) {
+    out.textContent = "Action failed: " + err;
+  }
+}
+
+reloadStatus();
+loadMetrics();
+
+setInterval(reloadStatus, 10000);
+setInterval(loadMetrics, 2000);
+</script>
+</body>
+</html>

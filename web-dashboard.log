@@ -1,0 +1,56 @@
+nohup: ignoring input
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:18080
+ * Running on http://192.168.1.142:18080
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [02/May/2026 05:10:53] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:10:53] "GET /static/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:10:53] "GET /static/app.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:10:53] "GET /api/evidence HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:10:53] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [02/May/2026 05:10:53] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:10:53] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:10:53] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [02/May/2026 05:10:53] "[36mGET /static/app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [02/May/2026 05:10:53] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [02/May/2026 05:10:53] "GET /api/evidence HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:10:53] "[36mGET /static/app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [02/May/2026 05:10:53] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:10:56] "GET / HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:10:56] "GET /static/style.css HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:10:56] "GET /static/app.js HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:10:57] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:10:57] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.1.142 - - [02/May/2026 05:10:57] "GET / HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:10:57] "GET / HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:10:57] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+192.168.1.142 - - [02/May/2026 05:10:57] "[36mGET /static/app.js HTTP/1.1[0m" 304 -
+192.168.1.142 - - [02/May/2026 05:10:57] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+192.168.1.142 - - [02/May/2026 05:10:57] "[36mGET /static/app.js HTTP/1.1[0m" 304 -
+192.168.1.142 - - [02/May/2026 05:10:57] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:10:57] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:11:22] "GET /api/status HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:11:22] "GET /api/status HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:11:38] "GET /api/status HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:11:38] "GET /api/status HTTP/1.1" 200 -
+127.0.0.1 - - [02/May/2026 05:11:38] "GET /api/status HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:11:38] "GET /api/status HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:11:38] "GET /api/status HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:11:48] "POST /api/validate HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:11:48] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:12:03] "GET /api/status HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:12:24] "GET /api/status HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:13:02] "GET /api/logs?target=smf&since=10m HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:13:05] "GET /api/logs?target=upf&since=10m HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:13:07] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:13:09] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:13:25] "POST /api/handover HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:13:25] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:13:54] "GET /api/status HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:16:24] "POST /api/validate HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:16:24] "GET /api/evidence HTTP/1.1" 200 -
+192.168.1.142 - - [02/May/2026 05:16:46] "GET /api/status HTTP/1.1" 200 -
+/home/ghazi/oran-e2e-freeze/web-dashboard/run-dashboard.sh: line 11: 1027439 Killed                  python app.py
