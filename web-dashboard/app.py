@@ -474,6 +474,140 @@ def action_stop_traffic():
     return save_run("stop_traffic", "echo 'No background traffic process active.'; exit 0", timeout=10)
 
 
+def action_report():
+    cmd = r'''
+set -u
+
+echo "# O-RAN Lab Dashboard Report"
+echo
+echo "Generated: $(date -Iseconds)"
+echo "Host: $(hostname)"
+echo
+
+echo "## Kubernetes node"
+kubectl get nodes -o wide || true
+echo
+
+echo "## Core pods"
+kubectl -n oran-core get pods -o wide | egrep 'open5gs-(amf|smf|upf)|NAME' || true
+echo
+
+echo "## RAN pods"
+kubectl -n oran-ran get pods -o wide | egrep 'oai-gnb|oai-nr-ue|NAME' || true
+echo
+
+UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+GNB_A_POD=$(kubectl -n oran-ran get pod -o name 2>/dev/null | grep '^pod/oai-gnb-' | grep -v '^pod/oai-gnb-b-' | head -n1 | cut -d/ -f2)
+GNB_B_POD=$(kubectl -n oran-ran get pod -o name 2>/dev/null | grep '^pod/oai-gnb-b-' | head -n1 | cut -d/ -f2)
+
+echo "## Selected pods"
+echo "UE_POD=$UE_POD"
+echo "GNB_A_POD=$GNB_A_POD"
+echo "GNB_B_POD=$GNB_B_POD"
+echo
+
+echo "## UE tunnel and route"
+if [ -n "$UE_POD" ]; then
+  kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip addr show oaitun_ue1; ip route' || true
+else
+  echo "UE pod not found"
+fi
+echo
+
+echo "## Quick user-plane checks"
+if [ -n "$UE_POD" ]; then
+  echo "DN gateway ping:"
+  kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -c 2 10.45.0.1' || true
+  echo
+  echo "Internet ping:"
+  kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -c 2 8.8.8.8' || true
+else
+  echo "Skipped pings because UE pod was not found"
+fi
+echo
+
+echo "## Recent AMF registration hints"
+AMF_POD=$(kubectl -n oran-core get pod -o name 2>/dev/null | grep '^pod/open5gs-amf-' | head -n1 | cut -d/ -f2)
+if [ -n "$AMF_POD" ]; then
+  kubectl -n oran-core logs "$AMF_POD" --tail=120 2>/dev/null | egrep -i 'Registration complete|imsi|ngap|ran|ue' | tail -40 || true
+else
+  echo "AMF pod not found"
+fi
+echo
+
+echo "## Recent SMF session hints"
+SMF_POD=$(kubectl -n oran-core get pod -o name 2>/dev/null | grep '^pod/open5gs-smf-' | head -n1 | cut -d/ -f2)
+if [ -n "$SMF_POD" ]; then
+  kubectl -n oran-core logs "$SMF_POD" --tail=120 2>/dev/null | egrep -i 'session|dnn|10\.45\.0\.2|imsi|created|pdu' | tail -40 || true
+else
+  echo "SMF pod not found"
+fi
+echo
+
+echo "## Recent dashboard runs"
+find "$HOME/oran-proof/web-dashboard-runs" -maxdepth 2 -name output.log 2>/dev/null | sort | tail -12 || true
+
+exit 0
+'''
+    return save_run("report", cmd, timeout=120)
+
+
+def action_traffic_profile(action_name, gw_count, internet_count, packet_size, http_timeout):
+    timeout = int(gw_count) + int(internet_count) + int(http_timeout) + 90
+
+    cmd = f'''
+set -u
+
+echo "PROFILE={action_name}"
+echo "GW_COUNT={gw_count}"
+echo "INTERNET_COUNT={internet_count}"
+echo "PACKET_SIZE={packet_size}"
+echo "HTTP_TIMEOUT={http_timeout}"
+echo
+
+UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{{.items[0].metadata.name}}' 2>/dev/null || true)
+echo "UE_POD=$UE_POD"
+
+if [ -z "$UE_POD" ]; then
+  echo "UE pod not found"
+  exit 1
+fi
+
+echo
+echo "===== before traffic ====="
+kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip -s link show oaitun_ue1 || true' 2>/dev/null || true
+
+echo
+echo "===== DN gateway traffic ====="
+kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -s {packet_size} -c {gw_count} 10.45.0.1' || true
+
+echo
+echo "===== internet traffic ====="
+kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -s {packet_size} -c {internet_count} 8.8.8.8' || true
+
+echo
+echo "===== HTTP download attempt ====="
+kubectl -n oran-ran exec "$UE_POD" -- sh -c '
+if command -v curl >/dev/null 2>&1; then
+  timeout {http_timeout} curl --interface oaitun_ue1 -L --max-time {http_timeout} -o /tmp/oran-traffic-test.bin http://speedtest.tele2.net/10MB.zip || true
+  ls -lh /tmp/oran-traffic-test.bin 2>/dev/null || true
+elif command -v wget >/dev/null 2>&1; then
+  timeout {http_timeout} wget -T {http_timeout} -O /tmp/oran-traffic-test.bin http://speedtest.tele2.net/10MB.zip || true
+  ls -lh /tmp/oran-traffic-test.bin 2>/dev/null || true
+else
+  echo "No curl/wget in UE pod. Used ping traffic only."
+fi
+' 2>&1 || true
+
+echo
+echo "===== after traffic ====="
+kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip -s link show oaitun_ue1 || true' 2>/dev/null || true
+
+exit 0
+'''
+    return save_run(action_name, cmd, timeout=timeout)
+
+
 @app.route("/api/action/<action>", methods=["POST"])
 @app.route("/api/run/<action>", methods=["POST"])
 def api_action(action):
@@ -483,8 +617,14 @@ def api_action(action):
         return action_ping()
     if action == "stream":
         return action_stream()
-    if action in ("throughput", "light_traffic", "heavy_traffic"):
-        return action_stream()
+    if action == "light_traffic":
+        return action_traffic_profile("light_traffic", gw_count=10, internet_count=10, packet_size=300, http_timeout=8)
+    if action == "throughput":
+        return action_traffic_profile("throughput", gw_count=30, internet_count=30, packet_size=1200, http_timeout=15)
+    if action == "heavy_traffic":
+        return action_traffic_profile("heavy_traffic", gw_count=100, internet_count=80, packet_size=1200, http_timeout=30)
+    if action == "report":
+        return action_report()
     if action == "e2e":
         return action_e2e()
     if action == "stop_traffic":
