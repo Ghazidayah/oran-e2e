@@ -1005,5 +1005,311 @@ setInterval(loadMetrics, 2000);
 </script>
 <!-- dashboard-action-feedback-script:end -->
 
+
+<!-- MULTI_UE_UI_BLOCK_START -->
+<style>
+  .multi-ue-card {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(15, 23, 42, 0.04);
+  }
+
+  .multi-ue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+
+  .multi-ue-header h2 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+
+  .multi-ue-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .multi-ue-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.75rem;
+    font-size: 0.92rem;
+  }
+
+  .multi-ue-table th,
+  .multi-ue-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .multi-ue-badge {
+    display: inline-block;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .multi-ue-attached {
+    background: rgba(34, 197, 94, 0.15);
+    color: #15803d;
+  }
+
+  .multi-ue-running {
+    background: rgba(59, 130, 246, 0.15);
+    color: #1d4ed8;
+  }
+
+  .multi-ue-stopped {
+    background: rgba(148, 163, 184, 0.18);
+    color: #475569;
+  }
+
+  .multi-ue-actions {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .multi-ue-actions button,
+  .multi-ue-controls button {
+    cursor: pointer;
+    border: 1px solid rgba(148, 163, 184, 0.65);
+    border-radius: 9px;
+    padding: 0.35rem 0.7rem;
+    min-width: 64px;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .multi-ue-controls button {
+    min-width: 78px;
+  }
+
+  .multi-ue-controls select {
+    color: #0f172a !important;
+    background: #f8fafc !important;
+    border-radius: 6px;
+    padding: 0.25rem;
+  }
+
+  .multi-ue-actions button:disabled,
+  .multi-ue-controls button:disabled {
+    background: #334155 !important;
+    color: #cbd5e1 !important;
+    opacity: 0.75;
+    cursor: not-allowed;
+  }
+
+  .multi-ue-output {
+    margin-top: 0.75rem;
+    white-space: pre-wrap;
+    max-height: 260px;
+    overflow: auto;
+    padding: 0.75rem;
+    border-radius: 10px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+  }
+</style>
+
+<section class="multi-ue-card">
+  <div class="multi-ue-header">
+    <div>
+      <h2>Multi-UE Control</h2>
+      <div id="multiUeSummary">Loading UE status...</div>
+    </div>
+
+    <div class="multi-ue-controls">
+      <label for="desiredUeCount">Desired active UEs</label>
+      <select id="desiredUeCount">
+        <option value="1">1 UE</option>
+        <option value="2">2 UEs</option>
+        <option value="3">3 UEs</option>
+        <option value="4">4 UEs</option>
+        <option value="5">5 UEs</option>
+      </select>
+      <button type="button" onclick="applyDesiredUes()">Apply</button>
+      <button type="button" onclick="refreshMultiUes()">Refresh</button>
+    </div>
+  </div>
+
+  <table class="multi-ue-table">
+    <thead>
+      <tr>
+        <th>UE</th>
+        <th>IMSI</th>
+        <th>Pod</th>
+        <th>Tunnel IP</th>
+        <th>Status</th>
+        <th>RX/TX bytes</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="multiUeTableBody">
+      <tr>
+        <td colspan="7">Loading...</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <pre id="multiUeOutput" class="multi-ue-output">Multi-UE action output will appear here.</pre>
+</section>
+
+<script>
+  let multiUeBusy = false;
+
+  function ueBadge(ue) {
+    if (ue.attached) {
+      return '<span class="multi-ue-badge multi-ue-attached">Attached</span>';
+    }
+    if (ue.ready) {
+      return '<span class="multi-ue-badge multi-ue-running">Running</span>';
+    }
+    return '<span class="multi-ue-badge multi-ue-stopped">Stopped</span>';
+  }
+
+  function setMultiUeBusy(isBusy) {
+    multiUeBusy = isBusy;
+    document.querySelectorAll('[data-multi-ue-button="true"]').forEach((button) => {
+      button.disabled = isBusy;
+    });
+  }
+
+  function setMultiUeOutput(text) {
+    const output = document.getElementById('multiUeOutput');
+    if (output) {
+      output.textContent = text || '';
+    }
+  }
+
+  async function refreshMultiUes() {
+    try {
+      const response = await fetch('/api/ues');
+      const data = await response.json();
+
+      const summary = document.getElementById('multiUeSummary');
+      const tbody = document.getElementById('multiUeTableBody');
+
+      if (!data.ok) {
+        summary.textContent = 'Failed to load UE status';
+        tbody.innerHTML = '<tr><td colspan="7">Failed to load UE status</td></tr>';
+        return;
+      }
+
+      summary.textContent = `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running`;
+
+      const desiredSelect = document.getElementById('desiredUeCount');
+      if (desiredSelect && data.attached_count >= 1) {
+        desiredSelect.value = String(data.attached_count);
+      }
+
+      tbody.innerHTML = data.ues.map((ue) => {
+        const pod = ue.pod || '-';
+        const tunnelIp = ue.tunnel_ip || '-';
+        const bytes = `${ue.rx_bytes || 0} / ${ue.tx_bytes || 0}`;
+
+        const startDisabled = ue.ready ? 'disabled' : '';
+        const stopDisabled = ue.name === 'ue1' ? 'disabled' : (!ue.ready ? 'disabled' : '');
+        const pingDisabled = ue.attached ? '' : 'disabled';
+
+        return `
+          <tr>
+            <td><strong>${ue.name}</strong></td>
+            <td>${ue.imsi}</td>
+            <td>${pod}</td>
+            <td>${tunnelIp}</td>
+            <td>${ueBadge(ue)}</td>
+            <td>${bytes}</td>
+            <td>
+              <div class="multi-ue-actions">
+                <button data-multi-ue-button="true" ${startDisabled} onclick="startUe('${ue.name}')">Start</button>
+                <button data-multi-ue-button="true" ${stopDisabled} onclick="stopUe('${ue.name}')">Stop</button>
+                <button data-multi-ue-button="true" ${pingDisabled} onclick="pingUe('${ue.name}')">Ping</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } catch (error) {
+      setMultiUeOutput(`Failed to refresh UEs: ${error}`);
+    }
+  }
+
+  async function multiUePost(url, label) {
+    if (multiUeBusy) return;
+
+    setMultiUeBusy(true);
+    setMultiUeOutput(`${label}...`);
+
+    try {
+      const response = await fetch(url, { method: 'POST' });
+      const data = await response.json();
+
+      setMultiUeOutput(JSON.stringify(data, null, 2));
+      await refreshMultiUes();
+    } catch (error) {
+      setMultiUeOutput(`${label} failed: ${error}`);
+    } finally {
+      setMultiUeBusy(false);
+    }
+  }
+
+  async function startUe(ueName) {
+    await multiUePost(`/api/ue/${ueName}/start`, `Starting ${ueName}`);
+  }
+
+  async function stopUe(ueName) {
+    await multiUePost(`/api/ue/${ueName}/stop`, `Stopping ${ueName}`);
+  }
+
+  async function pingUe(ueName) {
+    await multiUePost(`/api/ue/${ueName}/ping`, `Pinging ${ueName}`);
+  }
+
+  async function applyDesiredUes() {
+    if (multiUeBusy) return;
+
+    const count = Number(document.getElementById('desiredUeCount').value);
+
+    setMultiUeBusy(true);
+    setMultiUeOutput(`Applying desired UE count: ${count}...`);
+
+    try {
+      const response = await fetch('/api/ues/desired', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count })
+      });
+
+      const data = await response.json();
+      setMultiUeOutput(JSON.stringify(data, null, 2));
+      await refreshMultiUes();
+    } catch (error) {
+      setMultiUeOutput(`Apply desired UE count failed: ${error}`);
+    } finally {
+      setMultiUeBusy(false);
+    }
+  }
+
+  refreshMultiUes();
+  setInterval(refreshMultiUes, 10000);
+</script>
+<!-- MULTI_UE_UI_BLOCK_END -->
+
 </body>
 </html>
