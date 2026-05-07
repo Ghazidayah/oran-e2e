@@ -35,7 +35,27 @@ TMP_JS="/tmp/provision-5ue-subscribers.js"
 
 cat > "$TMP_JS" <<'JS'
 const srcImsi = "__SRC_IMSI__";
-const imsies = "__IMSIS__".split(" ");
+const imsies = "__IMSIS__".split(" ").filter(Boolean);
+
+function sqnToNumberLong(sqn) {
+  let n = 0;
+
+  if (typeof sqn === "number") {
+    n = sqn;
+  } else if (typeof sqn === "string") {
+    n = parseInt(sqn, 10);
+  } else if (sqn && typeof sqn.low === "number") {
+    n = sqn.low;
+  } else if (sqn && typeof sqn.toString === "function") {
+    n = parseInt(sqn.toString(), 10);
+  }
+
+  if (!Number.isFinite(n) || n < 0) {
+    n = 0;
+  }
+
+  return NumberLong(String(n));
+}
 
 const src = db.subscribers.findOne({ imsi: srcImsi });
 if (!src) {
@@ -43,18 +63,35 @@ if (!src) {
 }
 
 for (const imsi of imsies) {
-  const doc = JSON.parse(JSON.stringify(src));
+  const doc = EJSON.parse(EJSON.stringify(src));
+
   delete doc._id;
   doc.imsi = imsi;
 
-  db.subscribers.deleteMany({ imsi: imsi });
-  db.subscribers.insertOne(doc);
+  if (doc.security && doc.security.sqn !== undefined) {
+    doc.security.sqn = sqnToNumberLong(doc.security.sqn);
+  }
+
+  db.subscribers.replaceOne(
+    { imsi: imsi },
+    doc,
+    { upsert: true }
+  );
+
   print("provisioned " + imsi);
 }
 
+print("verification:");
 printjson(db.subscribers.find(
   { imsi: { $in: imsies } },
-  { _id: 0, imsi: 1, slice: 1 }
+  {
+    _id: 0,
+    imsi: 1,
+    "slice.sst": 1,
+    "slice.sd": 1,
+    "slice.session.name": 1,
+    "security.sqn": 1
+  }
 ).sort({ imsi: 1 }).toArray());
 JS
 
