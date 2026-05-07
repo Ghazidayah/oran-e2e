@@ -1,0 +1,53 @@
+max_ues: 5
+namespace: oran-ran
+tunnel: oaitun_ue1
+default_dnn: oai
+default_sst: 1
+default_sd: FFFFFF
+
+ues:
+  ue1:
+    deployment: oai-nr-ue
+    configmap: oai-nrue-config
+    selector: app=oai-nr-ue
+    imsi: "999700000000001"
+    dnn: "oai"
+    sd: "FFFFFF"
+    baseline: true
+    mode: existing
+
+  ue2:
+    deployment: oai-nr-ue-2
+    configmap: oai-nrue-config-2
+    selector: app=oai-nr-ue-2
+    imsi: "999700000000002"
+    dnn: "oai"
+    sd: "FFFFFF"
+    mode: generated
+
+  ue3:
+    deployment: oai-nr-ue-3
+    configmap: oai-nrue-config-3
+    selector: app=oai-nr-ue-3
+    imsi: "999700000000003"
+    dnn: "oai"
+    sd: "FFFFFF"
+    mode: generated
+
+  ue4:
+    deployment: oai-nr-ue-4
+    configmap: oai-nrue-config-4
+    selector: app=oai-nr-ue-4
+    imsi: "999700000000004"
+    dnn: "oai"
+    sd: "FFFFFF"
+    mode: generated
+
+  ue5:
+    deployment: oai-nr-ue-5
+    configmap: oai-nrue-config-5
+    selector: app=oai-nr-ue-5
+    imsi: "999700000000005"
+    dnn: "oai"
+    sd: "FFFFFF"
+    mode: generated

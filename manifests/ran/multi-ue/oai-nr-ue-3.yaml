@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oai-nrue-config-3
+  namespace: oran-ran
+data:
+  nr-ue.conf: |
+    uicc0 = {
+      imsi = "999700000000003";
+      key = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+      opc = "E8ED289DEBA952E4283B54E88E6183CA";
+      pdu_sessions = ({ dnn = "oai"; nssai_sst = 1; nssai_sd = 0xffffff; });
+    }
+
+    position0 = {
+        x = 0.0;
+        y = 0.0;
+        z = 6377900.0;
+    }
+
+    thread-pool = "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
+
+    rfsimulator = (
+      {
+        serveraddr = "server";
+      }
+    );
+
+    channelmod = {
+      max_chan = 10;
+      modellist = "modellist_rfsimu_1";
+      modellist_rfsimu_1 = (
+        {
+          model_name     = "rfsimu_channel_enB0"
+          type           = "AWGN";
+          ploss_dB       = 20;
+          noise_power_dB = -4;
+          forgetfact     = 0;
+          offset         = 0;
+          ds_tdl         = 0;
+        },
+        {
+          model_name     = "rfsimu_channel_ue0"
+          type           = "AWGN";
+          ploss_dB       = 20;
+          noise_power_dB = -2;
+          forgetfact     = 0;
+          offset         = 0;
+          ds_tdl         = 0;
+        }
+      );
+    };
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-nr-ue-3
+  namespace: oran-ran
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: oai-nr-ue-3
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: oai-nr-ue-3
+        oran-ue: "true"
+        ue-index: "3"
+    spec:
+      containers:
+      - name: oai-nr-ue-3
+        image: oaisoftwarealliance/oai-nr-ue:2025.w45
+        imagePullPolicy: IfNotPresent
+        command:
+        - /opt/oai-nr-ue/bin/nr-uesoftmodem
+        args:
+        - -O
+        - /opt/oai-nr-ue/etc/nr-ue.conf
+        - -E
+        - --rfsim
+        - -r
+        - "106"
+        - --numerology
+        - "1"
+        - -C
+        - "3319680000"
+        - --ssb
+        - "516"
+        - --rfsimulator.serveraddr
+        - oai-gnb-rfsim
+        - --rfsimulator.serverport
+        - "4043"
+        - --log_config.global_log_options
+        - level,nocolor,time
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -lc
+              - |-
+                for i in $(seq 1 120); do
+                  if ip link show oaitun_ue1 >/dev/null 2>&1; then
+                    ip route add 10.43.0.0/16 via 10.42.0.1 dev eth0 2>/dev/null || true
+                    if ip route replace default dev oaitun_ue1 2>/dev/null; then
+                      ip route | grep -q '^default dev oaitun_ue1' && exit 0
+                    fi
+                  fi
+                  sleep 2
+                done
+                echo '[WARN] UE postStart could not enforce oaitun_ue1 default route' >&2
+        resources:
+          requests:
+            cpu: "2"
+            memory: 2Gi
+          limits:
+            cpu: "4"
+            memory: 4Gi
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+            - SYS_NICE
+        volumeMounts:
+        - mountPath: /opt/oai-nr-ue/etc/nr-ue.conf
+          name: nrue-config
+          subPath: nr-ue.conf
+        - mountPath: /dev/net/tun
+          name: tun-device
+      restartPolicy: Always
+      volumes:
+      - name: nrue-config
+        configMap:
+          name: oai-nrue-config-3
+      - name: tun-device
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice

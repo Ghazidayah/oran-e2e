@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, jsonify
+from multi_ue_api import register_multi_ue_routes
 
 BASE_DIR = Path.home() / "oran-e2e-freeze"
 PROOF_DIR = Path.home() / "oran-proof"
@@ -632,6 +633,8 @@ def api_action(action):
 
     return save_run(action, f"echo 'Unknown action: {action}'; exit 1", timeout=5)
 
+
+register_multi_ue_routes(app, run_cmd, BASE_DIR)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=18080)
