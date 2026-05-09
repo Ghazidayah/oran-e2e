@@ -338,3 +338,286 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
             "output": r.get("output", ""),
             "status": status_one(ue_name),
         })
+
+    # UE_SCENARIO_ROUTES_START
+    SCENARIO_PROFILES = {
+        "attach_pdu": {
+            "label": "UE Attach + PDU Session",
+            "kind": "ping",
+            "gw_count": 2,
+            "internet_count": 2,
+            "packet_size": 56,
+            "timeout": 90,
+        },
+        "connectivity": {
+            "label": "UE Connectivity Test",
+            "kind": "ping",
+            "gw_count": 3,
+            "internet_count": 3,
+            "packet_size": 56,
+            "timeout": 90,
+        },
+        "stability": {
+            "label": "UE Stability Traffic",
+            "kind": "traffic",
+            "gw_count": 10,
+            "internet_count": 10,
+            "packet_size": 300,
+            "timeout": 120,
+        },
+        "throughput": {
+            "label": "UE Throughput KPI",
+            "kind": "traffic",
+            "gw_count": 30,
+            "internet_count": 30,
+            "packet_size": 1200,
+            "timeout": 180,
+        },
+        "stress": {
+            "label": "UE Stress Traffic",
+            "kind": "traffic",
+            "gw_count": 100,
+            "internet_count": 80,
+            "packet_size": 1200,
+            "timeout": 300,
+        },
+        "video": {
+            "label": "UE Video-like Stream",
+            "kind": "background",
+            "timeout": 60,
+        },
+        "stop": {
+            "label": "Stop UE Traffic",
+            "kind": "stop",
+            "timeout": 60,
+        },
+    }
+
+    def requested_ue_count():
+        data = request.get_json(silent=True) or {}
+        raw_count = data.get("count", request.form.get("count", ""))
+        if raw_count == "":
+            ues = all_status()
+            attached = [u for u in ues if u.get("attached")]
+            return max(1, len(attached))
+        try:
+            count = int(raw_count)
+        except Exception:
+            count = 1
+        if count < 1:
+            count = 1
+        if count > MAX_UES:
+            count = MAX_UES
+        return count
+
+    def selected_attached_ues(count):
+        ues = all_status()
+        selected = []
+        for ue in ues:
+            if ue.get("index", 99) <= count and ue.get("attached") and ue.get("pod"):
+                selected.append(ue)
+        return selected
+
+    def selected_ready_ues(count):
+        ues = all_status()
+        selected = []
+        for ue in ues:
+            if ue.get("index", 99) <= count and ue.get("ready") and ue.get("pod"):
+                selected.append(ue)
+        return selected
+
+    def exec_script_in_ue(ue, script, timeout):
+        cmd = "kubectl -n {} exec {} -- sh -lc {}".format(
+            UE_NAMESPACE,
+            shlex.quote(ue["pod"]),
+            shlex.quote(script),
+        )
+        result = run_cmd(cmd, timeout=timeout)
+        return {
+            "ue": ue["name"],
+            "pod": ue["pod"],
+            "tunnel_ip": ue.get("tunnel_ip", ""),
+            "ok": result.get("ok", False),
+            "exit": result.get("exit"),
+            "output": result.get("output", ""),
+        }
+
+    def build_ping_or_traffic_script(ue, profile):
+        gw_count = int(profile.get("gw_count", 3))
+        internet_count = int(profile.get("internet_count", 3))
+        packet_size = int(profile.get("packet_size", 56))
+        label = profile.get("label", "UE Scenario")
+
+        return """
+set -u
+TUN="{tun}"
+echo "Scenario: {label}"
+echo "UE: {ue}"
+echo "POD: {pod}"
+echo "Tunnel: $TUN"
+ip -4 addr show "$TUN" || exit 1
+
+RX0=$(cat /sys/class/net/$TUN/statistics/rx_bytes 2>/dev/null || echo 0)
+TX0=$(cat /sys/class/net/$TUN/statistics/tx_bytes 2>/dev/null || echo 0)
+START=$(date +%s)
+
+echo
+echo "===== DN gateway test ====="
+ping -I "$TUN" -c {gw_count} -s {packet_size} -W 3 10.45.0.1
+
+echo
+echo "===== Internet test ====="
+ping -I "$TUN" -c {internet_count} -s {packet_size} -W 3 8.8.8.8
+
+END=$(date +%s)
+RX1=$(cat /sys/class/net/$TUN/statistics/rx_bytes 2>/dev/null || echo 0)
+TX1=$(cat /sys/class/net/$TUN/statistics/tx_bytes 2>/dev/null || echo 0)
+DUR=$((END - START))
+if [ "$DUR" -lt 1 ]; then DUR=1; fi
+
+DRX=$((RX1 - RX0))
+DTX=$((TX1 - TX0))
+TOTAL=$((DRX + DTX))
+MBPS=$(awk -v b="$TOTAL" -v d="$DUR" 'BEGIN {{ printf "%.3f", (b * 8) / (d * 1000000) }}')
+
+echo
+echo "===== KPI summary ====="
+echo "duration_sec=$DUR"
+echo "rx_delta_bytes=$DRX"
+echo "tx_delta_bytes=$DTX"
+echo "total_delta_bytes=$TOTAL"
+echo "approx_total_mbps=$MBPS"
+""".format(
+            tun=UE_TUNNEL,
+            label=label,
+            ue=ue["name"],
+            pod=ue["pod"],
+            gw_count=gw_count,
+            internet_count=internet_count,
+            packet_size=packet_size,
+        )
+
+    def build_video_script(ue):
+        return """
+set -u
+TUN="{tun}"
+PIDFILE=/tmp/oran-dashboard-video-traffic.pid
+LOGFILE=/tmp/oran-dashboard-video-traffic.log
+
+ip -4 addr show "$TUN" || exit 1
+
+if [ -f "$PIDFILE" ]; then
+  OLD=$(cat "$PIDFILE" 2>/dev/null || true)
+  if [ -n "$OLD" ] && kill -0 "$OLD" 2>/dev/null; then
+    echo "Video-like traffic already running with pid=$OLD"
+    exit 0
+  fi
+fi
+
+nohup sh -lc 'while true; do ping -I {tun} -c 5 -s 900 -W 3 8.8.8.8; sleep 1; done' > "$LOGFILE" 2>&1 &
+PID=$!
+echo "$PID" > "$PIDFILE"
+
+echo "Started video-like UE traffic"
+echo "pid=$PID"
+echo "log=$LOGFILE"
+""".format(tun=UE_TUNNEL)
+
+    def build_stop_script():
+        return """
+PIDFILE=/tmp/oran-dashboard-video-traffic.pid
+
+if [ -f "$PIDFILE" ]; then
+  PID=$(cat "$PIDFILE" 2>/dev/null || true)
+  if [ -n "$PID" ]; then
+    kill "$PID" 2>/dev/null || true
+    echo "Stopped pid=$PID"
+  fi
+  rm -f "$PIDFILE"
+else
+  echo "No pidfile found"
+fi
+
+pkill -f 'ping -I oaitun_ue1.*8.8.8.8' 2>/dev/null || true
+echo "Stop UE traffic completed"
+"""
+
+    @app.route("/api/ues/scenario/<scenario>", methods=["POST"])
+    def api_ues_scenario_multi(scenario):
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        scenario = str(scenario).lower()
+        profile = SCENARIO_PROFILES.get(scenario)
+        if not profile:
+            return jsonify({
+                "ok": False,
+                "error": "unknown scenario {}".format(scenario),
+                "available": sorted(SCENARIO_PROFILES.keys()),
+            }), 404
+
+        count = requested_ue_count()
+
+        if profile["kind"] == "stop":
+            target_ues = selected_ready_ues(count)
+        else:
+            target_ues = selected_attached_ues(count)
+
+        if not target_ues:
+            return jsonify({
+                "ok": False,
+                "scenario": scenario,
+                "label": profile["label"],
+                "count": count,
+                "error": "no selected ready/attached UEs found",
+                "ues": all_status(),
+            }), 400
+
+        jobs = []
+        timeout = int(profile.get("timeout", 120))
+
+        for ue in target_ues:
+            if profile["kind"] in ("ping", "traffic"):
+                script = build_ping_or_traffic_script(ue, profile)
+            elif profile["kind"] == "background":
+                script = build_video_script(ue)
+            elif profile["kind"] == "stop":
+                script = build_stop_script()
+            else:
+                script = "echo unsupported scenario kind; exit 1"
+
+            jobs.append((ue, script))
+
+        results = []
+        with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+            future_map = {
+                pool.submit(exec_script_in_ue, ue, script, timeout): ue
+                for ue, script in jobs
+            }
+            for future in as_completed(future_map):
+                try:
+                    results.append(future.result())
+                except Exception as exc:
+                    ue = future_map[future]
+                    results.append({
+                        "ue": ue.get("name"),
+                        "pod": ue.get("pod"),
+                        "tunnel_ip": ue.get("tunnel_ip", ""),
+                        "ok": False,
+                        "exit": None,
+                        "output": "exception: {}".format(exc),
+                    })
+
+        results.sort(key=lambda r: r.get("ue", ""))
+
+        return jsonify({
+            "ok": all(r.get("ok", False) for r in results),
+            "scenario": scenario,
+            "label": profile["label"],
+            "requested_count": count,
+            "selected_count": len(target_ues),
+            "selected_ues": [u["name"] for u in target_ues],
+            "parallel": True,
+            "results": results,
+            "ues": all_status(),
+        })
+    # UE_SCENARIO_ROUTES_END

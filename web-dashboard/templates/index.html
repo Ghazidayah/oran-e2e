@@ -363,37 +363,37 @@
       <div>
         <h3>UE Attach + PDU Session</h3>
         <p class="small">Validates UE attach, PDU session, RAN-Core path, and stores evidence.</p>
-        <button onclick="runAction('e2e')">Validate UE Session</button>
+        <button onclick="runUeScenario('attach_pdu')">Validate UE Session</button>
       </div>
       <div>
         <h3>UE Connectivity Test</h3>
         <p class="small">Tests DN gateway and internet through selected UE tunnel(s).</p>
-        <button onclick="runAction('ping')">Run Connectivity</button>
+        <button onclick="runUeScenario('connectivity')">Run Connectivity</button>
       </div>
       <div>
         <h3>UE Throughput KPI</h3>
         <p class="small">Generates traffic and estimates throughput KPIs.</p>
-        <button onclick="runAction('throughput')">Run KPI Test</button>
+        <button onclick="runUeScenario('throughput')">Run KPI Test</button>
       </div>
       <div>
         <h3>UE Video-like Stream</h3>
         <p class="small">Starts controlled background user-plane traffic for selected UE(s).</p>
-        <button onclick="runAction('stream')">Start Stream</button>
+        <button onclick="runUeScenario('video')">Start Stream</button>
       </div>
       <div>
         <h3>UE Stability Traffic</h3>
         <p class="small">Starts low-rate UE traffic for stability observation.</p>
-        <button onclick="runAction('light_traffic')">Start Stability</button>
+        <button onclick="runUeScenario('stability')">Start Stability</button>
       </div>
       <div>
         <h3>UE Stress Traffic</h3>
         <p class="small">Starts stronger user-plane traffic for selected UE(s).</p>
-        <button onclick="runAction('heavy_traffic')">Start Stress</button>
+        <button onclick="runUeScenario('stress')">Start Stress</button>
       </div>
       <div>
         <h3>Stop UE Traffic</h3>
         <p class="small">Stops dashboard-started UE traffic.</p>
-        <button class="danger" onclick="runAction('stop_traffic')">Stop UE Traffic</button>
+        <button class="danger" onclick="runUeScenario('stop')">Stop UE Traffic</button>
       </div>
     </div>
   </section>
@@ -1311,6 +1311,55 @@ setInterval(loadMetrics, 2000);
   setInterval(refreshMultiUes, 10000);
 </script>
 <!-- MULTI_UE_UI_BLOCK_END -->
+
+
+<!-- UE_SCENARIO_FRONTEND_START -->
+<script>
+  const ueScenarioLabels = {
+    attach_pdu: "UE Attach + PDU Session",
+    connectivity: "UE Connectivity Test",
+    stability: "UE Stability Traffic",
+    throughput: "UE Throughput KPI",
+    video: "UE Video-like Stream",
+    stress: "UE Stress Traffic",
+    stop: "Stop UE Traffic"
+  };
+
+  async function runUeScenario(scenario) {
+    const countEl = document.getElementById('desiredUeCount');
+    const count = countEl ? Number(countEl.value || 1) : 1;
+    const label = ueScenarioLabels[scenario] || scenario;
+
+    if (typeof setMultiUeOutput === 'function') {
+      setMultiUeOutput(`${label} running on selected UE count: ${count}...\n`);
+    }
+
+    try {
+      const response = await fetch(`/api/ues/scenario/${scenario}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count })
+      });
+
+      const data = await response.json();
+
+      if (typeof setMultiUeOutput === 'function') {
+        setMultiUeOutput(JSON.stringify(data, null, 2));
+      }
+
+      if (typeof refreshMultiUes === 'function') {
+        await refreshMultiUes();
+      }
+    } catch (error) {
+      if (typeof setMultiUeOutput === 'function') {
+        setMultiUeOutput(`${label} failed: ${error}`);
+      } else {
+        alert(`${label} failed: ${error}`);
+      }
+    }
+  }
+</script>
+<!-- UE_SCENARIO_FRONTEND_END -->
 
 </body>
 </html>
