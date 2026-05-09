@@ -352,47 +352,48 @@
   </section>
 
   <section class="card section">
-    <h3>Validation Control Buttons</h3>
+    <h3>End-to-End UE Validation Scenarios</h3>
+<p class="muted scenario-note">Scenarios run on the currently selected active UE count.</p>
     <div class="grid cards">
       <div>
-        <h3>CI ownership check</h3>
-        <p class="small">Checks which gNB currently owns UE ID 1.</p>
-        <button onclick="runAction('ownership')">Run ownership</button>
+        <h3>Serving gNB Check</h3>
+        <p class="small">Checks which gNB currently serves the selected UE(s).</p>
+        <button onclick="runAction('ownership')">Check Serving gNB</button>
       </div>
       <div>
-        <h3>E2E validation</h3>
-        <p class="small">Runs validate-e2e.sh and stores evidence.</p>
-        <button onclick="runAction('e2e')">Run E2E</button>
+        <h3>UE Attach + PDU Session</h3>
+        <p class="small">Validates UE attach, PDU session, RAN-Core path, and stores evidence.</p>
+        <button onclick="runAction('e2e')">Validate UE Session</button>
       </div>
       <div>
-        <h3>Ping test</h3>
-        <p class="small">Tests DN gateway and internet through oaitun_ue1.</p>
-        <button onclick="runAction('ping')">Run ping</button>
+        <h3>UE Connectivity Test</h3>
+        <p class="small">Tests DN gateway and internet through selected UE tunnel(s).</p>
+        <button onclick="runAction('ping')">Run Connectivity</button>
       </div>
       <div>
-        <h3>Throughput test</h3>
-        <p class="small">Generates traffic and estimates Mbps.</p>
-        <button onclick="runAction('throughput')">Run throughput</button>
+        <h3>UE Throughput KPI</h3>
+        <p class="small">Generates traffic and estimates throughput KPIs.</p>
+        <button onclick="runAction('throughput')">Run KPI Test</button>
       </div>
       <div>
-        <h3>Video-like stream</h3>
-        <p class="small">Starts controlled background download traffic.</p>
-        <button onclick="runAction('stream')">Run stream test</button>
+        <h3>UE Video-like Stream</h3>
+        <p class="small">Starts controlled background user-plane traffic for selected UE(s).</p>
+        <button onclick="runAction('stream')">Start Stream</button>
       </div>
       <div>
-        <h3>Light traffic</h3>
-        <p class="small">Starts low-rate traffic for stability observation.</p>
-        <button onclick="runAction('light_traffic')">Start light</button>
+        <h3>UE Stability Traffic</h3>
+        <p class="small">Starts low-rate UE traffic for stability observation.</p>
+        <button onclick="runAction('light_traffic')">Start Stability</button>
       </div>
       <div>
-        <h3>Heavy traffic</h3>
-        <p class="small">Starts stronger test traffic.</p>
-        <button onclick="runAction('heavy_traffic')">Start heavy</button>
+        <h3>UE Stress Traffic</h3>
+        <p class="small">Starts stronger user-plane traffic for selected UE(s).</p>
+        <button onclick="runAction('heavy_traffic')">Start Stress</button>
       </div>
       <div>
-        <h3>Stop traffic</h3>
-        <p class="small">Stops dashboard-started background traffic.</p>
-        <button class="danger" onclick="runAction('stop_traffic')">Stop traffic</button>
+        <h3>Stop UE Traffic</h3>
+        <p class="small">Stops dashboard-started UE traffic.</p>
+        <button class="danger" onclick="runAction('stop_traffic')">Stop UE Traffic</button>
       </div>
     </div>
   </section>
@@ -668,14 +669,14 @@ setInterval(loadMetrics, 2000);
 <script>
 (function () {
   const ACTION_LABELS = {
-    ownership: "CI ownership check",
-    e2e: "E2E validation",
-    ping: "Ping test",
-    throughput: "Throughput test",
-    stream: "Video-like stream",
-    light_traffic: "Light traffic",
-    heavy_traffic: "Heavy traffic",
-    stop_traffic: "Stop traffic",
+    ownership: "Serving gNB Check",
+    e2e: "UE Attach + PDU Session",
+    ping: "UE Connectivity Test",
+    throughput: "UE Throughput KPI",
+    stream: "UE Video-like Stream",
+    light_traffic: "UE Stability Traffic",
+    heavy_traffic: "UE Stress Traffic",
+    stop_traffic: "Stop UE Traffic",
     report: "Lab report"
   };
 
@@ -703,7 +704,7 @@ setInterval(loadMetrics, 2000);
           </div>
         </div>
         <div class="feedback-actions">
-          <button class="feedback-report-button" type="button" data-action="report">Generate report</button>
+          <button class="feedback-report-button" type="button" data-action="report">Generate E2E Evidence Report</button>
           <span id="action-feedback-pill" class="feedback-pill">IDLE</span>
         </div>
       </div>
