@@ -525,21 +525,44 @@ echo "log=$LOGFILE"
 
     def build_stop_script():
         return """
+set +e
+
 PIDFILE=/tmp/oran-dashboard-video-traffic.pid
+LOGFILE=/tmp/oran-dashboard-video-traffic.log
+
+echo "Stopping UE traffic"
 
 if [ -f "$PIDFILE" ]; then
   PID=$(cat "$PIDFILE" 2>/dev/null || true)
+
   if [ -n "$PID" ]; then
-    kill "$PID" 2>/dev/null || true
-    echo "Stopped pid=$PID"
+    if [ "$PID" = "$$" ]; then
+      echo "Refusing to kill current shell pid=$PID"
+    elif kill -0 "$PID" 2>/dev/null; then
+      kill "$PID" 2>/dev/null || true
+      sleep 1
+      kill -9 "$PID" 2>/dev/null || true
+      echo "Stopped pid=$PID"
+    else
+      echo "pid=$PID was not running"
+    fi
+  else
+    echo "pidfile was empty"
   fi
+
   rm -f "$PIDFILE"
 else
   echo "No pidfile found"
 fi
 
-pkill -f 'ping -I oaitun_ue1.*8.8.8.8' 2>/dev/null || true
+# Clean short-lived child ping processes without terminating this shell.
+for P in $(pgrep -f "ping -I oaitun_ue1 -c 5 -s 900 -W 3 8.8.8.8" 2>/dev/null || true); do
+  [ "$P" = "$$" ] && continue
+  kill "$P" 2>/dev/null || true
+done
+
 echo "Stop UE traffic completed"
+exit 0
 """
 
     @app.route("/api/ues/scenario/<scenario>", methods=["POST"])

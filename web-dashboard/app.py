@@ -59,7 +59,13 @@ def save_run(action, cmd, timeout=120):
     }
 
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
-    return jsonify({"summary": summary, "output": result["output"]})
+    return jsonify({
+        "ok": result["ok"],
+        "exit": result["exit"],
+        "action": action,
+        "summary": summary,
+        "output": result["output"],
+    })
 
 
 def pod_list(namespace, pattern_text):
