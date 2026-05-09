@@ -32,3 +32,9 @@ web-dashboard/__pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+# Local dashboard/script backups
+*.bak.*
+web-dashboard/*.bak.*
+web-dashboard/templates/*.bak.*
+scripts/ue/*.bak.*
