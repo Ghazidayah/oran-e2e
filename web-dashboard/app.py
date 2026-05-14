@@ -14,7 +14,7 @@ RUNS_DIR = PROOF_DIR / "web-dashboard-runs"
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
 LAB_IP = os.environ.get("ORAN_LAB_IP", "192.168.1.142")
-GRAFANA_URL = f"http://{LAB_IP}:30300"
+GRAFANA_URL = f"http://{LAB_IP}:30300/d/oran-5g-lab-ops/o-ran-5g-lab-operations-dashboard?orgId=1&from=now-1h&to=now&timezone=browser&var-datasource=prometheus&refresh=10s"
 PROMETHEUS_URL = f"http://{LAB_IP}:30090"
 
 app = Flask(__name__)
