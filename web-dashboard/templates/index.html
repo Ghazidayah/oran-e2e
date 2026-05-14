@@ -1204,6 +1204,115 @@ setInterval(loadMetrics, 2000);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.82rem;
   }
+
+  .multi-ue-scenario-summary {
+    margin-top: 0.75rem;
+    border: 1px solid #2b4566;
+    border-radius: 12px;
+    background: #0b1220;
+    padding: 0.85rem;
+  }
+
+  .scenario-result-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .scenario-result-title h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .scenario-status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .scenario-status.ok {
+    background: rgba(34, 197, 94, 0.16);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.35);
+  }
+
+  .scenario-status.failed {
+    background: rgba(239, 68, 68, 0.16);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+  }
+
+  .scenario-result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    color: #a7b6cc;
+    font-size: 0.82rem;
+  }
+
+  .scenario-result-meta span {
+    border: 1px solid #263a57;
+    border-radius: 999px;
+    padding: 0.25rem 0.55rem;
+    background: #111c2e;
+  }
+
+  .scenario-result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+  }
+
+  .scenario-result-table th,
+  .scenario-result-table td {
+    border-bottom: 1px solid #1f314a;
+    padding: 0.45rem 0.55rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .scenario-result-table th {
+    color: #93c5fd;
+    font-size: 0.76rem;
+  }
+
+  .scenario-result-table code {
+    color: #dbeafe;
+    background: #111827;
+    border-radius: 4px;
+    padding: 0.1rem 0.25rem;
+  }
+
+  .scenario-raw-details {
+    margin-top: 0.75rem;
+  }
+
+  .scenario-raw-details summary {
+    cursor: pointer;
+    color: #93c5fd;
+    font-weight: 700;
+  }
+
+  .scenario-raw-block {
+    margin-top: 0.55rem;
+    white-space: pre-wrap;
+    max-height: 260px;
+    overflow: auto;
+    padding: 0.75rem;
+    border-radius: 10px;
+    background: #020617;
+    color: #e2e8f0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+  }
 </style>
 
 <section class="multi-ue-card">
@@ -1251,6 +1360,7 @@ setInterval(loadMetrics, 2000);
     </tbody>
   </table>
 
+  <div id="multiUeScenarioSummary" class="multi-ue-scenario-summary" hidden></div>
   <pre id="multiUeOutput" class="multi-ue-output">Multi-UE action output will appear here.</pre>
 </section>
 
@@ -1298,11 +1408,126 @@ setInterval(loadMetrics, 2000);
     });
   }
 
-  function setMultiUeOutput(text) {
+  function setMultiUeOutput(text, keepScenarioSummary = false) {
+    if (!keepScenarioSummary) {
+      clearMultiUeScenarioSummary();
+    }
+
     const output = document.getElementById('multiUeOutput');
     if (output) {
       output.textContent = text || '';
     }
+  }
+
+  function clearMultiUeScenarioSummary() {
+    const panel = document.getElementById('multiUeScenarioSummary');
+    if (!panel) return;
+    panel.hidden = true;
+    panel.innerHTML = '';
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function scenarioMetric(output, regex) {
+    const match = String(output || '').match(regex);
+    return match ? match[1] : '';
+  }
+
+  function scenarioPacketLoss(output) {
+    const matches = String(output || '').match(/\d+(?:\.\d+)?% packet loss/g) || [];
+    return matches.length ? matches.join(' / ') : '-';
+  }
+
+  function scenarioNameForRow(data, result) {
+    return result.scenario || data.scenario || '-';
+  }
+
+  function scenarioLabelForRow(data, result) {
+    return result.label || data.label || ueScenarioSelections[result.ue] || scenarioNameForRow(data, result);
+  }
+
+  function renderMultiUeScenarioResult(data) {
+    const panel = document.getElementById('multiUeScenarioSummary');
+    if (!panel) return;
+
+    const results = Array.isArray(data.results) ? data.results : [];
+    const statusClass = data.ok ? 'ok' : 'failed';
+    const statusText = data.ok ? 'SUCCESS' : 'FAILED';
+    const scenarioTitle = data.mode === 'per_ue'
+      ? 'Per-UE Independent Scenario Results'
+      : `Multi-UE Scenario Results: ${data.label || data.scenario || 'scenario'}`;
+
+    const rows = results.map((result) => {
+      const output = result.output || '';
+      const duration = scenarioMetric(output, /duration_sec=([0-9]+)/);
+      const rx = scenarioMetric(output, /rx_delta_bytes=([0-9]+)/);
+      const tx = scenarioMetric(output, /tx_delta_bytes=([0-9]+)/);
+      const mbps = scenarioMetric(output, /approx_total_mbps=([0-9.]+)/);
+      return `
+        <tr>
+          <td><strong>${escapeHtml(result.ue || '-')}</strong></td>
+          <td>${escapeHtml(scenarioNameForRow(data, result))}<br><small>${escapeHtml(scenarioLabelForRow(data, result))}</small></td>
+          <td>${result.ok ? '<span class="multi-ue-badge multi-ue-attached">OK</span>' : '<span class="multi-ue-badge multi-ue-stopped">FAILED</span>'}</td>
+          <td><code>${escapeHtml(result.tunnel_ip || '-')}</code></td>
+          <td>${escapeHtml(result.exit ?? '-')}</td>
+          <td>${escapeHtml(scenarioPacketLoss(output))}</td>
+          <td>${duration ? `${escapeHtml(duration)}s` : '-'}</td>
+          <td>${rx || tx ? `${escapeHtml(rx || '-')} / ${escapeHtml(tx || '-')} B` : '-'}</td>
+          <td>${mbps ? `${escapeHtml(mbps)} Mbps` : '-'}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const rawBlocks = results.map((result) => `
+===== ${escapeHtml(result.ue || '-')} | ${escapeHtml(scenarioNameForRow(data, result))} | ${result.ok ? 'OK' : 'FAILED'} =====
+${escapeHtml(result.output || '')}
+`).join('\\n');
+
+    const skipped = Array.isArray(data.skipped) && data.skipped.length
+      ? `<span>Skipped: ${escapeHtml(data.skipped.length)}</span>`
+      : '';
+
+    panel.innerHTML = `
+      <div class="scenario-result-title">
+        <h3>${escapeHtml(scenarioTitle)}</h3>
+        <span class="scenario-status ${statusClass}">${statusText}</span>
+      </div>
+      <div class="scenario-result-meta">
+        <span>Mode: ${escapeHtml(data.mode || 'global')}</span>
+        <span>Parallel: ${data.parallel ? 'yes' : 'no'}</span>
+        <span>Selected UEs: ${escapeHtml((data.selected_ues || []).join(', ') || '-')}</span>
+        <span>Selected count: ${escapeHtml(data.selected_count ?? results.length)}</span>
+        ${skipped}
+      </div>
+      <table class="scenario-result-table">
+        <thead>
+          <tr>
+            <th>UE</th>
+            <th>Scenario</th>
+            <th>Result</th>
+            <th>Tunnel IP</th>
+            <th>Exit</th>
+            <th>Packet loss</th>
+            <th>Duration</th>
+            <th>RX / TX delta</th>
+            <th>Approx Mbps</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="9">No per-UE results returned.</td></tr>'}</tbody>
+      </table>
+      <details class="scenario-raw-details">
+        <summary>Show raw per-UE logs</summary>
+        <pre class="scenario-raw-block">${rawBlocks || 'No raw logs available.'}</pre>
+      </details>
+    `;
+    panel.hidden = false;
   }
 
   async function refreshMultiUes() {
@@ -1472,7 +1697,8 @@ setInterval(loadMetrics, 2000);
         body: JSON.stringify({ jobs })
       });
       const data = await response.json();
-      setMultiUeOutput(formatPerUeScenarioSummary(data));
+      renderMultiUeScenarioResult(data);
+      setMultiUeOutput(formatPerUeScenarioSummary(data), true);
       await refreshMultiUes();
     } catch (error) {
       setMultiUeOutput(`Per-UE scenarios failed: ${error}`);
@@ -1543,7 +1769,8 @@ setInterval(loadMetrics, 2000);
       const data = await response.json();
 
       if (typeof setMultiUeOutput === 'function') {
-        setMultiUeOutput(JSON.stringify(data, null, 2));
+        renderMultiUeScenarioResult(data);
+        setMultiUeOutput(formatScenarioSummary(data), true);
       }
 
       if (typeof refreshMultiUes === 'function') {
@@ -1720,7 +1947,7 @@ setInterval(loadMetrics, 2000);
         const tx = extractValue(output, /tx_delta_bytes=([0-9]+)/);
         const duration = extractValue(output, /duration_sec=([0-9]+)/);
 
-        lines.push(`- ${result.ue}: ${result.ok ? "OK" : "FAILED"} | tunnel=${result.tunnel_ip || "-"} | exit=${result.exit}`);
+        lines.push(`- ${result.ue}: ${(result.scenario || data.scenario || "-")} / ${(result.label || data.label || "-")} | ${result.ok ? "OK" : "FAILED"} | tunnel=${result.tunnel_ip || "-"} | exit=${result.exit}`);
         if (lossLines.length > 0) {
           lines.push(`  packet_loss: ${lossLines.join(" / ")}`);
         }
@@ -1763,7 +1990,8 @@ setInterval(loadMetrics, 2000);
       const data = await response.json();
 
       if (typeof setMultiUeOutput === "function") {
-        setMultiUeOutput(formatScenarioSummary(data));
+        renderMultiUeScenarioResult(data);
+        setMultiUeOutput(formatScenarioSummary(data), true);
       }
 
       if (typeof refreshMultiUes === "function") {

@@ -896,13 +896,18 @@ exit 0
             }
             for future in as_completed(future_map):
                 try:
-                    results.append(future.result())
+                    result = future.result()
+                    result["scenario"] = scenario
+                    result["label"] = profile["label"]
+                    results.append(result)
                 except Exception as exc:
                     ue = future_map[future]
                     results.append({
                         "ue": ue.get("name"),
                         "pod": ue.get("pod"),
                         "tunnel_ip": ue.get("tunnel_ip", ""),
+                        "scenario": scenario,
+                        "label": profile["label"],
                         "ok": False,
                         "exit": None,
                         "output": "exception: {}".format(exc),
