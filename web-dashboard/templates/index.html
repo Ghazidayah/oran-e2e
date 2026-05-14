@@ -163,6 +163,15 @@
       border: 1px solid #1e293b;
       border-radius: 10px;
     }
+
+    .live-metrics-table {
+      margin-top: 16px;
+    }
+
+    .live-metrics-table td,
+    .live-metrics-table th {
+      white-space: nowrap;
+    }
   </style>
 <!-- dashboard-action-feedback-style:start -->
 <style>
@@ -452,27 +461,35 @@
   </section>
 
   <section class="card section">
-    <h3>Real-Time UE Data Transfer (UE1 baseline)</h3>
-    <p class="small">Measured from the legacy UE1 tunnel interface oaitun_ue1. Selected-UE scenario results appear in the Multi-UE action output panel.</p>
+    <h3>Real-Time Multi-UE Data Transfer</h3>
+    <p class="small">Measured from oaitun_ue1 inside every attached UE included by the selected active UE count. The graph shows total RX/TX Mbps across active UEs.</p>
     <canvas id="trafficCanvas" width="1000" height="260"></canvas>
     <div class="grid cards section">
       <div class="card">
-        <h3>Download RX</h3>
+        <h3>Total Download RX</h3>
         <div id="rxMbps" class="metric ok">0.000 Mbps</div>
       </div>
       <div class="card">
-        <h3>Upload TX</h3>
+        <h3>Total Upload TX</h3>
         <div id="txMbps" class="metric">0.000 Mbps</div>
       </div>
       <div class="card">
-        <h3>UE tunnel IP</h3>
+        <h3>Active UE Metrics</h3>
         <div id="ueIpBox" class="metric">-</div>
       </div>
       <div class="card">
-        <h3>Total RX / TX</h3>
+        <h3>Total RX / TX bytes</h3>
         <div id="bytesBox" class="metric">-</div>
       </div>
     </div>
+    <table class="live-metrics-table">
+      <thead>
+        <tr><th>UE</th><th>Tunnel IP</th><th>RX Mbps</th><th>TX Mbps</th><th>RX/TX bytes</th></tr>
+      </thead>
+      <tbody id="liveMetricsTableBody">
+        <tr><td colspan="5">Waiting for metrics...</td></tr>
+      </tbody>
+    </table>
   </section>
 
   <section class="grid two section">
@@ -496,6 +513,7 @@
 <script>
 let rxHistory = [];
 let txHistory = [];
+let lastLiveMetricsSample = null;
 
 function clsReady(value, total) {
   if (value === total && total > 0) return "ok";
@@ -562,28 +580,72 @@ async function reloadStatus() {
 
 async function loadMetrics() {
   try {
-    const res = await fetch("/api/live_metrics?t=" + Date.now());
+    const countEl = document.getElementById("desiredUeCount");
+    const count = countEl ? Number(countEl.value || 5) : 5;
+    const res = await fetch(`/api/ues/live_metrics?count=${encodeURIComponent(count)}&t=${Date.now()}`);
     const m = await res.json();
 
-    document.getElementById("rxMbps").textContent = `${Number(m.rx_mbps || 0).toFixed(3)} Mbps`;
-    document.getElementById("txMbps").textContent = `${Number(m.tx_mbps || 0).toFixed(3)} Mbps`;
-    document.getElementById("ueIpBox").textContent = m.ip || "-";
-    document.getElementById("bytesBox").textContent = `${m.rx_bytes || 0} / ${m.tx_bytes || 0}`;
-
-    if (m.ip) {
-      document.getElementById("ueMetric").textContent = m.ip;
-      document.getElementById("ueMetric").className = "metric ok";
+    if (!m.ok) {
+      throw new Error(m.error || "multi-UE metrics API returned ok=false");
     }
 
-    rxHistory.push(Number(m.rx_mbps || 0));
-    txHistory.push(Number(m.tx_mbps || 0));
+    const now = performance.now() / 1000;
+    const previous = lastLiveMetricsSample;
+    const elapsed = previous ? Math.max(0.25, now - previous.time) : 1;
+    const previousByUe = previous ? previous.byUe : {};
+
+    let totalRxMbps = 0;
+    let totalTxMbps = 0;
+
+    const rows = (m.ues || []).map((ue) => {
+      const prev = previousByUe[ue.name] || null;
+      const rxBytes = Number(ue.rx_bytes || 0);
+      const txBytes = Number(ue.tx_bytes || 0);
+      const rxMbps = prev ? Math.max(0, ((rxBytes - prev.rx_bytes) * 8) / (elapsed * 1000000)) : 0;
+      const txMbps = prev ? Math.max(0, ((txBytes - prev.tx_bytes) * 8) / (elapsed * 1000000)) : 0;
+
+      totalRxMbps += rxMbps;
+      totalTxMbps += txMbps;
+
+      return `
+        <tr>
+          <td><strong>${ue.name || "-"}</strong></td>
+          <td>${ue.tunnel_ip || "-"}</td>
+          <td class="ok">${rxMbps.toFixed(3)}</td>
+          <td>${txMbps.toFixed(3)}</td>
+          <td>${rxBytes} / ${txBytes}</td>
+        </tr>
+      `;
+    }).join("");
+
+    const byUe = {};
+    (m.ues || []).forEach((ue) => {
+      byUe[ue.name] = {
+        rx_bytes: Number(ue.rx_bytes || 0),
+        tx_bytes: Number(ue.tx_bytes || 0)
+      };
+    });
+    lastLiveMetricsSample = { time: now, byUe };
+
+    document.getElementById("rxMbps").textContent = `${totalRxMbps.toFixed(3)} Mbps`;
+    document.getElementById("txMbps").textContent = `${totalTxMbps.toFixed(3)} Mbps`;
+    document.getElementById("ueIpBox").textContent = `${m.active_count || 0}/${m.requested_count || count} UEs`;
+    document.getElementById("bytesBox").textContent = `${m.total_rx_bytes || 0} / ${m.total_tx_bytes || 0}`;
+
+    const tableBody = document.getElementById("liveMetricsTableBody");
+    if (tableBody) {
+      tableBody.innerHTML = rows || '<tr><td colspan="5">No attached UEs found for live metrics.</td></tr>';
+    }
+
+    rxHistory.push(totalRxMbps);
+    txHistory.push(totalTxMbps);
 
     if (rxHistory.length > 60) rxHistory.shift();
     if (txHistory.length > 60) txHistory.shift();
 
     drawGraph();
   } catch (err) {
-    console.log("metrics error", err);
+    console.log("multi-UE metrics error", err);
   }
 }
 
@@ -1095,6 +1157,22 @@ setInterval(loadMetrics, 2000);
     text-align: center;
   }
 
+  .ue-scenario-select {
+    color: #0f172a !important;
+    background: #f8fafc !important;
+    border: 1px solid rgba(148, 163, 184, 0.65);
+    border-radius: 8px;
+    padding: 0.35rem 0.5rem;
+    min-width: 145px;
+    font-weight: 700;
+  }
+
+  .per-ue-scenario-note {
+    margin-top: 0.6rem;
+    color: #a7b6cc;
+    font-size: 0.88rem;
+  }
+
   .multi-ue-controls button {
     min-width: 78px;
   }
@@ -1146,7 +1224,11 @@ setInterval(loadMetrics, 2000);
       </select>
       <button type="button" onclick="applyDesiredUes()">Apply</button>
       <button type="button" onclick="refreshMultiUes()">Refresh</button>
+      <button type="button" data-multi-ue-button="true" onclick="runSelectedUeScenarios()">Run selected scenarios</button>
     </div>
+  </div>
+  <div class="per-ue-scenario-note">
+    Per-UE scenario matrix: choose a different scenario per UE, then run them in parallel. Example: UE1 = Heavy traffic, UE2 = Light traffic.
   </div>
 
   <table class="multi-ue-table">
@@ -1157,13 +1239,14 @@ setInterval(loadMetrics, 2000);
         <th>Pod</th>
         <th>Tunnel IP</th>
         <th>Status</th>
+        <th>Scenario</th>
         <th>RX/TX bytes</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody id="multiUeTableBody">
       <tr>
-        <td colspan="7">Loading...</td>
+        <td colspan="8">Loading...</td>
       </tr>
     </tbody>
   </table>
@@ -1173,6 +1256,30 @@ setInterval(loadMetrics, 2000);
 
 <script>
   let multiUeBusy = false;
+  const ueScenarioSelections = {};
+  const perUeScenarioOptions = [
+    ["none", "None"],
+    ["attach_pdu", "Attach + PDU"],
+    ["connectivity", "Connectivity"],
+    ["light", "Light traffic"],
+    ["throughput", "Throughput KPI"],
+    ["heavy", "Heavy traffic"],
+    ["video", "Video-like stream"],
+    ["stop", "Stop traffic"]
+  ];
+
+  function setPerUeScenario(ueName, scenario) {
+    ueScenarioSelections[ueName] = scenario || "none";
+  }
+
+  function scenarioSelectHtml(ue) {
+    const selected = ueScenarioSelections[ue.name] || "none";
+    return `
+      <select class="ue-scenario-select" data-ue-scenario-select="true" data-locked="${ue.attached || ue.ready ? "false" : "true"}" data-ue="${ue.name}" onchange="setPerUeScenario('${ue.name}', this.value)" ${ue.attached || ue.ready ? "" : "disabled"}>
+        ${perUeScenarioOptions.map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("")}
+      </select>
+    `;
+  }
 
   function ueBadge(ue) {
     if (ue.attached) {
@@ -1186,8 +1293,8 @@ setInterval(loadMetrics, 2000);
 
   function setMultiUeBusy(isBusy) {
     multiUeBusy = isBusy;
-    document.querySelectorAll('[data-multi-ue-button="true"]').forEach((button) => {
-      button.disabled = isBusy;
+    document.querySelectorAll('[data-multi-ue-button="true"], [data-ue-scenario-select="true"]').forEach((control) => {
+      control.disabled = isBusy || control.dataset.locked === "true";
     });
   }
 
@@ -1208,7 +1315,7 @@ setInterval(loadMetrics, 2000);
 
       if (!data.ok) {
         summary.textContent = 'Failed to load UE status';
-        tbody.innerHTML = '<tr><td colspan="7">Failed to load UE status</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8">Failed to load UE status</td></tr>';
         return;
       }
 
@@ -1235,12 +1342,13 @@ setInterval(loadMetrics, 2000);
             <td>${pod}</td>
             <td>${tunnelIp}</td>
             <td>${ueBadge(ue)}</td>
+            <td>${scenarioSelectHtml(ue)}</td>
             <td>${bytes}</td>
             <td>
               <div class="multi-ue-actions">
-                <button data-multi-ue-button="true" ${startDisabled} onclick="startUe('${ue.name}')">Start</button>
-                <button data-multi-ue-button="true" ${stopDisabled} onclick="stopUe('${ue.name}')">Stop</button>
-                <button data-multi-ue-button="true" ${pingDisabled} onclick="pingUe('${ue.name}')">Ping</button>
+                <button data-multi-ue-button="true" data-locked="${ue.ready ? "true" : "false"}" ${startDisabled} onclick="startUe('${ue.name}')">${ue.ready ? "Running" : "Start"}</button>
+                <button data-multi-ue-button="true" data-locked="${(ue.name === "ue1" || !ue.ready) ? "true" : "false"}" ${stopDisabled} title="${ue.name === "ue1" ? "UE1 is the baseline UE; stop is disabled in the UI." : "Scale this UE deployment to zero."}" onclick="stopUe('${ue.name}')">Stop</button>
+                <button data-multi-ue-button="true" data-locked="${ue.attached ? "false" : "true"}" ${pingDisabled} title="Test this UE PDU tunnel." onclick="pingUe('${ue.name}')">Ping</button>
               </div>
             </td>
           </tr>
@@ -1280,6 +1388,97 @@ setInterval(loadMetrics, 2000);
 
   async function pingUe(ueName) {
     await multiUePost(`/api/ue/${ueName}/ping`, `Pinging ${ueName}`);
+  }
+
+  function selectedPerUeScenarioJobs() {
+    return Array.from(document.querySelectorAll('[data-ue-scenario-select="true"]'))
+      .map((select) => ({
+        ue: select.dataset.ue,
+        scenario: select.value
+      }))
+      .filter((job) => job.ue && job.scenario && job.scenario !== 'none');
+  }
+
+  function extractScenarioValue(text, pattern) {
+    const match = String(text || '').match(pattern);
+    return match ? match[1] : '';
+  }
+
+  function formatPerUeScenarioSummary(data) {
+    const lines = [];
+    lines.push('Per-UE independent scenario matrix');
+    lines.push(`Status: ${data.ok ? 'SUCCESS' : 'FAILED'}`);
+    lines.push(`Parallel execution: ${data.parallel ? 'yes' : 'no'}`);
+    lines.push(`Selected jobs: ${data.selected_count ?? 0}`);
+    lines.push(`Selected UEs: ${(data.selected_ues || []).join(', ') || '-'}`);
+
+    if (Array.isArray(data.skipped) && data.skipped.length > 0) {
+      lines.push('');
+      lines.push('Skipped:');
+      data.skipped.forEach((item) => lines.push(`- ${item.ue || '-'}: ${item.reason || 'skipped'}`));
+    }
+
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      lines.push('');
+      lines.push('Errors:');
+      data.errors.forEach((err) => lines.push(`- ${err}`));
+    }
+
+    if (Array.isArray(data.results)) {
+      lines.push('');
+      lines.push('Per-UE results:');
+      data.results.forEach((result) => {
+        const output = result.output || '';
+        const lossLines = output.match(/\d+(?:\.\d+)?% packet loss/g) || [];
+        const mbps = extractScenarioValue(output, /approx_total_mbps=([0-9.]+)/);
+        const rx = extractScenarioValue(output, /rx_delta_bytes=([0-9]+)/);
+        const tx = extractScenarioValue(output, /tx_delta_bytes=([0-9]+)/);
+        const duration = extractScenarioValue(output, /duration_sec=([0-9]+)/);
+
+        lines.push(`- ${result.ue}: ${result.label || result.scenario || '-'} | ${result.ok ? 'OK' : 'FAILED'} | tunnel=${result.tunnel_ip || '-'} | exit=${result.exit}`);
+        if (lossLines.length > 0) {
+          lines.push(`  packet_loss: ${lossLines.join(' / ')}`);
+        }
+        if (duration || rx || tx || mbps) {
+          lines.push(`  kpi: duration=${duration || '-'}s rx=${rx || '-'}B tx=${tx || '-'}B approx=${mbps || '-'} Mbps`);
+        }
+      });
+    }
+
+    if (!data.ok && data.error) {
+      lines.push('');
+      lines.push(`Error: ${data.error}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  async function runSelectedUeScenarios() {
+    if (multiUeBusy) return;
+
+    const jobs = selectedPerUeScenarioJobs();
+    if (jobs.length === 0) {
+      setMultiUeOutput('No per-UE scenarios selected. Choose at least one scenario other than None.');
+      return;
+    }
+
+    setMultiUeBusy(true);
+    setMultiUeOutput('Running independent per-UE scenarios in parallel...\n' + jobs.map((job) => `${job.ue}: ${job.scenario}`).join('\n'));
+
+    try {
+      const response = await fetch('/api/ues/scenarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobs })
+      });
+      const data = await response.json();
+      setMultiUeOutput(formatPerUeScenarioSummary(data));
+      await refreshMultiUes();
+    } catch (error) {
+      setMultiUeOutput(`Per-UE scenarios failed: ${error}`);
+    } finally {
+      setMultiUeBusy(false);
+    }
   }
 
   async function applyDesiredUes() {

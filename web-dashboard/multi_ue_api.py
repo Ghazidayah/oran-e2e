@@ -1,5 +1,6 @@
 import json
 import shlex
+import time
 from flask import jsonify, request
 
 UE_NAMESPACE = "oran-ran"
@@ -127,6 +128,69 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
             return {"rx_bytes": int(parts[0]), "tx_bytes": int(parts[1])}
         except Exception:
             return {"rx_bytes": 0, "tx_bytes": 0}
+
+    def live_metrics_one(ue_name):
+        cfg = ue_cfg(ue_name)
+        if not cfg:
+            return {"name": ue_name, "ok": False, "error": "unknown UE"}
+
+        item = live_pod_item(cfg["selector"])
+        pod = ""
+        ready = False
+        pod_ip = ""
+        phase = "Stopped"
+
+        if item:
+            pod = item.get("metadata", {}).get("name", "")
+            status = item.get("status", {})
+            phase = status.get("phase", "")
+            pod_ip = status.get("podIP", "")
+            ready = pod_ready(item)
+
+        ip = ""
+        rx_bytes = 0
+        tx_bytes = 0
+
+        if pod and ready:
+            inner = (
+                "ip=$(ip -4 addr show {tun} 2>/dev/null | awk '/inet /{{print $2; exit}}'); "
+                "rx=$(cat /sys/class/net/{tun}/statistics/rx_bytes 2>/dev/null || echo 0); "
+                "tx=$(cat /sys/class/net/{tun}/statistics/tx_bytes 2>/dev/null || echo 0); "
+                "printf '%s|%s|%s\\n' \"$ip\" \"$rx\" \"$tx\""
+            ).format(tun=UE_TUNNEL)
+            cmd = "kubectl -n {} exec {} -- sh -lc {} 2>/dev/null || true".format(
+                UE_NAMESPACE,
+                shlex.quote(pod),
+                shlex.quote(inner),
+            )
+            parts = run_cmd(cmd, timeout=10).get("output", "").strip().split("|")
+            if len(parts) >= 3:
+                ip = parts[0].strip()
+                try:
+                    rx_bytes = int(parts[1])
+                    tx_bytes = int(parts[2])
+                except Exception:
+                    rx_bytes = 0
+                    tx_bytes = 0
+
+        return {
+            "name": ue_name,
+            "index": cfg["index"],
+            "deployment": cfg["deployment"],
+            "selector": cfg["selector"],
+            "imsi": cfg["imsi"],
+            "dnn": cfg["dnn"],
+            "baseline": cfg["baseline"],
+            "pod": pod,
+            "phase": phase,
+            "ready": ready,
+            "pod_ip": pod_ip,
+            "tunnel": UE_TUNNEL,
+            "tunnel_ip": ip,
+            "attached": bool(ip),
+            "rx_bytes": rx_bytes,
+            "tx_bytes": tx_bytes,
+        }
 
     def status_one(ue_name):
         cfg = ue_cfg(ue_name)
@@ -393,6 +457,29 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
         },
     }
 
+    # Friendly names used by the per-UE scenario matrix.
+    # These aliases keep the existing scenario implementation intact while letting the UI
+    # expose simpler choices like "light" and "heavy" per UE.
+    SCENARIO_ALIASES = {
+        "none": "none",
+        "off": "none",
+        "skip": "none",
+        "light": "stability",
+        "light_traffic": "stability",
+        "heavy": "stress",
+        "heavy_traffic": "stress",
+        "kpi": "throughput",
+        "stream": "video",
+        "video_like": "video",
+    }
+
+    def resolve_scenario(raw_scenario):
+        scenario = str(raw_scenario or "").strip().lower()
+        scenario = SCENARIO_ALIASES.get(scenario, scenario)
+        if scenario == "none" or scenario == "":
+            return "none", None
+        return scenario, SCENARIO_PROFILES.get(scenario)
+
     def requested_ue_count():
         data = request.get_json(silent=True) or {}
         raw_count = data.get("count", request.form.get("count", ""))
@@ -564,6 +651,197 @@ done
 echo "Stop UE traffic completed"
 exit 0
 """
+
+    @app.route("/api/ues/live_metrics")
+    def api_ues_live_metrics_multi():
+        """Return raw RX/TX counters for all active UEs.
+
+        The frontend calculates Mbps from two samples. This keeps the endpoint fast
+        and avoids sleeping inside the request like the legacy /api/live_metrics route.
+        """
+        raw_count = request.args.get("count", "")
+        count = MAX_UES
+        if raw_count != "":
+            try:
+                count = int(raw_count)
+            except Exception:
+                count = MAX_UES
+        if count < 1:
+            count = 1
+        if count > MAX_UES:
+            count = MAX_UES
+
+        ues = [
+            live_metrics_one(name)
+            for name in sorted(UE_POOL, key=lambda n: UE_POOL[n]["index"])
+        ]
+        ues = [u for u in ues if u.get("index", 99) <= count]
+        active_ues = [u for u in ues if u.get("attached") and u.get("pod")]
+
+        return jsonify({
+            "ok": True,
+            "timestamp": time.time(),
+            "requested_count": count,
+            "max_ues": MAX_UES,
+            "active_count": len(active_ues),
+            "total_rx_bytes": sum(int(u.get("rx_bytes") or 0) for u in active_ues),
+            "total_tx_bytes": sum(int(u.get("tx_bytes") or 0) for u in active_ues),
+            "ues": active_ues,
+        })
+
+    def build_script_for_profile(ue, profile):
+        kind = profile.get("kind")
+        if kind in ("ping", "traffic"):
+            return build_ping_or_traffic_script(ue, profile)
+        if kind == "background":
+            return build_video_script(ue)
+        if kind == "stop":
+            return build_stop_script()
+        return "echo unsupported scenario kind; exit 1"
+
+    def run_independent_scenario_job(job):
+        ue = job["ue"]
+        profile = job["profile"]
+        scenario = job["scenario"]
+        label = profile.get("label", scenario)
+        timeout = int(profile.get("timeout", 120))
+        script = build_script_for_profile(ue, profile)
+        result = exec_script_in_ue(ue, script, timeout)
+        result["scenario"] = scenario
+        result["label"] = label
+        return result
+
+    @app.route("/api/ues/scenarios", methods=["POST"])
+    def api_ues_independent_scenarios_multi():
+        """Run different scenarios on different UEs in parallel.
+
+        Request body example:
+        {
+          "jobs": [
+            {"ue": "ue1", "scenario": "heavy"},
+            {"ue": "ue2", "scenario": "light"}
+          ]
+        }
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        data = request.get_json(silent=True) or {}
+        raw_jobs = data.get("jobs", [])
+        if not isinstance(raw_jobs, list):
+            return jsonify({"ok": False, "error": "jobs must be a list"}), 400
+
+        statuses = {
+            u.get("name"): u
+            for u in all_status()
+            if u.get("name")
+        }
+
+        jobs = []
+        skipped = []
+        errors = []
+        seen_ues = set()
+
+        for idx, raw_job in enumerate(raw_jobs, start=1):
+            if not isinstance(raw_job, dict):
+                errors.append("job {} must be an object".format(idx))
+                continue
+
+            ue_name = str(raw_job.get("ue", "")).strip().lower()
+            scenario, profile = resolve_scenario(raw_job.get("scenario", "none"))
+
+            if scenario == "none":
+                if ue_name:
+                    skipped.append({"ue": ue_name, "reason": "scenario is none"})
+                continue
+
+            if not ue_cfg(ue_name):
+                errors.append("unknown UE '{}' in job {}".format(ue_name, idx))
+                continue
+
+            if ue_name in seen_ues:
+                errors.append("duplicate job for {}".format(ue_name))
+                continue
+            seen_ues.add(ue_name)
+
+            if not profile:
+                errors.append("unknown scenario '{}' for {}".format(raw_job.get("scenario"), ue_name))
+                continue
+
+            ue = statuses.get(ue_name) or status_one(ue_name)
+            if not ue.get("pod"):
+                errors.append("{} has no live pod".format(ue_name))
+                continue
+
+            if profile.get("kind") == "stop":
+                if not ue.get("ready"):
+                    errors.append("{} is not ready; cannot stop dashboard traffic".format(ue_name))
+                    continue
+            else:
+                if not ue.get("attached"):
+                    errors.append("{} is not attached; cannot run {}".format(ue_name, scenario))
+                    continue
+
+            jobs.append({
+                "ue": ue,
+                "scenario": scenario,
+                "label": profile.get("label", scenario),
+                "profile": profile,
+            })
+
+        if errors:
+            return jsonify({
+                "ok": False,
+                "error": "invalid per-UE scenario request",
+                "errors": errors,
+                "skipped": skipped,
+                "available": sorted(set(SCENARIO_PROFILES.keys()) | set(SCENARIO_ALIASES.keys())),
+                "ues": all_status(),
+            }), 400
+
+        if not jobs:
+            return jsonify({
+                "ok": False,
+                "error": "no runnable per-UE scenario jobs selected",
+                "skipped": skipped,
+                "ues": all_status(),
+            }), 400
+
+        results = []
+        with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+            future_map = {
+                pool.submit(run_independent_scenario_job, job): job
+                for job in jobs
+            }
+            for future in as_completed(future_map):
+                job = future_map[future]
+                try:
+                    results.append(future.result())
+                except Exception as exc:
+                    ue = job.get("ue", {})
+                    results.append({
+                        "ue": ue.get("name"),
+                        "pod": ue.get("pod"),
+                        "tunnel_ip": ue.get("tunnel_ip", ""),
+                        "scenario": job.get("scenario"),
+                        "label": job.get("label"),
+                        "ok": False,
+                        "exit": None,
+                        "output": "exception: {}".format(exc),
+                    })
+
+        results.sort(key=lambda r: (r.get("ue", ""), r.get("scenario", "")))
+
+        return jsonify({
+            "ok": all(r.get("ok", False) for r in results),
+            "parallel": True,
+            "mode": "per_ue",
+            "requested_jobs": len(raw_jobs),
+            "selected_count": len(results),
+            "selected_ues": [r.get("ue") for r in results],
+            "skipped": skipped,
+            "results": results,
+            "ues": all_status(),
+        })
 
     @app.route("/api/ues/scenario/<scenario>", methods=["POST"])
     def api_ues_scenario_multi(scenario):
