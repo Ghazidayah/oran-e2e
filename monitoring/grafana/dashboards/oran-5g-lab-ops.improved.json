@@ -1,0 +1,816 @@
+{
+  "meta": {
+    "type": "db",
+    "canSave": true,
+    "canEdit": true,
+    "canAdmin": true,
+    "canStar": true,
+    "canDelete": true,
+    "slug": "o-ran-5g-lab-operations-dashboard",
+    "url": "/d/oran-5g-lab-ops/o-ran-5g-lab-operations-dashboard",
+    "expires": "0001-01-01T00:00:00Z",
+    "created": "2026-05-02T05:04:19Z",
+    "updated": "2026-05-02T05:04:19Z",
+    "updatedBy": "Anonymous",
+    "createdBy": "Anonymous",
+    "version": 1,
+    "hasAcl": false,
+    "isFolder": false,
+    "apiVersion": "v0alpha1",
+    "folderId": 0,
+    "folderUid": "",
+    "folderTitle": "General",
+    "folderUrl": "",
+    "provisioned": true,
+    "provisionedExternalId": "oran-lab-dashboard.json",
+    "annotationsPermissions": {
+      "dashboard": {
+        "canAdd": true,
+        "canEdit": true,
+        "canDelete": true
+      }
+    }
+  },
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Core Ready: AMF / SMF / UPF",
+        "type": "gauge",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum(kube_deployment_status_replicas_available{namespace=\"oran-core\",deployment=~\"open5gs-(amf|smf|upf)\"})",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            },
+            "max": 3
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 2,
+        "title": "gNB Ready: A / B",
+        "type": "gauge",
+        "gridPos": {
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum(kube_deployment_status_replicas_available{namespace=\"oran-ran\",deployment=~\"oai-gnb|oai-gnb-b\"})",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            },
+            "max": 2
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 3,
+        "title": "UE Ready: UE1-UE5",
+        "type": "gauge",
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum(kube_deployment_status_replicas_available{namespace=\"oran-ran\",deployment=~\"oai-nr-ue(-[2-5])?\"})",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            },
+            "max": 5
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 4,
+        "title": "RAN Ready Total: gNBs + UEs",
+        "type": "gauge",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum(kube_deployment_status_replicas_available{namespace=\"oran-ran\",deployment=~\"oai-gnb|oai-gnb-b|oai-nr-ue(-[2-5])?\"})",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            },
+            "max": 7
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 5,
+        "title": "Lab Restarts Last 1h",
+        "type": "stat",
+        "gridPos": {
+          "x": 16,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"oran-ran|oran-core\",pod=~\"oai-.*|open5gs-(amf|smf|upf).*\"}[1h]))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        }
+      },
+      {
+        "id": 6,
+        "title": "Handover Status",
+        "type": "text",
+        "gridPos": {
+          "x": 20,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [],
+        "options": {
+          "mode": "markdown",
+          "content": "### Stable\n- Open5GS core\n- gNB-A / gNB-B\n- UE1-UE5 baseline\n- Per-UE scenarios\n\n### Experimental\n- CI ownership\n- RFsim/N2 handover"
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        }
+      },
+      {
+        "id": 7,
+        "title": "UE1-UE5 Pod Readiness",
+        "type": "table",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "max by (pod) (kube_pod_status_ready{namespace=\"oran-ran\",condition=\"true\",pod=~\"oai-nr-ue.*\"})",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        }
+      },
+      {
+        "id": 8,
+        "title": "Core Pod Readiness",
+        "type": "table",
+        "gridPos": {
+          "x": 12,
+          "y": 5,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "max by (pod) (kube_pod_status_ready{namespace=\"oran-core\",condition=\"true\",pod=~\"open5gs-(amf|smf|upf).*\"})",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        }
+      },
+      {
+        "id": 9,
+        "title": "Total UE Pod Network RX/TX",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 0,
+          "y": 13,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"oran-ran\",pod=~\"oai-nr-ue.*\"}[1m]))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": false,
+            "range": true,
+            "legendFormat": "UE RX"
+          },
+          {
+            "expr": "sum(rate(container_network_transmit_bytes_total{namespace=\"oran-ran\",pod=~\"oai-nr-ue.*\"}[1m]))",
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": false,
+            "range": true,
+            "legendFormat": "UE TX"
+          }
+        ],
+        "options": {},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "Bps"
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 10,
+        "title": "Per-UE Pod Network RX/TX",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 12,
+          "y": 13,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (pod) (rate(container_network_receive_bytes_total{namespace=\"oran-ran\",pod=~\"oai-nr-ue.*\"}[1m]))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": false,
+            "range": true,
+            "legendFormat": "{{pod}} RX"
+          },
+          {
+            "expr": "sum by (pod) (rate(container_network_transmit_bytes_total{namespace=\"oran-ran\",pod=~\"oai-nr-ue.*\"}[1m]))",
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": false,
+            "range": true,
+            "legendFormat": "{{pod}} TX"
+          }
+        ],
+        "options": {},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "Bps"
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 11,
+        "title": "RAN Pod CPU Usage",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 0,
+          "y": 21,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"oran-ran\",pod=~\"oai-gnb.*|oai-nr-ue.*\",container!=\"\",container!=\"POD\"}[1m]))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": false,
+            "range": true,
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "options": {},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cores"
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 12,
+        "title": "RAN Pod Memory Usage",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 12,
+          "y": 21,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"oran-ran\",pod=~\"oai-gnb.*|oai-nr-ue.*\",container!=\"\",container!=\"POD\"})",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": false,
+            "range": true,
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "options": {},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 13,
+        "title": "UE Pod Restarts Last 30m",
+        "type": "table",
+        "gridPos": {
+          "x": 0,
+          "y": 29,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"oran-ran\",pod=~\"oai-nr-ue.*\"}[30m]))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        }
+      },
+      {
+        "id": 14,
+        "title": "gNB Restarts Last 30m",
+        "type": "table",
+        "gridPos": {
+          "x": 8,
+          "y": 29,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"oran-ran\",pod=~\"oai-gnb.*\"}[30m]))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        }
+      },
+      {
+        "id": 15,
+        "title": "Core Restarts Last 30m",
+        "type": "table",
+        "gridPos": {
+          "x": 16,
+          "y": 29,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"oran-core\",pod=~\"open5gs-(amf|smf|upf).*\"}[30m]))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": true,
+            "range": false
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        }
+      },
+      {
+        "id": 16,
+        "title": "Node CPU Usage",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 0,
+          "y": 36,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": false,
+            "range": true,
+            "legendFormat": "CPU used"
+          }
+        ],
+        "options": {},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          },
+          "overrides": []
+        }
+      },
+      {
+        "id": 17,
+        "title": "Node Memory Usage",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 12,
+          "y": 36,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "instant": false,
+            "range": true,
+            "legendFormat": "Memory used"
+          }
+        ],
+        "options": {},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          },
+          "overrides": []
+        }
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [
+      "5g",
+      "5ue",
+      "kubernetes",
+      "multi-ue",
+      "oai",
+      "open5gs",
+      "oran",
+      "rfsim"
+    ],
+    "templating": {
+      "list": [
+        {
+          "current": {},
+          "hide": 0,
+          "includeAll": false,
+          "label": "Prometheus",
+          "multi": false,
+          "name": "datasource",
+          "options": [],
+          "query": "prometheus",
+          "refresh": 1,
+          "regex": "",
+          "type": "datasource"
+        }
+      ]
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "O-RAN 5G Lab - Operations Dashboard",
+    "uid": "oran-5g-lab-ops",
+    "version": 1,
+    "weekStart": "",
+    "description": "O-RAN/Open5GS/OAI RFsim lab observability dashboard. Shows Open5GS core, gNB-A/gNB-B, UE1-UE5 readiness, restarts, pod traffic, and resource usage. Handover remains experimental."
+  }
+}
