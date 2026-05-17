@@ -110,8 +110,8 @@ echo "===== Handover evidence summary ====="
   grep -HnE 'Handover triggered|HO acknowledged|update RNTI|RRCReconfigurationComplete|handover for UE .* complete|trigger release' "$RUN_DIR/11-cu-ho.log" 2>/dev/null || true
 
   echo
-  echo "--- DU1 access / CFRA ---"
-  grep -HnE 'PUSCH with TC_RNTI|CFRA procedure succeeded|Adding new UE context|UE RNTI .* in-sync' "$RUN_DIR/13-du1-ho.log" 2>/dev/null | awk 'NR<=20' || true
+  echo "--- Target DU access / CFRA ---"
+  grep -HnE 'PUSCH with TC_RNTI|CFRA procedure succeeded|Adding new UE context|UE RNTI .* in-sync' "$RUN_DIR/12-du0-ho.log" "$RUN_DIR/13-du1-ho.log" 2>/dev/null | awk 'NR<=20' || true
 
   echo
   echo "--- Post-handover ping ---"
