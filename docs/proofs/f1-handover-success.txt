@@ -1,0 +1,34 @@
+F1 RFsim handover validation success
+
+Date: 2026-05-17
+Branch: f1-rfsim-handover
+Evidence run:
+~/oran-proof/f1-stage2-du1-ho-20260517-012501
+
+Topology:
+- Open5GS core
+- OAI CU
+- OAI DU0
+- OAI DU1
+- OAI NR-UE as RFsim server
+
+Validated:
+- UE RFsim server listened on 4043.
+- DU0 and DU1 both established RFsim connections to the UE.
+- CU accepted DU1 F1 Setup.
+- UE tunnel oaitun_ue1 existed before handover.
+- Ping to 10.45.0.1 worked before handover.
+- ci trigger_f1_ho triggered handover for UE 1.
+- CU logged handover toward DU 3585 / PCI 1.
+- CU updated UE RNTI from d555 to f12e.
+- CU received RRCReconfigurationComplete.
+- CU logged: handover for UE 1/RNTI f12e complete.
+- DU1 logged CFRA procedure succeeded for RNTI f12e.
+- DU1 added new UE context with RNTI f12e.
+- DU1 showed UE f12e in-sync.
+- UE tunnel remained present after handover.
+- Ping to 10.45.0.1 after handover succeeded with 0% loss.
+
+Conclusion:
+F1 handover is validated.
+Earlier monolithic N2 handover remains not validated.
