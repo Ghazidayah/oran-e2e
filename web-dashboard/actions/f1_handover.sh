@@ -101,10 +101,22 @@ fi
 
 echo
 echo "===== Handover evidence summary ====="
-grep -RniE \
-'trigger_f1_ho|RRC F1 handover triggered|handover|HO acknowledged|RRCReconfigurationComplete|CFRA procedure succeeded|PUSCH with TC_RNTI|Adding new UE context|in-sync|error|fail' \
-"$RUN_DIR" | tee "$RUN_DIR/99-f1-ho-summary.txt" || true
+{
+  echo "--- Trigger ---"
+  grep -HnE 'trigger_f1_ho|RRC F1 handover triggered' "$RUN_DIR/17-trigger-f1-ho.txt" "$RUN_DIR/11-cu-ho.log" 2>/dev/null || true
 
+  echo
+  echo "--- CU handover ---"
+  grep -HnE 'Handover triggered|HO acknowledged|update RNTI|RRCReconfigurationComplete|handover for UE .* complete|trigger release' "$RUN_DIR/11-cu-ho.log" 2>/dev/null || true
+
+  echo
+  echo "--- DU1 access / CFRA ---"
+  grep -HnE 'PUSCH with TC_RNTI|CFRA procedure succeeded|Adding new UE context|UE RNTI .* in-sync' "$RUN_DIR/13-du1-ho.log" 2>/dev/null | awk 'NR<=20' || true
+
+  echo
+  echo "--- Post-handover ping ---"
+  grep -HnE 'PING|packets transmitted|0% packet loss' "$RUN_DIR/18-ue-after-ho.txt" 2>/dev/null || true
+} | tee "$RUN_DIR/99-f1-ho-summary.txt"
 TRIGGER_OK=false
 CU_COMPLETE=false
 RRC_COMPLETE=false
