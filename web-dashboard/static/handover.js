@@ -19,6 +19,13 @@ function setHandoverBusy(isBusy) {
   });
 }
 
+function updateHandoverCards(data) {
+  setHandoverText("handoverMode", data.mode || "unknown");
+  setHandoverText("handoverTopology", handoverBadge(data.topology_ready));
+  setHandoverText("handoverTunnel", handoverBadge(data.ue_tunnel_ready));
+  setHandoverText("handoverReady", handoverBadge(data.handover_ready, "YES", "NO"));
+}
+
 function renderHandoverChecks(data) {
   const panel = document.getElementById("handoverChecks");
   if (!panel) return;
@@ -38,22 +45,64 @@ function renderHandoverChecks(data) {
   `).join("");
 }
 
-async function refreshHandoverStatus() {
+function extractFirstMatch(text, regex, fallback = "not found") {
+  const match = text.match(regex);
+  return match ? match[1] : fallback;
+}
+
+function buildCompactHandoverSummary(data) {
+  const output = data.output || "";
+
+  const runDir = extractFirstMatch(output, /RUN_DIR=([^\n]+)/);
+  const rntiChange = extractFirstMatch(output, /update RNTI from ([0-9a-fA-F]+ to [0-9a-fA-F]+)/);
+  const target = extractFirstMatch(output, /towards DU ([0-9]+).*PCI ([0-9]+)/, "not found");
+  const ping = output.includes("0% packet loss") ? "0% packet loss" : "not confirmed";
+
+  return [
+    "===== F1 Handover Result =====",
+    `Result: ${data.handover_success ? "SUCCESS" : "FAILED"}`,
+    `RNTI change: ${rntiChange}`,
+    `Target DU / PCI: ${target}`,
+    `Post-handover ping: ${ping}`,
+    "",
+    "Checks:",
+    `- Trigger accepted: ${data.trigger_ok ? "PASS" : "FAIL"}`,
+    `- CU handover complete: ${data.cu_complete ? "PASS" : "FAIL"}`,
+    `- RRCReconfigurationComplete: ${data.rrc_complete ? "PASS" : "FAIL"}`,
+    `- Target DU CFRA: ${data.du_cfra ? "PASS" : "FAIL"}`,
+    `- Post-handover ping: ${data.post_ping_ok ? "PASS" : "FAIL"}`,
+    "",
+    `Evidence directory: ${runDir}`,
+  ].join("\n");
+}
+
+async function refreshHandoverStatus(showOutput = true) {
   setHandoverBusy(true);
-  setHandoverOutput("Checking F1 handover readiness...");
+  if (showOutput) {
+    setHandoverOutput("Checking F1 handover readiness...");
+  }
 
   try {
     const res = await fetch("/api/handover/status");
     const data = await res.json();
 
-    setHandoverText("handoverMode", data.mode || "unknown");
-    setHandoverText("handoverTopology", handoverBadge(data.topology_ready));
-    setHandoverText("handoverTunnel", handoverBadge(data.ue_tunnel_ready));
-    setHandoverText("handoverReady", handoverBadge(data.handover_ready, "YES", "NO"));
+    updateHandoverCards(data);
 
-    setHandoverOutput(data.output || JSON.stringify(data, null, 2));
+    if (showOutput) {
+      const compact = [
+        "===== F1 Handover Readiness =====",
+        `Mode: ${data.mode || "unknown"}`,
+        `F1 topology: ${data.topology_ready ? "READY" : "NOT READY"}`,
+        `UE tunnel: ${data.ue_tunnel_ready ? "READY" : "NOT READY"}`,
+        `Handover ready: ${data.handover_ready ? "YES" : "NO"}`,
+      ].join("\n");
+
+      setHandoverOutput(compact);
+    }
   } catch (err) {
-    setHandoverOutput(`Failed to check handover status: ${err}`);
+    if (showOutput) {
+      setHandoverOutput(`Failed to check handover status: ${err}`);
+    }
   } finally {
     setHandoverBusy(false);
   }
@@ -70,16 +119,17 @@ async function runF1Handover() {
 
     setHandoverText("handoverLastResult", data.handover_success ? "SUCCESS" : "FAILED");
     renderHandoverChecks(data);
-    setHandoverOutput(data.output || JSON.stringify(data, null, 2));
+    setHandoverOutput(buildCompactHandoverSummary(data));
+
+    await refreshHandoverStatus(false);
   } catch (err) {
     setHandoverText("handoverLastResult", "ERROR");
     setHandoverOutput(`Failed to run F1 handover: ${err}`);
   } finally {
     setHandoverBusy(false);
-    refreshHandoverStatus();
   }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  refreshHandoverStatus();
+  refreshHandoverStatus(true);
 });
