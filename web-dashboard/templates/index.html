@@ -319,6 +319,7 @@
 </style>
 <!-- dashboard-action-feedback-style:end -->
 
+  <link rel="stylesheet" href="{{ url_for('static', filename='handover.css') }}">
 </head>
 <body>
 <header>
@@ -360,7 +361,47 @@
     </div>
   </section>
 
-  <section class="card section">
+  
+<section class="panel handover-panel">
+  <h3>F1 Handover Validation</h3>
+  <p class="muted">
+    Validated CU/DU RFsim handover scenario. Monolithic N2 handover remains experimental and is not claimed as validated.
+  </p>
+
+  <div class="handover-grid">
+    <div class="handover-card">
+      <div class="label">Mode</div>
+      <div id="handoverMode" class="value">checking...</div>
+    </div>
+    <div class="handover-card">
+      <div class="label">F1 Topology</div>
+      <div id="handoverTopology" class="value">checking...</div>
+    </div>
+    <div class="handover-card">
+      <div class="label">UE Tunnel</div>
+      <div id="handoverTunnel" class="value">checking...</div>
+    </div>
+    <div class="handover-card">
+      <div class="label">Handover Ready</div>
+      <div id="handoverReady" class="value">checking...</div>
+    </div>
+    <div class="handover-card">
+      <div class="label">Last Handover Result</div>
+      <div id="handoverLastResult" class="value">not run yet</div>
+    </div>
+  </div>
+
+  <div class="handover-actions">
+    <button type="button" data-handover-button="true" onclick="refreshHandoverStatus()">Check F1 Status</button>
+    <button type="button" data-handover-button="true" onclick="runF1Handover()">Run F1 Handover</button>
+  </div>
+
+  <div id="handoverChecks" class="handover-result-grid"></div>
+  <pre id="handoverOutput" class="handover-output">F1 handover evidence will appear here.</pre>
+</section>
+
+
+<section class="card section">
     <h3>End-to-End UE Validation Scenarios</h3>
 <p class="muted scenario-note">Scenarios run on the selected active UE count. Select 1-5 UEs, then run a validation scenario.</p>
     <div class="grid cards">
@@ -2039,5 +2080,6 @@ ${escapeHtml(result.output || '')}
 </script>
 <!-- UE_SCENARIO_INTERACTIVE_BUTTONS_END -->
 
+  <script src="{{ url_for('static', filename='handover.js') }}"></script>
 </body>
 </html>

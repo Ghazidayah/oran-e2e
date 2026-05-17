@@ -61,6 +61,7 @@ async function refreshHandoverStatus() {
 
 async function runF1Handover() {
   setHandoverBusy(true);
+  setHandoverText("handoverLastResult", "running...");
   setHandoverOutput("Running F1 handover. This can take around 45 seconds...");
 
   try {
@@ -70,13 +71,12 @@ async function runF1Handover() {
     setHandoverText("handoverLastResult", data.handover_success ? "SUCCESS" : "FAILED");
     renderHandoverChecks(data);
     setHandoverOutput(data.output || JSON.stringify(data, null, 2));
-
-    await refreshHandoverStatus();
   } catch (err) {
     setHandoverText("handoverLastResult", "ERROR");
     setHandoverOutput(`Failed to run F1 handover: ${err}`);
   } finally {
     setHandoverBusy(false);
+    refreshHandoverStatus();
   }
 }
 
