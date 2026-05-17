@@ -7,6 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, jsonify
 from multi_ue_api import register_multi_ue_routes
+from handover_api import handover_bp
 
 BASE_DIR = Path.home() / "oran-e2e-freeze"
 PROOF_DIR = Path.home() / "oran-proof"
@@ -18,6 +19,7 @@ GRAFANA_URL = f"http://{LAB_IP}:30300/d/oran-5g-lab-ops/o-ran-5g-lab-operations-
 PROMETHEUS_URL = f"http://{LAB_IP}:30090"
 
 app = Flask(__name__)
+app.register_blueprint(handover_bp)
 
 
 def run_cmd(cmd, timeout=20):
