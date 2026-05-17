@@ -56,8 +56,12 @@ def handover_status():
     result = run_action("f1_status.sh", timeout=120)
 
     output = result.get("output", "")
-    result["mode"] = "f1-rfsim" if "F1_STATUS=READY" in output else "unknown"
-    result["ready"] = "F1_STATUS=READY" in output
+
+    result["mode"] = "f1-rfsim" if "F1_TOPOLOGY=READY" in output else "unknown"
+    result["topology_ready"] = "F1_TOPOLOGY=READY" in output
+    result["ue_tunnel_ready"] = "UE_TUNNEL=READY" in output
+    result["handover_ready"] = "F1_HANDOVER_READY=YES" in output
+    result["ready"] = result["topology_ready"]
     result["label"] = "F1 RFsim handover topology"
 
     return jsonify(result)

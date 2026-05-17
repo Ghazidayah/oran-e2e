@@ -3,7 +3,8 @@ set -euo pipefail
 
 NS="${NS:-oran-ran}"
 
-ok=true
+topology_ok=true
+tunnel_ok=false
 
 section() {
   echo
@@ -32,7 +33,7 @@ check_deploy() {
     echo "[OK] $deploy desired=$desired available=$avail"
   else
     echo "[FAIL] $deploy desired=$desired available=$avail"
-    ok=false
+    topology_ok=false
   fi
 }
 
@@ -58,13 +59,13 @@ echo "UE_POD=${UE_POD:-}"
 
 if [ -z "${CU_POD:-}" ] || [ -z "${DU0_POD:-}" ] || [ -z "${DU1_POD:-}" ] || [ -z "${UE_POD:-}" ]; then
   echo "[FAIL] Missing one or more F1 pods"
-  ok=false
+  topology_ok=false
 fi
 
 section "Services"
 kubectl -n "$NS" get svc oai-cu-ci oai-nr-ue-rfsim 2>/dev/null || {
   echo "[FAIL] Missing oai-cu-ci or oai-nr-ue-rfsim service"
-  ok=false
+  topology_ok=false
 }
 
 if [ -n "${UE_POD:-}" ]; then
@@ -83,20 +84,53 @@ if [ -n "${UE_POD:-}" ]; then
   else
     echo "[WARN] UE has fewer than two established RFsim connections: ${ESTAB_COUNT:-0}"
   fi
+
+  section "UE tunnel and user-plane readiness"
+  if kubectl -n "$NS" exec "$UE_POD" -- sh -c 'ip addr show oaitun_ue1 >/dev/null 2>&1'; then
+    kubectl -n "$NS" exec "$UE_POD" -- sh -c 'ip addr show oaitun_ue1; echo "-----"; ip route'
+    if kubectl -n "$NS" exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -c 2 10.45.0.1 >/dev/null 2>&1'; then
+      echo "[OK] UE tunnel exists and ping to 10.45.0.1 works"
+      tunnel_ok=true
+    else
+      echo "[WARN] UE tunnel exists but ping to 10.45.0.1 failed"
+    fi
+  else
+    echo "[WARN] oaitun_ue1 is missing"
+  fi
 fi
 
 if [ -n "${CU_POD:-}" ]; then
-  section "Recent CU F1 logs"
-  kubectl -n "$NS" logs "$CU_POD" --tail=300 2>/dev/null | \
-    egrep -i 'F1|F1AP|DU|Setup|du-rfsim|handover|RRCReconfiguration|complete|fail|error' || true
+  section "Recent useful CU F1 logs"
+  kubectl -n "$NS" logs "$CU_POD" --tail=600 2>/dev/null | \
+    egrep -i 'F1|F1AP|DU|Setup|du-rfsim|handover|RRCReconfiguration|complete|fail|error' | \
+    grep -v 'E2 SETUP REQUEST timeout' | \
+    tail -80 || true
 fi
 
 section "Summary"
-if [ "$ok" = true ]; then
+
+if [ "$topology_ok" = true ]; then
   echo "F1_STATUS=READY"
-  echo "F1 topology is active: CU + DU0 + DU1 + UE are running."
-  exit 0
+  echo "F1_TOPOLOGY=READY"
 else
   echo "F1_STATUS=NOT_READY"
+  echo "F1_TOPOLOGY=NOT_READY"
+fi
+
+if [ "$tunnel_ok" = true ]; then
+  echo "UE_TUNNEL=READY"
+else
+  echo "UE_TUNNEL=MISSING"
+fi
+
+if [ "$topology_ok" = true ] && [ "$tunnel_ok" = true ]; then
+  echo "F1_HANDOVER_READY=YES"
+else
+  echo "F1_HANDOVER_READY=NO"
+fi
+
+if [ "$topology_ok" = true ]; then
+  exit 0
+else
   exit 1
 fi
