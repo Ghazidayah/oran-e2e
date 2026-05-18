@@ -104,7 +104,7 @@ metadata:
   name: oai-du1
   namespace: oran-ran
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: oai-du1
