@@ -12,18 +12,30 @@ function setHandoverOutput(text) {
   if (el) el.textContent = text || "No output.";
 }
 
+let handoverReadyForRun = false;
+
 function setHandoverBusy(isBusy) {
   document.querySelectorAll("[data-handover-button]").forEach((button) => {
+    const isRunButton = button.id === "runF1HandoverButton";
     button.disabled = isBusy;
     button.style.opacity = isBusy ? "0.55" : "";
+    if (isRunButton) {
+      button.title = handoverReadyForRun
+        ? "Run validated F1 handover."
+        : "Click to check readiness. The dashboard will block the run if F1 mode is not ready.";
+    }
   });
 }
 
 function updateHandoverCards(data) {
+  handoverReadyForRun = Boolean(data.handover_ready);
+
   setHandoverText("handoverMode", data.mode || "unknown");
   setHandoverText("handoverTopology", handoverBadge(data.topology_ready));
   setHandoverText("handoverTunnel", handoverBadge(data.ue_tunnel_ready));
   setHandoverText("handoverReady", handoverBadge(data.handover_ready, "YES", "NO"));
+
+  setHandoverBusy(false);
 }
 
 function renderHandoverChecks(data) {
@@ -110,10 +122,38 @@ async function refreshHandoverStatus(showOutput = true) {
 
 async function runF1Handover() {
   setHandoverBusy(true);
-  setHandoverText("handoverLastResult", "running...");
-  setHandoverOutput("Running F1 handover. This can take around 45 seconds...");
+  setHandoverText("handoverLastResult", "checking...");
+  setHandoverOutput("Checking F1 handover readiness before running...");
 
   try {
+    const statusRes = await fetch("/api/handover/status");
+    const statusData = await statusRes.json();
+
+    updateHandoverCards(statusData);
+
+    if (!statusData.handover_ready) {
+      const panel = document.getElementById("handoverChecks");
+      if (panel) panel.innerHTML = "";
+
+      setHandoverText("handoverLastResult", "blocked");
+      setHandoverOutput([
+        "===== F1 Handover Blocked =====",
+        "The dashboard did not run F1 handover because the lab is not in F1-ready mode.",
+        "",
+        `Mode: ${statusData.mode || "unknown"}`,
+        `F1 topology: ${statusData.topology_ready ? "READY" : "NOT READY"}`,
+        `UE tunnel: ${statusData.ue_tunnel_ready ? "READY" : "NOT READY"}`,
+        `Handover ready: ${statusData.handover_ready ? "YES" : "NO"}`,
+        "",
+        "This is expected in multi-UE baseline mode.",
+        "Switch to F1 handover topology before running this validation.",
+      ].join("\n"));
+      return;
+    }
+
+    setHandoverText("handoverLastResult", "running...");
+    setHandoverOutput("Running F1 handover. This can take around 45 seconds...");
+
     const res = await fetch("/api/handover/f1/run", { method: "POST" });
     const data = await res.json();
 
