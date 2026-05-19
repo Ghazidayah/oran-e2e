@@ -1,5 +1,6 @@
 // Multi-UE Control dashboard logic
 let multiUeBusy = false;
+let f1ModeActiveForMultiUe = false;
   const ueScenarioSelections = {};
   const perUeScenarioOptions = [
     ["none", "None"],
@@ -37,9 +38,40 @@ let multiUeBusy = false;
 
   function setMultiUeBusy(isBusy) {
     multiUeBusy = isBusy;
-    document.querySelectorAll('[data-multi-ue-button="true"], [data-ue-scenario-select="true"]').forEach((control) => {
-      control.disabled = isBusy || control.dataset.locked === "true";
+    document.querySelectorAll('[data-multi-ue-button="true"], [data-ue-scenario-select="true"], [data-multi-ue-mode-control="true"]').forEach((control) => {
+      const keepRefreshEnabled = control.dataset.multiUeRefresh === "true";
+      control.disabled = isBusy || control.dataset.locked === "true" || (f1ModeActiveForMultiUe && !keepRefreshEnabled);
+      if (f1ModeActiveForMultiUe && !keepRefreshEnabled) {
+        control.title = "Multi-UE control is disabled while F1 RFsim handover mode is active.";
+      }
     });
+  }
+
+  async function refreshF1ModeForMultiUe() {
+    try {
+      const response = await fetch('/api/handover/status');
+      const data = await response.json();
+      f1ModeActiveForMultiUe = Boolean(data.handover_ready && data.mode === 'f1-rfsim');
+    } catch (error) {
+      f1ModeActiveForMultiUe = false;
+    }
+    setMultiUeBusy(false);
+    return f1ModeActiveForMultiUe;
+  }
+
+  function blockMultiUeIfF1Mode(action) {
+    if (!f1ModeActiveForMultiUe) return false;
+    setMultiUeOutput([
+      "===== Multi-UE Control Blocked =====",
+      `Action: ${action}`,
+      "",
+      "F1 RFsim handover mode is active.",
+      "Multi-UE controls are disabled to protect the validated F1 handover topology.",
+      "",
+      "Use the F1 Handover Validation panel, or switch back to multi-UE baseline mode first.",
+    ].join("\n"));
+    setMultiUeBusy(false);
+    return true;
   }
 
   function setMultiUeOutput(text, keepScenarioSummary = false) {
@@ -178,7 +210,9 @@ ${escapeHtml(result.output || '')}
         return;
       }
 
-      summary.textContent = `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running`;
+      summary.textContent = f1ModeActiveForMultiUe
+        ? `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running - Multi-UE disabled in F1 mode`
+        : `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running`;
 
       const desiredSelect = document.getElementById('desiredUeCount');
       if (desiredSelect && data.attached_count >= 1) {
@@ -213,6 +247,8 @@ ${escapeHtml(result.output || '')}
           </tr>
         `;
       }).join('');
+
+      setMultiUeBusy(false);
     } catch (error) {
       setMultiUeOutput(`Failed to refresh UEs: ${error}`);
     }
@@ -220,6 +256,8 @@ ${escapeHtml(result.output || '')}
 
   async function multiUePost(url, label) {
     if (multiUeBusy) return;
+    await refreshF1ModeForMultiUe();
+    if (blockMultiUeIfF1Mode(label)) return;
 
     setMultiUeBusy(true);
     setMultiUeOutput(`${label}...`);
@@ -314,6 +352,8 @@ ${escapeHtml(result.output || '')}
 
   async function runSelectedUeScenarios() {
     if (multiUeBusy) return;
+    await refreshF1ModeForMultiUe();
+    if (blockMultiUeIfF1Mode('run selected UE scenarios')) return;
 
     const jobs = selectedPerUeScenarioJobs();
     if (jobs.length === 0) {
@@ -343,6 +383,8 @@ ${escapeHtml(result.output || '')}
 
   async function applyDesiredUes() {
     if (multiUeBusy) return;
+    await refreshF1ModeForMultiUe();
+    if (blockMultiUeIfF1Mode('apply desired UE count')) return;
 
     const count = Number(document.getElementById('desiredUeCount').value);
 
@@ -366,8 +408,11 @@ ${escapeHtml(result.output || '')}
     }
   }
 
-  refreshMultiUes();
-  setInterval(refreshMultiUes, 10000);
+  refreshF1ModeForMultiUe().then(refreshMultiUes);
+  setInterval(async () => {
+    await refreshF1ModeForMultiUe();
+    await refreshMultiUes();
+  }, 10000);
 
 
 // Extracted from index.html script block 4

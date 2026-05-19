@@ -253,15 +253,15 @@
 
     <div class="multi-ue-controls">
       <label for="desiredUeCount">Desired active UEs</label>
-      <select id="desiredUeCount">
+      <select id="desiredUeCount" data-multi-ue-mode-control="true">
         <option value="1">1 UE</option>
         <option value="2">2 UEs</option>
         <option value="3">3 UEs</option>
         <option value="4">4 UEs</option>
         <option value="5">5 UEs</option>
       </select>
-      <button type="button" onclick="applyDesiredUes()">Apply</button>
-      <button type="button" onclick="refreshMultiUes()">Refresh</button>
+      <button type="button" data-multi-ue-button="true" data-multi-ue-mode-control="true" onclick="applyDesiredUes()">Apply</button>
+      <button type="button" data-multi-ue-button="true" data-multi-ue-refresh="true" onclick="refreshMultiUes()">Refresh</button>
       <button type="button" data-multi-ue-button="true" onclick="runSelectedUeScenarios()">Run selected scenarios</button>
     </div>
   </div>

@@ -228,6 +228,44 @@ def index():
     return render_template("index.html")
 
 
+def active_multi_ue_tunnel_count():
+    """Count attached UEs by checking oaitun_ue1 in UE1-UE5 pods."""
+    selectors = ["app=oai-nr-ue"] + [f"app=oai-nr-ue-{i}" for i in range(2, 6)]
+    count = 0
+
+    for selector in selectors:
+        try:
+            pods_raw = subprocess.check_output([
+                "kubectl", "-n", "oran-ran", "get", "pod",
+                "-l", selector,
+                "--field-selector=status.phase=Running",
+                "-o", "json",
+            ], text=True, timeout=10)
+            pods = json.loads(pods_raw).get("items", [])
+        except Exception:
+            continue
+
+        if not pods:
+            continue
+
+        pod = pods[0].get("metadata", {}).get("name", "")
+        if not pod:
+            continue
+
+        try:
+            tunnel = subprocess.run([
+                "kubectl", "-n", "oran-ran", "exec", pod, "--",
+                "sh", "-lc",
+                "ip -4 addr show oaitun_ue1 2>/dev/null | grep -q 'inet '",
+            ], text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+            if tunnel.returncode == 0:
+                count += 1
+        except Exception:
+            continue
+
+    return count
+
+
 @app.route("/api/status")
 def api_status():
     try:
@@ -243,7 +281,7 @@ def api_status():
         if serving == "unknown":
             serving = guess_serving_from_logs(pods)
 
-        active_ues = ownership["active_ues"]
+        active_ues = max(ownership["active_ues"], active_multi_ue_tunnel_count())
         if ue_ip and active_ues == 0:
             active_ues = 1
 

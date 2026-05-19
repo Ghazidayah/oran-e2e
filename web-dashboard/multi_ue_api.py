@@ -312,6 +312,53 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
             "status": status_one(ue_name),
         }
 
+    def f1_mode_active():
+        """Return True when validated F1 RFsim topology is active.
+
+        Multi-UE start/stop/scenario actions must not run in this mode because
+        extra UE deployments can interfere with the single-UE F1 handover setup.
+        """
+        checks = [
+            ("oai-cu", 1, 1),
+            ("oai-du0", 1, 1),
+            ("oai-du1", 1, 1),
+            ("oai-gnb", 0, 0),
+            ("oai-gnb-b", 0, 0),
+        ]
+
+        for deploy, desired, available in checks:
+            cmd = (
+                "kubectl -n {} get deploy {} "
+                "-o jsonpath='{{.spec.replicas}} {{.status.availableReplicas}}'"
+            ).format(UE_NAMESPACE, shlex.quote(deploy))
+            result = run_cmd(cmd, timeout=20)
+            if not result.get("ok"):
+                return False
+
+            parts = str(result.get("output", "")).strip().split()
+            spec = int(parts[0]) if len(parts) >= 1 and parts[0].isdigit() else 0
+            avail = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 0
+
+            if spec != desired:
+                return False
+            if available and avail < available:
+                return False
+
+        return True
+
+    def reject_multi_ue_in_f1(action):
+        return jsonify({
+            "ok": False,
+            "blocked": True,
+            "mode": "f1-rfsim",
+            "action": action,
+            "error": (
+                "Multi-UE control is disabled while F1 RFsim handover mode is active. "
+                "Use the F1 handover panel, or switch back to multi-UE baseline mode first."
+            ),
+            "ues": all_status(),
+        }), 409
+
     @app.route("/api/ues")
     def api_ues_multi():
         ues = all_status()
@@ -325,6 +372,9 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
 
     @app.route("/api/ues/desired", methods=["POST"])
     def api_ues_desired_multi():
+        if f1_mode_active():
+            return reject_multi_ue_in_f1("apply desired UE count")
+
         data = request.get_json(silent=True) or {}
         raw_count = data.get("count", request.form.get("count", ""))
 
@@ -356,16 +406,25 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
 
     @app.route("/api/ue/<ue_name>/start", methods=["POST"])
     def api_ue_start_multi(ue_name):
+        if f1_mode_active():
+            return reject_multi_ue_in_f1("start {}".format(ue_name))
+
         result = start_ue(ue_name)
         return jsonify(result), 200 if result.get("ok") else 400
 
     @app.route("/api/ue/<ue_name>/stop", methods=["POST"])
     def api_ue_stop_multi(ue_name):
+        if f1_mode_active():
+            return reject_multi_ue_in_f1("stop {}".format(ue_name))
+
         result = stop_ue(ue_name)
         return jsonify(result), 200 if result.get("ok") else 400
 
     @app.route("/api/ue/<ue_name>/ping", methods=["POST"])
     def api_ue_ping_multi(ue_name):
+        if f1_mode_active():
+            return reject_multi_ue_in_f1("ping {}".format(ue_name))
+
         cfg = ue_cfg(ue_name)
         if not cfg:
             return jsonify({"ok": False, "error": "unknown UE {}".format(ue_name)}), 404
@@ -713,6 +772,9 @@ exit 0
 
     @app.route("/api/ues/scenarios", methods=["POST"])
     def api_ues_independent_scenarios_multi():
+        if f1_mode_active():
+            return reject_multi_ue_in_f1("run selected UE scenarios")
+
         """Run different scenarios on different UEs in parallel.
 
         Request body example:
@@ -845,6 +907,9 @@ exit 0
 
     @app.route("/api/ues/scenario/<scenario>", methods=["POST"])
     def api_ues_scenario_multi(scenario):
+        if f1_mode_active():
+            return reject_multi_ue_in_f1("run {} scenario".format(scenario))
+
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         scenario = str(scenario).lower()
