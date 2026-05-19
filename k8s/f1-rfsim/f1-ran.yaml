@@ -60,6 +60,9 @@ metadata:
   namespace: oran-ran
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: oai-du0
@@ -81,7 +84,7 @@ spec:
           - "-E"
           - "--rfsim"
           - "--rfsimulator.serveraddr"
-          - "oai-nr-ue-rfsim"
+          - "oai-nr-ue-f1-rfsim"
           - "--rfsimulator.serverport"
           - "4043"
           - "--log_config.global_log_options"
@@ -105,6 +108,9 @@ metadata:
   namespace: oran-ran
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: oai-du1
@@ -113,7 +119,7 @@ spec:
       labels:
         app: oai-du1
       annotations:
-        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.122/24"]}]'
+        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.132/24"]}]'
     spec:
       containers:
       - name: oai-du1
@@ -126,7 +132,7 @@ spec:
           - "-E"
           - "--rfsim"
           - "--rfsimulator.serveraddr"
-          - "oai-nr-ue-rfsim"
+          - "oai-nr-ue-f1-rfsim"
           - "--rfsimulator.serverport"
           - "4043"
           - "--log_config.global_log_options"
@@ -142,3 +148,142 @@ spec:
       - name: du-config
         configMap:
           name: oai-du1-f1-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oai-nrue-f1-config
+  namespace: oran-ran
+data:
+  nr-ue.conf: |
+    uicc0 = {
+      imsi = "999700000000006";
+      key = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+      opc = "E8ED289DEBA952E4283B54E88E6183CA";
+      pdu_sessions = ({ dnn = "oai"; nssai_sst = 1; nssai_sd = 0xffffff; });
+    }
+
+    position0 = {
+        x = 0.0;
+        y = 0.0;
+        z = 6377900.0;
+    }
+
+    thread-pool = "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
+
+    rfsimulator = (
+      {
+        serveraddr = "server";
+      }
+    );
+
+    channelmod = {
+      max_chan = 10;
+      modellist = "modellist_rfsimu_1";
+      modellist_rfsimu_1 = (
+        {
+          model_name     = "rfsimu_channel_enB0"
+          type           = "AWGN";
+          ploss_dB       = 20;
+          noise_power_dB = -4;
+          forgetfact     = 0;
+          offset         = 0;
+          ds_tdl         = 0;
+        },
+        {
+          model_name     = "rfsimu_channel_ue0"
+          type           = "AWGN";
+          ploss_dB       = 20;
+          noise_power_dB = -2;
+          forgetfact     = 0;
+          offset         = 0;
+          ds_tdl         = 0;
+        }
+      );
+    };
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oai-nr-ue-f1-rfsim
+  namespace: oran-ran
+spec:
+  selector:
+    app: oai-nr-ue-f1
+  ports:
+  - name: rfsim
+    port: 4043
+    targetPort: 4043
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-nr-ue-f1
+  namespace: oran-ran
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: oai-nr-ue-f1
+  template:
+    metadata:
+      labels:
+        app: oai-nr-ue-f1
+    spec:
+      containers:
+      - name: oai-nr-ue-f1
+        image: oaisoftwarealliance/oai-nr-ue:2025.w45
+        imagePullPolicy: IfNotPresent
+        command:
+        - /opt/oai-nr-ue/bin/nr-uesoftmodem
+        args:
+        - "-O"
+        - "/opt/oai-nr-ue/etc/nr-ue.conf"
+        - "-E"
+        - "--rfsim"
+        - "-r"
+        - "106"
+        - "--numerology"
+        - "1"
+        - "-C"
+        - "3450720000"
+        - "--ssb"
+        - "516"
+        - "--rfsimulator.serveraddr"
+        - "server"
+        - "--rfsimulator.serverport"
+        - "4043"
+        - "--log_config.global_log_options"
+        - "level,nocolor,time"
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+            - SYS_NICE
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+        volumeMounts:
+        - mountPath: /opt/oai-nr-ue/etc/nr-ue.conf
+          name: nrue-f1-config
+          subPath: nr-ue.conf
+        - mountPath: /dev/net/tun
+          name: tun-device
+      volumes:
+      - name: nrue-f1-config
+        configMap:
+          name: oai-nrue-f1-config
+      - name: tun-device
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice

@@ -18,7 +18,7 @@ get_pod() {
     -o name 2>/dev/null | tail -n 1 | cut -d/ -f2
 }
 
-UE_POD="$(get_pod oai-nr-ue)"
+UE_POD="$(get_pod oai-nr-ue-f1)"
 CU_POD="$(get_pod oai-cu)"
 DU0_POD="$(get_pod oai-du0)"
 DU1_POD="$(get_pod oai-du1)"

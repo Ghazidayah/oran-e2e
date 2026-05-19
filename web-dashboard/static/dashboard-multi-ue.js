@@ -1,6 +1,7 @@
 // Multi-UE Control dashboard logic
 let multiUeBusy = false;
 let f1ModeActiveForMultiUe = false;
+let desiredUeCountUserEdited = false;
   const ueScenarioSelections = {};
   const perUeScenarioOptions = [
     ["none", "None"],
@@ -51,7 +52,7 @@ let f1ModeActiveForMultiUe = false;
     try {
       const response = await fetch('/api/handover/status');
       const data = await response.json();
-      f1ModeActiveForMultiUe = Boolean(data.handover_ready && data.mode === 'f1-rfsim');
+      f1ModeActiveForMultiUe = false;
     } catch (error) {
       f1ModeActiveForMultiUe = false;
     }
@@ -66,7 +67,7 @@ let f1ModeActiveForMultiUe = false;
       `Action: ${action}`,
       "",
       "F1 RFsim handover mode is active.",
-      "Multi-UE controls are disabled to protect the validated F1 handover topology.",
+      "F1 handover uses a dedicated F1 UE and does not block Multi-UE controls.",
       "",
       "Use the F1 Handover Validation panel, or switch back to multi-UE baseline mode first.",
     ].join("\n"));
@@ -215,7 +216,12 @@ ${escapeHtml(result.output || '')}
         : `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running`;
 
       const desiredSelect = document.getElementById('desiredUeCount');
-      if (desiredSelect && data.attached_count >= 1) {
+      if (
+        desiredSelect &&
+        data.attached_count >= 1 &&
+        !desiredUeCountUserEdited &&
+        document.activeElement !== desiredSelect
+      ) {
         desiredSelect.value = String(data.attached_count);
       }
 
@@ -387,6 +393,7 @@ ${escapeHtml(result.output || '')}
     if (blockMultiUeIfF1Mode('apply desired UE count')) return;
 
     const count = Number(document.getElementById('desiredUeCount').value);
+    desiredUeCountUserEdited = false;
 
     setMultiUeBusy(true);
     setMultiUeOutput(`Applying desired UE count: ${count}...`);
@@ -406,6 +413,13 @@ ${escapeHtml(result.output || '')}
     } finally {
       setMultiUeBusy(false);
     }
+  }
+
+  const desiredUeCountSelect = document.getElementById('desiredUeCount');
+  if (desiredUeCountSelect) {
+    desiredUeCountSelect.addEventListener('change', () => {
+      desiredUeCountUserEdited = true;
+    });
   }
 
   refreshF1ModeForMultiUe().then(refreshMultiUes);

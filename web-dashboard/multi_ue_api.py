@@ -372,9 +372,6 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
 
     @app.route("/api/ues/desired", methods=["POST"])
     def api_ues_desired_multi():
-        if f1_mode_active():
-            return reject_multi_ue_in_f1("apply desired UE count")
-
         data = request.get_json(silent=True) or {}
         raw_count = data.get("count", request.form.get("count", ""))
 
@@ -406,25 +403,16 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
 
     @app.route("/api/ue/<ue_name>/start", methods=["POST"])
     def api_ue_start_multi(ue_name):
-        if f1_mode_active():
-            return reject_multi_ue_in_f1("start {}".format(ue_name))
-
         result = start_ue(ue_name)
         return jsonify(result), 200 if result.get("ok") else 400
 
     @app.route("/api/ue/<ue_name>/stop", methods=["POST"])
     def api_ue_stop_multi(ue_name):
-        if f1_mode_active():
-            return reject_multi_ue_in_f1("stop {}".format(ue_name))
-
         result = stop_ue(ue_name)
         return jsonify(result), 200 if result.get("ok") else 400
 
     @app.route("/api/ue/<ue_name>/ping", methods=["POST"])
     def api_ue_ping_multi(ue_name):
-        if f1_mode_active():
-            return reject_multi_ue_in_f1("ping {}".format(ue_name))
-
         cfg = ue_cfg(ue_name)
         if not cfg:
             return jsonify({"ok": False, "error": "unknown UE {}".format(ue_name)}), 404
@@ -772,9 +760,6 @@ exit 0
 
     @app.route("/api/ues/scenarios", methods=["POST"])
     def api_ues_independent_scenarios_multi():
-        if f1_mode_active():
-            return reject_multi_ue_in_f1("run selected UE scenarios")
-
         """Run different scenarios on different UEs in parallel.
 
         Request body example:
@@ -907,9 +892,6 @@ exit 0
 
     @app.route("/api/ues/scenario/<scenario>", methods=["POST"])
     def api_ues_scenario_multi(scenario):
-        if f1_mode_active():
-            return reject_multi_ue_in_f1("run {} scenario".format(scenario))
-
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         scenario = str(scenario).lower()
