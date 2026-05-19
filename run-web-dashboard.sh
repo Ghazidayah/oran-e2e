@@ -14,6 +14,6 @@ fi
 . .venv/bin/activate
 pip install -q -r requirements.txt
 
-echo "Starting O-RAN Lab Control Platform..."
+echo "Starting O-RAN Dashboard..."
 echo "Open: http://192.168.1.142:${PORT}"
 python3 app.py
