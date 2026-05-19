@@ -57,13 +57,13 @@ setInterval(loadMetrics, 2000);
     panel.innerHTML = `
       <div class="feedback-row">
         <div>
-          <div class="feedback-title">Action status</div>
+          <div class="feedback-title">Action Status</div>
           <div id="action-feedback-detail" class="feedback-detail">
-            No action running. Click a validation or traffic button to start.
+            Ready. Select an action to start.
           </div>
         </div>
         <div class="feedback-actions">
-          <button class="feedback-report-button" type="button" data-action="report">Generate E2E Evidence Report</button>
+          <button class="feedback-report-button" type="button" data-action="report">Generate Evidence Report</button>
           <span id="action-feedback-pill" class="feedback-pill">IDLE</span>
         </div>
       </div>
@@ -106,7 +106,7 @@ setInterval(loadMetrics, 2000);
     }
 
     if (detailEl) {
-      detailEl.textContent = detail || "No action running. Click a validation or traffic button to start.";
+      detailEl.textContent = detail || "Ready. Select an action to start.";
     }
 
     if (bar && state !== "running") {

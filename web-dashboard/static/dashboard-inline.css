@@ -616,3 +616,76 @@ button[onclick*="runUeScenarioInteractive"],
     line-height: 1.45;
   }
 
+
+
+/* dashboard-professional-cleanup:start */
+button,
+a.button {
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease, opacity 0.12s ease;
+}
+
+button:hover:not(:disabled),
+a.button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+}
+
+button:active:not(:disabled),
+a.button:active,
+button.ui-pressed:not(:disabled),
+a.button.ui-pressed {
+  transform: translateY(1px) scale(0.98);
+  border-color: #93c5fd !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+button.ui-pressed:not(:disabled),
+.multi-ue-actions button.ui-pressed:not(:disabled),
+.multi-ue-controls button.ui-pressed:not(:disabled),
+.handover-actions button.ui-pressed:not(:disabled) {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+button.danger.ui-pressed:not(:disabled) {
+  background: #b91c1c !important;
+  border-color: #f87171 !important;
+}
+
+button.action-running,
+button.ue-btn-running,
+button.is-busy {
+  background: #f59e0b !important;
+  border-color: #fbbf24 !important;
+  color: #0f172a !important;
+  cursor: wait !important;
+}
+
+button.action-success,
+button.ue-btn-success {
+  background: #16a34a !important;
+  border-color: #22c55e !important;
+  color: #ffffff !important;
+}
+
+button.action-failed,
+button.ue-btn-failed {
+  background: #dc2626 !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+button:focus-visible,
+a.button:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(96, 165, 250, 0.45);
+  outline-offset: 2px;
+}
+
+.handover-panel .muted,
+.scenario-note,
+.per-ue-scenario-note,
+.small {
+  line-height: 1.35;
+}
+/* dashboard-professional-cleanup:end */

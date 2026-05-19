@@ -9,7 +9,7 @@ function setHandoverText(id, value) {
 
 function setHandoverOutput(text) {
   const el = document.getElementById("handoverOutput");
-  if (el) el.textContent = text || "No output.";
+  if (el) el.textContent = text || "Ready.";
 }
 
 let handoverReadyForRun = false;
@@ -138,15 +138,14 @@ async function runF1Handover() {
       setHandoverText("handoverLastResult", "blocked");
       setHandoverOutput([
         "===== F1 Handover Blocked =====",
-        "The dashboard did not run F1 handover because the lab is not in F1-ready mode.",
+        "F1 handover was not started because readiness checks did not pass.",
         "",
         `Mode: ${statusData.mode || "unknown"}`,
         `F1 topology: ${statusData.topology_ready ? "READY" : "NOT READY"}`,
         `UE tunnel: ${statusData.ue_tunnel_ready ? "READY" : "NOT READY"}`,
         `Handover ready: ${statusData.handover_ready ? "YES" : "NO"}`,
         "",
-        "This is expected in multi-UE baseline mode.",
-        "Switch to F1 handover topology before running this validation.",
+        "Review F1 topology and UE tunnel status before running again.",
       ].join("\n"));
       return;
     }

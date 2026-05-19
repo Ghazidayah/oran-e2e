@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>O-RAN Lab Control Platform</title>
+  <title>O-RAN Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- dashboard-action-feedback-style:start -->
 <!-- dashboard-action-feedback-style:end -->
@@ -13,11 +13,11 @@
 <body>
 <header>
   <div>
-    <h1>O-RAN Lab Control Platform</h1>
-    <div class="subtitle">Live validation dashboard for Open5GS, OAI RAN, UE tunnel, traffic, monitoring, and handover readiness.</div>
+    <h1>O-RAN Dashboard</h1>
+    <div class="subtitle">Live status and controls for Open5GS, OAI RAN, Multi-UE traffic, and F1 handover.</div>
   </div>
   <div class="buttons">
-    <button onclick="reloadStatus()">Reload status</button>
+    <button onclick="reloadStatus()">Reload Status</button>
     <a id="grafanaLink" class="button secondary" target="_blank">Open Grafana</a>
     <a id="prometheusLink" class="button secondary" target="_blank">Open Prometheus</a>
   </div>
@@ -34,7 +34,7 @@
     <div class="card">
       <h3>RAN + UE</h3>
       <div id="ranMetric" class="metric">-</div>
-      <div class="small">gNB-A / gNB-B / NR-UE readiness</div>
+      <div class="small">Normal gNB, UE1-UE5, and dedicated F1 UE</div>
     </div>
 
     <div class="card">
@@ -46,7 +46,7 @@
     <div class="card">
       <h3>UE Tunnel</h3>
       <div id="ueMetric" class="metric">-</div>
-      <div class="small">oaitun_ue1 IP address</div>
+      <div class="small">Attached UE tunnel count</div>
     </div>
   </section>
 
@@ -54,7 +54,7 @@
 <section class="panel handover-panel">
   <h3>F1 Handover Validation</h3>
   <p class="muted">
-    Validated CU/DU RFsim handover scenario. Monolithic N2 handover remains experimental and is not claimed as validated.
+    Dedicated CU/DU RFsim handover using oai-nr-ue-f1.
   </p>
 
   <div class="handover-grid">
@@ -86,52 +86,52 @@
   </div>
 
   <div id="handoverChecks" class="handover-result-grid"></div>
-  <pre id="handoverOutput" class="handover-output">F1 handover evidence will appear here.</pre>
+  <pre id="handoverOutput" class="handover-output">Ready.</pre>
 </section>
 
 
 <section class="card section">
     <h3>End-to-End UE Validation Scenarios</h3>
-<p class="muted scenario-note">Scenarios run on the selected active UE count. Select 1-5 UEs, then run a validation scenario.</p>
+<p class="muted scenario-note">Select the active UE count, then run validation or traffic scenarios.</p>
     <div class="grid cards">
       <div>
         <h3>Serving gNB Check</h3>
-        <p class="small">Checks which gNB currently serves the selected UE(s).</p>
+        <p class="small">Shows the serving cell for selected UE(s).</p>
         <button onclick="runActionInteractive('ownership', this)">Check Serving gNB</button>
       </div>
       <div>
         <h3>UE Attach + PDU Session</h3>
-        <p class="small">Validates UE attach, PDU session, RAN-Core path, and stores evidence.</p>
+        <p class="small">Checks attach, PDU session, and RAN-Core path.</p>
         <button onclick="runUeScenarioInteractive('attach_pdu', this)">Validate UE Session</button>
       </div>
       <div>
         <h3>UE Connectivity Test</h3>
-        <p class="small">Tests DN gateway and internet through selected UE tunnel(s).</p>
+        <p class="small">Tests DN gateway reachability through selected UE tunnel(s).</p>
         <button onclick="runUeScenarioInteractive('connectivity', this)">Run Connectivity</button>
       </div>
       <div>
         <h3>UE Throughput KPI</h3>
-        <p class="small">Generates traffic and estimates throughput KPIs.</p>
+        <p class="small">Runs traffic and reports throughput KPIs.</p>
         <button onclick="runUeScenarioInteractive('throughput', this)">Run KPI Test</button>
       </div>
       <div>
         <h3>UE Video-like Stream</h3>
-        <p class="small">Starts controlled background user-plane traffic for selected UE(s).</p>
+        <p class="small">Starts controlled stream-like user-plane traffic.</p>
         <button onclick="runUeScenarioInteractive('video', this)">Start Stream</button>
       </div>
       <div>
         <h3>UE Stability Traffic</h3>
-        <p class="small">Starts low-rate UE traffic for stability observation.</p>
+        <p class="small">Starts low-rate stability traffic.</p>
         <button onclick="runUeScenarioInteractive('stability', this)">Start Stability</button>
       </div>
       <div>
         <h3>UE Stress Traffic</h3>
-        <p class="small">Starts stronger user-plane traffic for selected UE(s).</p>
+        <p class="small">Starts higher-load user-plane traffic.</p>
         <button onclick="runUeScenarioInteractive('stress', this)">Start Stress</button>
       </div>
       <div>
         <h3>Stop UE Traffic</h3>
-        <p class="small">Stops dashboard-started UE traffic.</p>
+        <p class="small">Stops traffic started by this dashboard.</p>
         <button class="danger" onclick="runUeScenarioInteractive('stop', this)">Stop UE Traffic</button>
       </div>
     </div>
@@ -158,41 +158,9 @@
       </table>
     </div>
   </section>
-
-  <section class="card section">
-    <h3>Architecture</h3>
-    <div class="architecture">
-      <div class="card">
-        <h3>Cloud Infrastructure</h3>
-        <div class="small">K3s Kubernetes node</div>
-        <div class="small">Multus N2/N3 networks</div>
-        <div class="small">Monitoring namespace</div>
-      </div>
-      <div class="arrow">N2 / N3</div>
-      <div class="card">
-        <h3>5G Core</h3>
-        <div class="small">Open5GS AMF</div>
-        <div class="small">Open5GS SMF</div>
-        <div class="small">Open5GS UPF</div>
-        <div class="small">DNN: oai</div>
-      </div>
-      <div class="arrow">NGAP / GTP-U</div>
-      <div class="card">
-        <h3>RAN and UE</h3>
-        <div class="small">OAI gNB-A PCI 0</div>
-        <div class="small">OAI gNB-B PCI 1</div>
-        <div class="small">OAI NR-UE</div>
-        <div class="small">RFsim socket</div>
-      </div>
-    </div>
-    <p class="small">
-      Current project state: Stable 5-UE dashboard baseline is restored. Handover validation remains under debug; gNB-B target connectivity was validated, but seamless RFsim/N2 handover is not yet proven.
-    </p>
-  </section>
-
   <section class="card section">
     <h3>Real-Time Multi-UE Data Transfer</h3>
-    <p class="small">Measured from oaitun_ue1 inside every attached UE included by the selected active UE count. The graph shows total RX/TX Mbps across active UEs.</p>
+    <p class="small">Live RX/TX totals from attached UEs included in the selected active UE count.</p>
     <canvas id="trafficCanvas" width="1000" height="260"></canvas>
     <div class="grid cards section">
       <div class="card">
@@ -266,7 +234,7 @@
     </div>
   </div>
   <div class="per-ue-scenario-note">
-    Per-UE scenario matrix: choose a different scenario per UE, then run them in parallel. Example: UE1 = Heavy traffic, UE2 = Light traffic.
+    Choose a scenario per UE, then run the selected scenarios in parallel.
   </div>
 
   <table class="multi-ue-table">
@@ -290,7 +258,7 @@
   </table>
 
   <div id="multiUeScenarioSummary" class="multi-ue-scenario-summary" hidden></div>
-  <pre id="multiUeOutput" class="multi-ue-output">Multi-UE action output will appear here.</pre>
+  <pre id="multiUeOutput" class="multi-ue-output">Ready.</pre>
 </section>
 <!-- MULTI_UE_UI_BLOCK_END -->
 
@@ -310,5 +278,6 @@
   <script src="{{ url_for('static', filename='dashboard-multi-ue.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-inline.js') }}"></script>
   <script src="{{ url_for('static', filename='handover.js') }}"></script>
+  <script src="{{ url_for('static', filename='dashboard-ui-feedback.js') }}"></script>
 </body>
 </html>
