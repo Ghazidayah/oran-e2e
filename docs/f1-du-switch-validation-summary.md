@@ -2,19 +2,21 @@
 
 ## Objective
 
-Validate the new OAI F1 split architecture with:
+The objective was to redesign the old broken F1 handover section into a clean OAI F1 split architecture.
 
-- one CU
+The validated architecture is:
+
+- OAI CU
 - DU0
 - DU1
 - one NR-UE
 - Open5GS core
 - DNN=oai
-- UE tunnel connectivity through oaitun_ue1
+- UE tunnel through oaitun_ue1
 
-## Validated steps
+## Validated results
 
-### 1. CU + DU0 + UE1
+### CU + DU0 + UE1
 
 Result:
 
@@ -25,7 +27,7 @@ Result:
 - ping 10.45.0.1 OK
 - ping 8.8.8.8 OK
 
-### 2. CU + DU1 + UE1
+### CU + DU1 + UE1
 
 Result:
 
@@ -36,15 +38,16 @@ Result:
 - ping 10.45.0.1 OK
 - ping 8.8.8.8 OK
 
-### 3. Controlled DU switch sequence
+### Controlled DU switch sequence
 
-Sequence:
+Validated sequence:
 
-- switch to DU0
-- stability ping
+- DU0 active
+- stability ping OK
 - switch to DU1
-- stability ping
+- stability ping OK
 - switch back to DU0
+- final UE tunnel OK
 
 Final result:
 
@@ -53,11 +56,13 @@ Final result:
 - SWITCH_du0_OK
 - F1_DU_SWITCH_SEQUENCE_OK
 
-## Important note
+## Important limitation
 
-This scenario is a controlled F1 DU switch / handover-like validation. It is not yet a seamless live radio handover because the UE is restarted and patched toward the selected RFsim DU service during the switch.
+This is a controlled F1 DU switch / handover-like validation.
 
-## Evidence location
+It is not yet a seamless live radio handover because the UE is restarted and patched toward the selected RFsim DU service during the switch.
+
+## Evidence
 
 Evidence is stored under:
 
