@@ -34,3 +34,14 @@ Replace the current monolithic gNB topology with a clean split architecture:
 8. Attach UE first on DU0.
 9. Add mobility/handover test toward DU1.
 10. Collect logs from UE, CU, DU0, DU1, AMF, SMF and UPF.
+
+## Cleanup continuation
+
+After removing the old deployments, remaining old F1 resources were also removed from the active cluster:
+
+- service/oai-cu-ci
+- configmap/oai-cu-f1-config
+- configmap/oai-du0-f1-config
+- configmap/oai-du1-f1-config
+
+The validated 5 UE baseline remained operational after cleanup.
