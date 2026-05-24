@@ -1,0 +1,159 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-cu
+  namespace: oran-ran
+  labels:
+    app: oai-cu
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: oai-cu
+  template:
+    metadata:
+      labels:
+        app: oai-cu
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.120/24"]},{"name":"n3-net","ips":["10.20.0.120/24"]}]'
+    spec:
+      containers:
+      - name: oai-cu
+        image: oaisoftwarealliance/oai-gnb:2025.w45
+        imagePullPolicy: IfNotPresent
+        command: ["/opt/oai-gnb/bin/nr-softmodem"]
+        args:
+        - "-O"
+        - "/opt/oai-gnb/etc/gnb.conf"
+        - "--log_config.global_log_options"
+        - "level,nocolor,time"
+        - "--telnetsrv"
+        - "--telnetsrv.shrmod"
+        - "ci"
+        securityContext:
+          capabilities:
+            add: ["SYS_NICE"]
+        volumeMounts:
+        - name: cu-config
+          mountPath: /opt/oai-gnb/etc/gnb.conf
+          subPath: gnb.conf
+      volumes:
+      - name: cu-config
+        configMap:
+          name: oai-cu-f1-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oai-cu-ci
+  namespace: oran-ran
+  labels:
+    app: oai-cu
+spec:
+  type: ClusterIP
+  selector:
+    app: oai-cu
+  ports:
+  - name: ci
+    port: 9090
+    targetPort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-du0
+  namespace: oran-ran
+  labels:
+    app: oai-du0
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: oai-du0
+  template:
+    metadata:
+      labels:
+        app: oai-du0
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.121/24"]}]'
+    spec:
+      containers:
+      - name: oai-du0
+        image: oaisoftwarealliance/oai-gnb:2025.w45
+        imagePullPolicy: IfNotPresent
+        command: ["/opt/oai-gnb/bin/nr-softmodem"]
+        args:
+        - "-O"
+        - "/opt/oai-gnb/etc/gnb.conf"
+        - "-E"
+        - "--rfsim"
+        - "--rfsimulator.serveraddr"
+        - "oai-nr-ue-rfsim"
+        - "--rfsimulator.serverport"
+        - "4043"
+        - "--log_config.global_log_options"
+        - "level,nocolor,time"
+        securityContext:
+          capabilities:
+            add: ["SYS_NICE"]
+        volumeMounts:
+        - name: du-config
+          mountPath: /opt/oai-gnb/etc/gnb.conf
+          subPath: gnb.conf
+      volumes:
+      - name: du-config
+        configMap:
+          name: oai-du0-f1-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-du1
+  namespace: oran-ran
+  labels:
+    app: oai-du1
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: oai-du1
+  template:
+    metadata:
+      labels:
+        app: oai-du1
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.132/24"]}]'
+    spec:
+      containers:
+      - name: oai-du1
+        image: oaisoftwarealliance/oai-gnb:2025.w45
+        imagePullPolicy: IfNotPresent
+        command: ["/opt/oai-gnb/bin/nr-softmodem"]
+        args:
+        - "-O"
+        - "/opt/oai-gnb/etc/gnb.conf"
+        - "-E"
+        - "--rfsim"
+        - "--rfsimulator.serveraddr"
+        - "oai-nr-ue-rfsim"
+        - "--rfsimulator.serverport"
+        - "4043"
+        - "--log_config.global_log_options"
+        - "level,nocolor,time"
+        securityContext:
+          capabilities:
+            add: ["SYS_NICE"]
+        volumeMounts:
+        - name: du-config
+          mountPath: /opt/oai-gnb/etc/gnb.conf
+          subPath: gnb.conf
+      volumes:
+      - name: du-config
+        configMap:
+          name: oai-du1-f1-config
