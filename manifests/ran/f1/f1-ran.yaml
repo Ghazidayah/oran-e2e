@@ -92,7 +92,7 @@ spec:
         - "-E"
         - "--rfsim"
         - "--rfsimulator.serveraddr"
-        - "oai-nr-ue-rfsim"
+        - "server"
         - "--rfsimulator.serverport"
         - "4043"
         - "--log_config.global_log_options"
@@ -141,7 +141,7 @@ spec:
         - "-E"
         - "--rfsim"
         - "--rfsimulator.serveraddr"
-        - "oai-nr-ue-rfsim"
+        - "server"
         - "--rfsimulator.serverport"
         - "4043"
         - "--log_config.global_log_options"
@@ -157,3 +157,35 @@ spec:
       - name: du-config
         configMap:
           name: oai-du1-f1-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oai-du0-rfsim
+  namespace: oran-ran
+  labels:
+    app: oai-du0
+spec:
+  type: ClusterIP
+  selector:
+    app: oai-du0
+  ports:
+  - name: rfsim
+    port: 4043
+    targetPort: 4043
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oai-du1-rfsim
+  namespace: oran-ran
+  labels:
+    app: oai-du1
+spec:
+  type: ClusterIP
+  selector:
+    app: oai-du1
+  ports:
+  - name: rfsim
+    port: 4043
+    targetPort: 4043

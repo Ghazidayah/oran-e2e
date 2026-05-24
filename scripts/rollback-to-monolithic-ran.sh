@@ -8,6 +8,12 @@ kubectl -n "$NS" scale deploy/oai-cu --replicas=0 --ignore-not-found=true || tru
 kubectl -n "$NS" scale deploy/oai-du0 --replicas=0 --ignore-not-found=true || true
 kubectl -n "$NS" scale deploy/oai-du1 --replicas=0 --ignore-not-found=true || true
 
+echo "===== Patch UE1 back to monolithic gNB RFsim ====="
+kubectl -n "$NS" patch deploy oai-nr-ue --type='json' -p='[
+  {"op":"replace","path":"/spec/template/spec/containers/0/args/11","value":"516"},
+  {"op":"replace","path":"/spec/template/spec/containers/0/args/13","value":"oai-gnb-rfsim"}
+]' || true
+
 echo "===== Clean stale monolithic gNB leases ====="
 sudo find /var/lib/cni/networks -type f \( \
   -name '10.10.0.110' -o \
@@ -18,7 +24,11 @@ echo "===== Restore monolithic gNB ====="
 kubectl -n "$NS" scale deploy/oai-gnb --replicas=1
 kubectl -n "$NS" rollout status deploy/oai-gnb --timeout=5m
 
-echo "===== Restart UEs ====="
+echo "===== Restore all 5 UEs ====="
+for d in oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
+  kubectl -n "$NS" scale deploy/"$d" --replicas=1 || true
+done
+
 for d in oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
   kubectl -n "$NS" rollout restart deploy/"$d" || true
 done
