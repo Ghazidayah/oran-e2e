@@ -1,0 +1,1682 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  data:
+    ca.crt: |
+      -----BEGIN CERTIFICATE-----
+      MIIBdzCCAR2gAwIBAgIBADAKBggqhkjOPQQDAjAjMSEwHwYDVQQDDBhrM3Mtc2Vy
+      dmVyLWNhQDE3NzIwODAxMjgwHhcNMjYwMjI2MDQyODQ4WhcNMzYwMjI0MDQyODQ4
+      WjAjMSEwHwYDVQQDDBhrM3Mtc2VydmVyLWNhQDE3NzIwODAxMjgwWTATBgcqhkjO
+      PQIBBggqhkjOPQMBBwNCAATvSqpUqMLLfVkxUvSvuvYR2cEuiKBC9HQclMCLAR9M
+      M6w1Y3gy7Vnh7YdhNiI2DZ/Auem9BcQ0L0Y/Wve2Ulo2o0IwQDAOBgNVHQ8BAf8E
+      BAMCAqQwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQU9xQxcmoRBaMeuf6VF0sk
+      h4CMW6YwCgYIKoZIzj0EAwIDSAAwRQIhAIVnt0gzN7Xzn7UdFiehG3pgYE0sCQ6V
+      AYT4wGLKFdD+AiBJbje57UWktCR/3/tvcxTA6gvM+Wtc7scY8loBhncX4w==
+      -----END CERTIFICATE-----
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubernetes.io/description: Contains a CA bundle that can be used to verify the
+        kube-apiserver when using internal endpoints such as the internal service
+        IP or kubernetes.default.svc. No other usage is guaranteed across distributions
+        of Kubernetes clusters.
+    creationTimestamp: "2026-02-28T01:59:57Z"
+    name: kube-root-ca.crt
+    namespace: oran-ran
+    resourceVersion: "4585"
+    uid: f33295f9-6e7a-4aa1-a71c-f6ada2bb15c7
+- apiVersion: v1
+  data:
+    gnb.conf: |
+      # SPDX-License-Identifier: LicenseRef-CSSL-1.0
+
+      Active_gNBs = ( "cu-rfsim");
+      # Asn1_verbosity, choice in: none, info, annoying
+      Asn1_verbosity = "none";
+
+      gNBs =
+      (
+       {
+          ////////// Identification parameters:
+          gNB_ID = 0xe00;
+          gNB_name  =  "cu-rfsim";
+
+          // Tracking area code, 0x0000 and 0xfffe are reserved values
+          tracking_area_code  =  1;
+          plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });
+
+          nr_cellid = 12345678L;
+
+          tr_s_preference = "f1";
+
+          local_s_address     = "10.10.0.120";
+          remote_s_address    = "0.0.0.0"; # multiple DUs
+          local_s_portd       = 2152;
+          remote_s_portd      = 2152;
+
+
+          # ------- SCTP definitions
+          SCTP :
+          {
+              # Number of streams to use in input/output
+              SCTP_INSTREAMS  = 2;
+              SCTP_OUTSTREAMS = 2;
+          };
+
+
+          ////////// AMF parameters:
+          amf_ip_address = ({ ipv4 = "10.10.0.101"; });
+
+          NETWORK_INTERFACES :
+          {
+              GNB_IPV4_ADDRESS_FOR_NG_AMF              = "10.10.0.120";
+              GNB_IPV4_ADDRESS_FOR_NGU                 = "10.20.0.120";
+              GNB_PORT_FOR_S1U                         = 2152; # Spec 2152
+          };
+        }
+      );
+
+      security = {
+        # preferred ciphering algorithms
+        # the first one of the list that an UE supports in chosen
+        # valid values: nea0, nea1, nea2, nea3
+        ciphering_algorithms = ( "nea0" );
+
+        # preferred integrity algorithms
+        # the first one of the list that an UE supports in chosen
+        # valid values: nia0, nia1, nia2, nia3
+        integrity_algorithms = ( "nia2", "nia0" );
+
+        # setting 'drb_ciphering' to "no" disables ciphering for DRBs, no matter
+        # what 'ciphering_algorithms' configures; same thing for 'drb_integrity'
+        drb_ciphering = "yes";
+        drb_integrity = "no";
+      };
+
+      log_config : {
+        global_log_level = "info";
+        pdcp_log_level = "info";
+        rrc_log_level = "info";
+        f1ap_log_level = "info";
+        ngap_log_level = "info";
+      };
+
+      e2_agent = {
+        near_ric_ip_addr = "127.0.0.1";
+        sm_dir = "/usr/local/lib/flexric/"
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"gnb.conf":"# SPDX-License-Identifier: LicenseRef-CSSL-1.0\n\nActive_gNBs = ( \"cu-rfsim\");\n# Asn1_verbosity, choice in: none, info, annoying\nAsn1_verbosity = \"none\";\n\ngNBs =\n(\n {\n    ////////// Identification parameters:\n    gNB_ID = 0xe00;\n    gNB_name  =  \"cu-rfsim\";\n\n    // Tracking area code, 0x0000 and 0xfffe are reserved values\n    tracking_area_code  =  1;\n    plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });\n\n    nr_cellid = 12345678L;\n\n    tr_s_preference = \"f1\";\n\n    local_s_address     = \"10.10.0.120\";\n    remote_s_address    = \"0.0.0.0\"; # multiple DUs\n    local_s_portd       = 2152;\n    remote_s_portd      = 2152;\n\n\n    # ------- SCTP definitions\n    SCTP :\n    {\n        # Number of streams to use in input/output\n        SCTP_INSTREAMS  = 2;\n        SCTP_OUTSTREAMS = 2;\n    };\n\n\n    ////////// AMF parameters:\n    amf_ip_address = ({ ipv4 = \"10.10.0.101\"; });\n\n    NETWORK_INTERFACES :\n    {\n        GNB_IPV4_ADDRESS_FOR_NG_AMF              = \"10.10.0.120\";\n        GNB_IPV4_ADDRESS_FOR_NGU                 = \"10.20.0.120\";\n        GNB_PORT_FOR_S1U                         = 2152; # Spec 2152\n    };\n  }\n);\n\nsecurity = {\n  # preferred ciphering algorithms\n  # the first one of the list that an UE supports in chosen\n  # valid values: nea0, nea1, nea2, nea3\n  ciphering_algorithms = ( \"nea0\" );\n\n  # preferred integrity algorithms\n  # the first one of the list that an UE supports in chosen\n  # valid values: nia0, nia1, nia2, nia3\n  integrity_algorithms = ( \"nia2\", \"nia0\" );\n\n  # setting 'drb_ciphering' to \"no\" disables ciphering for DRBs, no matter\n  # what 'ciphering_algorithms' configures; same thing for 'drb_integrity'\n  drb_ciphering = \"yes\";\n  drb_integrity = \"no\";\n};\n\nlog_config : {\n  global_log_level = \"info\";\n  pdcp_log_level = \"info\";\n  rrc_log_level = \"info\";\n  f1ap_log_level = \"info\";\n  ngap_log_level = \"info\";\n};\n\ne2_agent = {\n  near_ric_ip_addr = \"127.0.0.1\";\n  sm_dir = \"/usr/local/lib/flexric/\"\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-cu-f1-config","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-17T00:19:06Z"
+    name: oai-cu-f1-config
+    namespace: oran-ran
+    resourceVersion: "382511"
+    uid: 10fb446e-f79a-4b2c-bd68-0b1b024e695e
+- apiVersion: v1
+  data:
+    gnb.conf: |
+      # SPDX-License-Identifier: LicenseRef-CSSL-1.0
+
+      Active_gNBs = ( "du-rfsim0");
+      # Asn1_verbosity, choice in: none, info, annoying
+      Asn1_verbosity = "none";
+
+      gNBs =
+      (
+       {
+          ////////// Identification parameters:
+          gNB_ID = 0xe00;
+          gNB_DU_ID = 0xe00;
+          gNB_name  =  "du-rfsim0";
+
+          // Tracking area code, 0x0000 and 0xfffe are reserved values
+          tracking_area_code  =  1;
+          plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });
+
+          nr_cellid = 12345678L;
+
+          ////////// Physical parameters:
+
+          min_rxtxtime = 4;
+
+          servingCellConfigCommon = (
+          {
+       #spCellConfigCommon
+
+            physCellId                                               = 0;
+
+      #  downlinkConfigCommon
+          #frequencyInfoDL
+            # this is 3600 MHz + 43 PRBs@30kHz SCS (same as initial BWP)
+            absoluteFrequencySSB                                      = 630048;
+            dl_frequencyBand                                          = 78;
+            # this is 3600 MHz
+            dl_absoluteFrequencyPointA                                = 628776;
+            #scs-SpecificCarrierList
+              dl_offstToCarrier                                       = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              dl_subcarrierSpacing                                    = 1;
+              dl_carrierBandwidth                                     = 106;
+           #initialDownlinkBWP
+            #genericParameters
+              # this is RBstart=27,L=48 (275*(L-1))+RBstart
+              initialDLBWPlocationAndBandwidth                         = 28875; # 6366 12925 12956 28875 12952
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialDLBWPsubcarrierSpacing                             = 1;
+            #pdcch-ConfigCommon
+              initialDLBWPcontrolResourceSetZero                        = 12;
+              initialDLBWPsearchSpaceZero                               = 0;
+
+        #uplinkConfigCommon
+           #frequencyInfoUL
+            ul_frequencyBand                                             = 78;
+            #scs-SpecificCarrierList
+            ul_offstToCarrier                                            = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            ul_subcarrierSpacing                                         = 1;
+            ul_carrierBandwidth                                          = 106;
+            pMax                                                         = 20;
+           #initialUplinkBWP
+            #genericParameters
+              initialULBWPlocationAndBandwidth                           = 28875;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialULBWPsubcarrierSpacing                              = 1;
+            #rach-ConfigCommon
+              #rach-ConfigGeneric
+                prach_ConfigurationIndex                                 = 98;
+      #prach_msg1_FDM
+      #0 = one, 1=two, 2=four, 3=eight
+                prach_msg1_FDM                                           = 0;
+                prach_msg1_FrequencyStart                                = 0;
+                zeroCorrelationZoneConfig                                = 13;
+                preambleReceivedTargetPower                              = -96;
+      #preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)
+                preambleTransMax                                         = 6;
+      #powerRampingStep
+      # 0=dB0,1=dB2,2=dB4,3=dB6
+              powerRampingStep                                           = 1;
+      #ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR
+      #1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR               = 4;
+      #one (0..15) 4,8,12,16,...60,64
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB                  = 14;
+      #ra_ContentionResolutionTimer
+      #(0..7) 8,16,24,32,40,48,56,64
+              ra_ContentionResolutionTimer                               = 7;
+              rsrp_ThresholdSSB                                          = 19;
+      #prach-RootSequenceIndex_PR
+      #1 = 839, 2 = 139
+              prach_RootSequenceIndex_PR                                 = 2;
+              prach_RootSequenceIndex                                    = 1;
+              # SCS for msg1, can only be 15 for 30 kHz < 6 GHz, takes precendence over the one derived from prach-ConfigIndex
+              #
+              msg1_SubcarrierSpacing                                     = 1,
+      # restrictedSetConfig
+      # 0=unrestricted, 1=restricted type A, 2=restricted type B
+              restrictedSetConfig                                        = 0,
+
+              msg3_DeltaPreamble                                         = 1;
+              p0_NominalWithGrant                                        =-90;
+
+      # pucch-ConfigCommon setup :
+      # pucchGroupHopping
+      # 0 = neither, 1= group hopping, 2=sequence hopping
+              pucchGroupHopping                                          = 0;
+              hoppingId                                                  = 40;
+              p0_nominal                                                 = -90;
+
+            ssb_PositionsInBurst_Bitmap                                  = 1;
+
+      # ssb_periodicityServingCell
+      # 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1
+            ssb_periodicityServingCell                                   = 2;
+
+      # dmrs_TypeA_position
+      # 0 = pos2, 1 = pos3
+            dmrs_TypeA_Position                                           = 0;
+
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            subcarrierSpacing                                            = 1;
+
+
+        #tdd-UL-DL-ConfigurationCommon
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            referenceSubcarrierSpacing                                   = 1;
+            # pattern1
+            # dl_UL_TransmissionPeriodicity
+            # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10
+            dl_UL_TransmissionPeriodicity                                = 6;
+            nrofDownlinkSlots                                            = 7;
+            nrofDownlinkSymbols                                          = 6;
+            nrofUplinkSlots                                              = 2;
+            nrofUplinkSymbols                                            = 4;
+
+            ssPBCH_BlockPower                                            = -25;
+           }
+
+        );
+
+          # ------- SCTP definitions
+          SCTP :
+          {
+              # Number of streams to use in input/output
+              SCTP_INSTREAMS  = 2;
+              SCTP_OUTSTREAMS = 2;
+          };
+        }
+      );
+
+      MACRLCs = ({
+          tr_s_preference     = "local_L1";
+          tr_n_preference     = "f1";
+          local_n_address     = "10.10.0.121";
+          remote_n_address    = "10.10.0.120";
+          local_n_portd       = 2152;
+          remote_n_portd      = 2152;
+          pusch_FailureThres  = 1000;
+      });
+
+      L1s = ({
+          tr_n_preference = "local_mac";
+          prach_dtx_threshold = 200;
+          pucch0_dtx_threshold = 150;
+          ofdm_offset_divisor = 8; #set this to UINT_MAX for offset 0
+      });
+
+      RUs = ({
+          local_rf       = "yes"
+          nb_tx          = 1
+          nb_rx          = 1
+          att_tx         = 0
+          att_rx         = 0;
+          bands          = [78];
+          max_pdschReferenceSignalPower = -27;
+          max_rxgain                    = 114;
+          eNB_instances  = [0];
+          clock_src = "internal";
+      });
+
+      rfsimulator =({
+        serveraddr = "oai-nr-ue-f1-rfsim";
+        serverport = 4043;
+        options = (); #("saviq"); or/and "chanmod"
+        modelname = "AWGN";
+        IQfile = "/tmp/rfsimulator.iqs"
+      });
+
+      log_config: {
+        global_log_level = "info";
+        hw_log_level     = "info";
+        nr_phy_log_level = "info";
+        nr_mac_log_level = "info";
+        rlc_log_level    = "info";
+        pdcp_log_level   = "info";
+        rrc_log_level    = "info";
+        f1ap_log_level   = "info";
+        ngap_log_level   = "debug";
+      };
+
+      e2_agent = {
+        near_ric_ip_addr = "127.0.0.1";
+        sm_dir = "/usr/local/lib/flexric/"
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"gnb.conf":"# SPDX-License-Identifier: LicenseRef-CSSL-1.0\n\nActive_gNBs = ( \"du-rfsim0\");\n# Asn1_verbosity, choice in: none, info, annoying\nAsn1_verbosity = \"none\";\n\ngNBs =\n(\n {\n    ////////// Identification parameters:\n    gNB_ID = 0xe00;\n    gNB_DU_ID = 0xe00;\n    gNB_name  =  \"du-rfsim0\";\n\n    // Tracking area code, 0x0000 and 0xfffe are reserved values\n    tracking_area_code  =  1;\n    plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });\n\n    nr_cellid = 12345678L;\n\n    ////////// Physical parameters:\n\n    min_rxtxtime = 4;\n\n    servingCellConfigCommon = (\n    {\n #spCellConfigCommon\n\n      physCellId                                               = 0;\n\n#  downlinkConfigCommon\n    #frequencyInfoDL\n      # this is 3600 MHz + 43 PRBs@30kHz SCS (same as initial BWP)\n      absoluteFrequencySSB                                      = 630048;\n      dl_frequencyBand                                          = 78;\n      # this is 3600 MHz\n      dl_absoluteFrequencyPointA                                = 628776;\n      #scs-SpecificCarrierList\n        dl_offstToCarrier                                       = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        dl_subcarrierSpacing                                    = 1;\n        dl_carrierBandwidth                                     = 106;\n     #initialDownlinkBWP\n      #genericParameters\n        # this is RBstart=27,L=48 (275*(L-1))+RBstart\n        initialDLBWPlocationAndBandwidth                         = 28875; # 6366 12925 12956 28875 12952\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialDLBWPsubcarrierSpacing                             = 1;\n      #pdcch-ConfigCommon\n        initialDLBWPcontrolResourceSetZero                        = 12;\n        initialDLBWPsearchSpaceZero                               = 0;\n\n  #uplinkConfigCommon\n     #frequencyInfoUL\n      ul_frequencyBand                                             = 78;\n      #scs-SpecificCarrierList\n      ul_offstToCarrier                                            = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      ul_subcarrierSpacing                                         = 1;\n      ul_carrierBandwidth                                          = 106;\n      pMax                                                         = 20;\n     #initialUplinkBWP\n      #genericParameters\n        initialULBWPlocationAndBandwidth                           = 28875;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialULBWPsubcarrierSpacing                              = 1;\n      #rach-ConfigCommon\n        #rach-ConfigGeneric\n          prach_ConfigurationIndex                                 = 98;\n#prach_msg1_FDM\n#0 = one, 1=two, 2=four, 3=eight\n          prach_msg1_FDM                                           = 0;\n          prach_msg1_FrequencyStart                                = 0;\n          zeroCorrelationZoneConfig                                = 13;\n          preambleReceivedTargetPower                              = -96;\n#preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)\n          preambleTransMax                                         = 6;\n#powerRampingStep\n# 0=dB0,1=dB2,2=dB4,3=dB6\n        powerRampingStep                                           = 1;\n#ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR\n#1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR               = 4;\n#one (0..15) 4,8,12,16,...60,64\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB                  = 14;\n#ra_ContentionResolutionTimer\n#(0..7) 8,16,24,32,40,48,56,64\n        ra_ContentionResolutionTimer                               = 7;\n        rsrp_ThresholdSSB                                          = 19;\n#prach-RootSequenceIndex_PR\n#1 = 839, 2 = 139\n        prach_RootSequenceIndex_PR                                 = 2;\n        prach_RootSequenceIndex                                    = 1;\n        # SCS for msg1, can only be 15 for 30 kHz \u003c 6 GHz, takes precendence over the one derived from prach-ConfigIndex\n        #\n        msg1_SubcarrierSpacing                                     = 1,\n# restrictedSetConfig\n# 0=unrestricted, 1=restricted type A, 2=restricted type B\n        restrictedSetConfig                                        = 0,\n\n        msg3_DeltaPreamble                                         = 1;\n        p0_NominalWithGrant                                        =-90;\n\n# pucch-ConfigCommon setup :\n# pucchGroupHopping\n# 0 = neither, 1= group hopping, 2=sequence hopping\n        pucchGroupHopping                                          = 0;\n        hoppingId                                                  = 40;\n        p0_nominal                                                 = -90;\n\n      ssb_PositionsInBurst_Bitmap                                  = 1;\n\n# ssb_periodicityServingCell\n# 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1\n      ssb_periodicityServingCell                                   = 2;\n\n# dmrs_TypeA_position\n# 0 = pos2, 1 = pos3\n      dmrs_TypeA_Position                                           = 0;\n\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      subcarrierSpacing                                            = 1;\n\n\n  #tdd-UL-DL-ConfigurationCommon\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      referenceSubcarrierSpacing                                   = 1;\n      # pattern1\n      # dl_UL_TransmissionPeriodicity\n      # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10\n      dl_UL_TransmissionPeriodicity                                = 6;\n      nrofDownlinkSlots                                            = 7;\n      nrofDownlinkSymbols                                          = 6;\n      nrofUplinkSlots                                              = 2;\n      nrofUplinkSymbols                                            = 4;\n\n      ssPBCH_BlockPower                                            = -25;\n     }\n\n  );\n\n    # ------- SCTP definitions\n    SCTP :\n    {\n        # Number of streams to use in input/output\n        SCTP_INSTREAMS  = 2;\n        SCTP_OUTSTREAMS = 2;\n    };\n  }\n);\n\nMACRLCs = ({\n    tr_s_preference     = \"local_L1\";\n    tr_n_preference     = \"f1\";\n    local_n_address     = \"10.10.0.121\";\n    remote_n_address    = \"10.10.0.120\";\n    local_n_portd       = 2152;\n    remote_n_portd      = 2152;\n    pusch_FailureThres  = 1000;\n});\n\nL1s = ({\n    tr_n_preference = \"local_mac\";\n    prach_dtx_threshold = 200;\n    pucch0_dtx_threshold = 150;\n    ofdm_offset_divisor = 8; #set this to UINT_MAX for offset 0\n});\n\nRUs = ({\n    local_rf       = \"yes\"\n    nb_tx          = 1\n    nb_rx          = 1\n    att_tx         = 0\n    att_rx         = 0;\n    bands          = [78];\n    max_pdschReferenceSignalPower = -27;\n    max_rxgain                    = 114;\n    eNB_instances  = [0];\n    clock_src = \"internal\";\n});\n\nrfsimulator =({\n  serveraddr = \"oai-nr-ue-f1-rfsim\";\n  serverport = 4043;\n  options = (); #(\"saviq\"); or/and \"chanmod\"\n  modelname = \"AWGN\";\n  IQfile = \"/tmp/rfsimulator.iqs\"\n});\n\nlog_config: {\n  global_log_level = \"info\";\n  hw_log_level     = \"info\";\n  nr_phy_log_level = \"info\";\n  nr_mac_log_level = \"info\";\n  rlc_log_level    = \"info\";\n  pdcp_log_level   = \"info\";\n  rrc_log_level    = \"info\";\n  f1ap_log_level   = \"info\";\n  ngap_log_level   = \"debug\";\n};\n\ne2_agent = {\n  near_ric_ip_addr = \"127.0.0.1\";\n  sm_dir = \"/usr/local/lib/flexric/\"\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-du0-f1-config","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-17T00:19:06Z"
+    name: oai-du0-f1-config
+    namespace: oran-ran
+    resourceVersion: "399674"
+    uid: 97ed6598-9ef7-459a-99af-a56ac976003c
+- apiVersion: v1
+  data:
+    gnb.conf: |
+      # SPDX-License-Identifier: LicenseRef-CSSL-1.0
+
+      Active_gNBs = ( "du-rfsim1");
+      # Asn1_verbosity, choice in: none, info, annoying
+      Asn1_verbosity = "none";
+
+      gNBs =
+      (
+       {
+          ////////// Identification parameters:
+          gNB_ID = 0xe00;
+          gNB_DU_ID = 0xe01;
+          gNB_name  =  "du-rfsim1";
+
+          // Tracking area code, 0x0000 and 0xfffe are reserved values
+          tracking_area_code  =  1;
+          plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });
+
+          nr_cellid = 11111111L;
+
+          ////////// Physical parameters:
+
+          min_rxtxtime = 4;
+
+          servingCellConfigCommon = (
+          {
+       #spCellConfigCommon
+
+            physCellId                                               = 1;
+
+      #  downlinkConfigCommon
+          #frequencyInfoDL
+            # this is 3600 MHz + 43 PRBs@30kHz SCS (same as initial BWP)
+            absoluteFrequencySSB                                      = 643296;
+            dl_frequencyBand                                          = 78;
+            # this is 3600 MHz
+            dl_absoluteFrequencyPointA                                = 642024;
+            #scs-SpecificCarrierList
+              dl_offstToCarrier                                       = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              dl_subcarrierSpacing                                    = 1;
+              dl_carrierBandwidth                                     = 106;
+           #initialDownlinkBWP
+            #genericParameters
+              # this is RBstart=27,L=48 (275*(L-1))+RBstart
+              initialDLBWPlocationAndBandwidth                         = 28875; # 6366 12925 12956 28875 12952
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialDLBWPsubcarrierSpacing                             = 1;
+            #pdcch-ConfigCommon
+              initialDLBWPcontrolResourceSetZero                        = 12;
+              initialDLBWPsearchSpaceZero                               = 0;
+
+        #uplinkConfigCommon
+           #frequencyInfoUL
+            ul_frequencyBand                                             = 78;
+            #scs-SpecificCarrierList
+            ul_offstToCarrier                                            = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            ul_subcarrierSpacing                                         = 1;
+            ul_carrierBandwidth                                          = 106;
+            pMax                                                         = 20;
+           #initialUplinkBWP
+            #genericParameters
+              initialULBWPlocationAndBandwidth                           = 28875;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialULBWPsubcarrierSpacing                              = 1;
+            #rach-ConfigCommon
+              #rach-ConfigGeneric
+                prach_ConfigurationIndex                                 = 98;
+      #prach_msg1_FDM
+      #0 = one, 1=two, 2=four, 3=eight
+                prach_msg1_FDM                                           = 0;
+                prach_msg1_FrequencyStart                                = 0;
+                zeroCorrelationZoneConfig                                = 13;
+                preambleReceivedTargetPower                              = -96;
+      #preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)
+                preambleTransMax                                         = 6;
+      #powerRampingStep
+      # 0=dB0,1=dB2,2=dB4,3=dB6
+              powerRampingStep                                           = 1;
+      #ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR
+      #1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR               = 4;
+      #one (0..15) 4,8,12,16,...60,64
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB                  = 14;
+      #ra_ContentionResolutionTimer
+      #(0..7) 8,16,24,32,40,48,56,64
+              ra_ContentionResolutionTimer                               = 7;
+              rsrp_ThresholdSSB                                          = 19;
+      #prach-RootSequenceIndex_PR
+      #1 = 839, 2 = 139
+              prach_RootSequenceIndex_PR                                 = 2;
+              prach_RootSequenceIndex                                    = 1;
+              # SCS for msg1, can only be 15 for 30 kHz < 6 GHz, takes precendence over the one derived from prach-ConfigIndex
+              #
+              msg1_SubcarrierSpacing                                     = 1,
+      # restrictedSetConfig
+      # 0=unrestricted, 1=restricted type A, 2=restricted type B
+              restrictedSetConfig                                        = 0,
+
+              msg3_DeltaPreamble                                         = 1;
+              p0_NominalWithGrant                                        =-90;
+
+      # pucch-ConfigCommon setup :
+      # pucchGroupHopping
+      # 0 = neither, 1= group hopping, 2=sequence hopping
+              pucchGroupHopping                                          = 0;
+              hoppingId                                                  = 40;
+              p0_nominal                                                 = -90;
+
+            ssb_PositionsInBurst_Bitmap                                  = 2;
+
+      # ssb_periodicityServingCell
+      # 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1
+            ssb_periodicityServingCell                                   = 2;
+
+      # dmrs_TypeA_position
+      # 0 = pos2, 1 = pos3
+            dmrs_TypeA_Position                                           = 0;
+
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            subcarrierSpacing                                            = 1;
+
+
+        #tdd-UL-DL-ConfigurationCommon
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            referenceSubcarrierSpacing                                   = 1;
+            # pattern1
+            # dl_UL_TransmissionPeriodicity
+            # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10
+            dl_UL_TransmissionPeriodicity                                = 6;
+            nrofDownlinkSlots                                            = 7;
+            nrofDownlinkSymbols                                          = 6;
+            nrofUplinkSlots                                              = 2;
+            nrofUplinkSymbols                                            = 4;
+
+            ssPBCH_BlockPower                                            = -25;
+           }
+
+        );
+
+          # ------- SCTP definitions
+          SCTP :
+          {
+              # Number of streams to use in input/output
+              SCTP_INSTREAMS  = 2;
+              SCTP_OUTSTREAMS = 2;
+          };
+        }
+      );
+
+      MACRLCs = ({
+          tr_s_preference     = "local_L1";
+          tr_n_preference     = "f1";
+          local_n_address     = "10.10.0.132";
+          remote_n_address    = "10.10.0.120";
+          local_n_portd       = 2152;
+          remote_n_portd      = 2152;
+          pusch_FailureThres  = 1000;
+      });
+
+      L1s = ({
+          tr_n_preference = "local_mac";
+          prach_dtx_threshold = 200;
+          pucch0_dtx_threshold = 150;
+          ofdm_offset_divisor = 8; #set this to UINT_MAX for offset 0
+      });
+
+      RUs = ({
+          local_rf       = "yes"
+          nb_tx          = 1
+          nb_rx          = 1
+          att_tx         = 0
+          att_rx         = 0;
+          bands          = [78];
+          max_pdschReferenceSignalPower = -27;
+          max_rxgain                    = 114;
+          eNB_instances  = [0];
+          clock_src = "internal";
+      });
+
+      rfsimulator =({
+        serveraddr = "oai-nr-ue-f1-rfsim";
+        serverport = 4043;
+        options = (); #("saviq"); or/and "chanmod"
+        modelname = "AWGN";
+        IQfile = "/tmp/rfsimulator.iqs"
+      });
+
+      log_config: {
+        global_log_level = "info";
+        hw_log_level     = "info";
+        nr_phy_log_level = "info";
+        nr_mac_log_level = "info";
+        rlc_log_level    = "info";
+        pdcp_log_level   = "info";
+        rrc_log_level    = "info";
+        f1ap_log_level   = "info";
+        ngap_log_level   = "debug";
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"gnb.conf":"# SPDX-License-Identifier: LicenseRef-CSSL-1.0\n\nActive_gNBs = ( \"du-rfsim1\");\n# Asn1_verbosity, choice in: none, info, annoying\nAsn1_verbosity = \"none\";\n\ngNBs =\n(\n {\n    ////////// Identification parameters:\n    gNB_ID = 0xe00;\n    gNB_DU_ID = 0xe01;\n    gNB_name  =  \"du-rfsim1\";\n\n    // Tracking area code, 0x0000 and 0xfffe are reserved values\n    tracking_area_code  =  1;\n    plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });\n\n    nr_cellid = 11111111L;\n\n    ////////// Physical parameters:\n\n    min_rxtxtime = 4;\n\n    servingCellConfigCommon = (\n    {\n #spCellConfigCommon\n\n      physCellId                                               = 1;\n\n#  downlinkConfigCommon\n    #frequencyInfoDL\n      # this is 3600 MHz + 43 PRBs@30kHz SCS (same as initial BWP)\n      absoluteFrequencySSB                                      = 643296;\n      dl_frequencyBand                                          = 78;\n      # this is 3600 MHz\n      dl_absoluteFrequencyPointA                                = 642024;\n      #scs-SpecificCarrierList\n        dl_offstToCarrier                                       = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        dl_subcarrierSpacing                                    = 1;\n        dl_carrierBandwidth                                     = 106;\n     #initialDownlinkBWP\n      #genericParameters\n        # this is RBstart=27,L=48 (275*(L-1))+RBstart\n        initialDLBWPlocationAndBandwidth                         = 28875; # 6366 12925 12956 28875 12952\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialDLBWPsubcarrierSpacing                             = 1;\n      #pdcch-ConfigCommon\n        initialDLBWPcontrolResourceSetZero                        = 12;\n        initialDLBWPsearchSpaceZero                               = 0;\n\n  #uplinkConfigCommon\n     #frequencyInfoUL\n      ul_frequencyBand                                             = 78;\n      #scs-SpecificCarrierList\n      ul_offstToCarrier                                            = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      ul_subcarrierSpacing                                         = 1;\n      ul_carrierBandwidth                                          = 106;\n      pMax                                                         = 20;\n     #initialUplinkBWP\n      #genericParameters\n        initialULBWPlocationAndBandwidth                           = 28875;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialULBWPsubcarrierSpacing                              = 1;\n      #rach-ConfigCommon\n        #rach-ConfigGeneric\n          prach_ConfigurationIndex                                 = 98;\n#prach_msg1_FDM\n#0 = one, 1=two, 2=four, 3=eight\n          prach_msg1_FDM                                           = 0;\n          prach_msg1_FrequencyStart                                = 0;\n          zeroCorrelationZoneConfig                                = 13;\n          preambleReceivedTargetPower                              = -96;\n#preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)\n          preambleTransMax                                         = 6;\n#powerRampingStep\n# 0=dB0,1=dB2,2=dB4,3=dB6\n        powerRampingStep                                           = 1;\n#ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR\n#1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR               = 4;\n#one (0..15) 4,8,12,16,...60,64\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB                  = 14;\n#ra_ContentionResolutionTimer\n#(0..7) 8,16,24,32,40,48,56,64\n        ra_ContentionResolutionTimer                               = 7;\n        rsrp_ThresholdSSB                                          = 19;\n#prach-RootSequenceIndex_PR\n#1 = 839, 2 = 139\n        prach_RootSequenceIndex_PR                                 = 2;\n        prach_RootSequenceIndex                                    = 1;\n        # SCS for msg1, can only be 15 for 30 kHz \u003c 6 GHz, takes precendence over the one derived from prach-ConfigIndex\n        #\n        msg1_SubcarrierSpacing                                     = 1,\n# restrictedSetConfig\n# 0=unrestricted, 1=restricted type A, 2=restricted type B\n        restrictedSetConfig                                        = 0,\n\n        msg3_DeltaPreamble                                         = 1;\n        p0_NominalWithGrant                                        =-90;\n\n# pucch-ConfigCommon setup :\n# pucchGroupHopping\n# 0 = neither, 1= group hopping, 2=sequence hopping\n        pucchGroupHopping                                          = 0;\n        hoppingId                                                  = 40;\n        p0_nominal                                                 = -90;\n\n      ssb_PositionsInBurst_Bitmap                                  = 2;\n\n# ssb_periodicityServingCell\n# 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1\n      ssb_periodicityServingCell                                   = 2;\n\n# dmrs_TypeA_position\n# 0 = pos2, 1 = pos3\n      dmrs_TypeA_Position                                           = 0;\n\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      subcarrierSpacing                                            = 1;\n\n\n  #tdd-UL-DL-ConfigurationCommon\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      referenceSubcarrierSpacing                                   = 1;\n      # pattern1\n      # dl_UL_TransmissionPeriodicity\n      # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10\n      dl_UL_TransmissionPeriodicity                                = 6;\n      nrofDownlinkSlots                                            = 7;\n      nrofDownlinkSymbols                                          = 6;\n      nrofUplinkSlots                                              = 2;\n      nrofUplinkSymbols                                            = 4;\n\n      ssPBCH_BlockPower                                            = -25;\n     }\n\n  );\n\n    # ------- SCTP definitions\n    SCTP :\n    {\n        # Number of streams to use in input/output\n        SCTP_INSTREAMS  = 2;\n        SCTP_OUTSTREAMS = 2;\n    };\n  }\n);\n\nMACRLCs = ({\n    tr_s_preference     = \"local_L1\";\n    tr_n_preference     = \"f1\";\n    local_n_address     = \"10.10.0.132\";\n    remote_n_address    = \"10.10.0.120\";\n    local_n_portd       = 2152;\n    remote_n_portd      = 2152;\n    pusch_FailureThres  = 1000;\n});\n\nL1s = ({\n    tr_n_preference = \"local_mac\";\n    prach_dtx_threshold = 200;\n    pucch0_dtx_threshold = 150;\n    ofdm_offset_divisor = 8; #set this to UINT_MAX for offset 0\n});\n\nRUs = ({\n    local_rf       = \"yes\"\n    nb_tx          = 1\n    nb_rx          = 1\n    att_tx         = 0\n    att_rx         = 0;\n    bands          = [78];\n    max_pdschReferenceSignalPower = -27;\n    max_rxgain                    = 114;\n    eNB_instances  = [0];\n    clock_src = \"internal\";\n});\n\nrfsimulator =({\n  serveraddr = \"oai-nr-ue-f1-rfsim\";\n  serverport = 4043;\n  options = (); #(\"saviq\"); or/and \"chanmod\"\n  modelname = \"AWGN\";\n  IQfile = \"/tmp/rfsimulator.iqs\"\n});\n\nlog_config: {\n  global_log_level = \"info\";\n  hw_log_level     = \"info\";\n  nr_phy_log_level = \"info\";\n  nr_mac_log_level = \"info\";\n  rlc_log_level    = \"info\";\n  pdcp_log_level   = \"info\";\n  rrc_log_level    = \"info\";\n  f1ap_log_level   = \"info\";\n  ngap_log_level   = \"debug\";\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-du1-f1-config","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-17T00:19:07Z"
+    name: oai-du1-f1-config
+    namespace: oran-ran
+    resourceVersion: "399672"
+    uid: ad334656-1136-4d27-974a-aa2c4cbbcf50
+- apiVersion: v1
+  data:
+    gnb.conf: |
+      Active_gNBs = ( "gnb-rfsim-b");
+      # Asn1_verbosity, choice in: none, info, annoying
+      Asn1_verbosity = "none";
+
+      gNBs =
+      (
+       {
+          ////////// Identification parameters:
+          gNB_ID = 0xe01;
+
+      #     cell_type =  "CELL_MACRO_GNB";
+
+          gNB_name  =  "gnb-rfsim-b";
+
+          // Tracking area code, 0x0000 and 0xfffe are reserved values
+          tracking_area_code  =  1;
+
+          plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });
+
+          nr_cellid = 12345679L
+
+      #     tr_s_preference     = "local_mac"
+
+          ////////// Physical parameters:
+
+          min_rxtxtime = 6;
+
+          servingCellConfigCommon = (
+          {
+       #spCellConfigCommon
+
+            physCellId                                                    = 1;
+
+      #  downlinkConfigCommon
+          #frequencyInfoDL
+            # this is 3300.60 MHz + 53*12*30e-3 MHz = 3319.68
+            absoluteFrequencySSB                                          = 621312;
+            # this is 3300.60 MHz
+            dl_absoluteFrequencyPointA                                       = 620040;
+            #scs-SpecificCarrierList
+              dl_offstToCarrier                                              = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              dl_subcarrierSpacing                                           = 1;
+              dl_carrierBandwidth                                            = 106;
+           #initialDownlinkBWP
+            #genericParameters
+              # this is RBstart=0,L=106 (275*(L-1))+RBstart
+              initialDLBWPlocationAndBandwidth                                        = 28875;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialDLBWPsubcarrierSpacing                                           = 1;
+            #pdcch-ConfigCommon
+              initialDLBWPcontrolResourceSetZero                                      = 11;
+              initialDLBWPsearchSpaceZero                                             = 0;
+
+
+
+        #uplinkConfigCommon
+           #frequencyInfoUL
+            ul_frequencyBand                                                 = 78;
+            #scs-SpecificCarrierList
+            ul_offstToCarrier                                              = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            ul_subcarrierSpacing                                           = 1;
+            ul_carrierBandwidth                                            = 106;
+            pMax                                                          = 20;
+           #initialUplinkBWP
+            #genericParameters
+              initialULBWPlocationAndBandwidth                                        = 28875;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialULBWPsubcarrierSpacing                                           = 1;
+            #rach-ConfigCommon
+              #rach-ConfigGeneric
+                prach_ConfigurationIndex                                  = 98;
+      #prach_msg1_FDM
+      #0 = one, 1=two, 2=four, 3=eight
+                prach_msg1_FDM                                            = 0;
+                prach_msg1_FrequencyStart                                 = 0;
+                zeroCorrelationZoneConfig                                 = 12;
+                preambleReceivedTargetPower                               = -104;
+      #preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)
+                preambleTransMax                                          = 6;
+      #powerRampingStep
+      # 0=dB0,1=dB2,2=dB4,3=dB6
+              powerRampingStep                                            = 1;
+      #ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR
+      #1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR                = 4;
+      #one (0..15) 4,8,12,16,...60,64
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB                   = 15;
+      #ra_ContentionResolutionTimer
+      #(0..7) 8,16,24,32,40,48,56,64
+              ra_ContentionResolutionTimer                                = 7;
+              rsrp_ThresholdSSB                                           = 19;
+      #prach-RootSequenceIndex_PR
+      #1 = 839, 2 = 139
+              prach_RootSequenceIndex_PR                                  = 2;
+              prach_RootSequenceIndex                                     = 1;
+              # SCS for msg1, can only be 15 for 30 kHz < 6 GHz, takes precendence over the one derived from prach-ConfigIndex
+              #
+              msg1_SubcarrierSpacing                                      = 1,
+      # restrictedSetConfig
+      # 0=unrestricted, 1=restricted type A, 2=restricted type B
+              restrictedSetConfig                                         = 0,
+
+              msg3_DeltaPreamble                                          = 1;
+              p0_NominalWithGrant                                         =-90;
+
+      # pucch-ConfigCommon setup :
+      # pucchGroupHopping
+      # 0 = neither, 1= group hopping, 2=sequence hopping
+              pucchGroupHopping                                           = 0;
+              hoppingId                                                   = 40;
+              p0_nominal                                                  = -90;
+
+            ssb_PositionsInBurst_Bitmap                                   = 1;
+
+      # ssb_periodicityServingCell
+      # 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1
+            ssb_periodicityServingCell                                    = 2;
+
+      # dmrs_TypeA_position
+      # 0 = pos2, 1 = pos3
+            dmrs_TypeA_Position                                           = 0;
+
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            subcarrierSpacing                                             = 1;
+
+
+        #tdd-UL-DL-ConfigurationCommon
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            referenceSubcarrierSpacing                                    = 1;
+            # pattern1
+            # dl_UL_TransmissionPeriodicity
+            # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10
+            dl_UL_TransmissionPeriodicity                                 = 6;
+            nrofDownlinkSlots                                             = 7;
+            nrofDownlinkSymbols                                           = 6;
+            nrofUplinkSlots                                               = 2;
+            nrofUplinkSymbols                                             = 4;
+
+        ssPBCH_BlockPower                                             = -25;
+        }
+
+        );
+
+
+          # ------- SCTP definitions
+          SCTP :
+          {
+              # Number of streams to use in input/output
+              SCTP_INSTREAMS  = 2;
+              SCTP_OUTSTREAMS = 2;
+          };
+
+          ////////// AMF parameters:
+              amf_ip_address = ({ ipv4 = "10.10.0.101"; });
+
+              NETWORK_INTERFACES :
+              {
+
+                 GNB_IPV4_ADDRESS_FOR_NG_AMF = "10.10.0.111";
+                 GNB_IPV4_ADDRESS_FOR_NGU = "10.20.0.111";
+                 GNB_PORT_FOR_S1U                         = 2152; # Spec 2152
+              };
+
+        }
+      );
+
+      MACRLCs = (
+        {
+          num_cc           = 1;
+          tr_s_preference  = "local_L1";
+          tr_n_preference  = "local_RRC";
+          pusch_TargetSNRx10 = 200;
+          pucch_TargetSNRx10 = 200;
+        }
+      );
+
+      L1s = (
+      {
+        num_cc = 1;
+        tr_n_preference = "local_mac";
+        prach_dtx_threshold = 200;
+      #  pucch0_dtx_threshold = 150;
+      }
+      );
+
+      RUs = (
+          {
+             local_rf       = "yes"
+               nb_tx          = 1
+               nb_rx          = 1
+               att_tx         = 0
+               att_rx         = 0;
+               bands          = [78];
+               max_pdschReferenceSignalPower = -27;
+               max_rxgain                    = 75;
+               eNB_instances  = [0];
+               sf_extension = 0
+               sdr_addrs = "serial=XXXXXXX"
+          }
+      );
+
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      security = {
+        # preferred ciphering algorithms
+        # the first one of the list that an UE supports in chosen
+        # valid values: nea0, nea1, nea2, nea3
+        ciphering_algorithms = ( "nea0" );
+
+        # preferred integrity algorithms
+        # the first one of the list that an UE supports in chosen
+        # valid values: nia0, nia1, nia2, nia3
+        integrity_algorithms = ( "nia2", "nia0" );
+
+        # setting 'drb_ciphering' to "no" disables ciphering for DRBs, no matter
+        # what 'ciphering_algorithms' configures; same thing for 'drb_integrity'
+        drb_ciphering = "yes";
+        drb_integrity = "no";
+      };
+
+           log_config :
+           {
+             global_log_level                      ="info";
+             hw_log_level                          ="info";
+             phy_log_level                         ="info";
+             mac_log_level                         ="info";
+             rlc_log_level                         ="info";
+             pdcp_log_level                        ="info";
+             rrc_log_level                         ="info";
+             f1ap_log_level                         ="debug";
+          };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"gnb.conf":"Active_gNBs = ( \"gnb-rfsim-b\");\n# Asn1_verbosity, choice in: none, info, annoying\nAsn1_verbosity = \"none\";\n\ngNBs =\n(\n {\n    ////////// Identification parameters:\n    gNB_ID = 0xe01;\n\n#     cell_type =  \"CELL_MACRO_GNB\";\n\n    gNB_name  =  \"gnb-rfsim-b\";\n\n    // Tracking area code, 0x0000 and 0xfffe are reserved values\n    tracking_area_code  =  1;\n\n    plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });\n\n    nr_cellid = 12345679L\n\n#     tr_s_preference     = \"local_mac\"\n\n    ////////// Physical parameters:\n\n    min_rxtxtime = 6;\n\n    servingCellConfigCommon = (\n    {\n #spCellConfigCommon\n\n      physCellId                                                    = 1;\n\n#  downlinkConfigCommon\n    #frequencyInfoDL\n      # this is 3300.60 MHz + 53*12*30e-3 MHz = 3319.68\n      absoluteFrequencySSB                                          = 621312;\n      # this is 3300.60 MHz\n      dl_absoluteFrequencyPointA                                       = 620040;\n      #scs-SpecificCarrierList\n        dl_offstToCarrier                                              = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        dl_subcarrierSpacing                                           = 1;\n        dl_carrierBandwidth                                            = 106;\n     #initialDownlinkBWP\n      #genericParameters\n        # this is RBstart=0,L=106 (275*(L-1))+RBstart\n        initialDLBWPlocationAndBandwidth                                        = 28875;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialDLBWPsubcarrierSpacing                                           = 1;\n      #pdcch-ConfigCommon\n        initialDLBWPcontrolResourceSetZero                                      = 11;\n        initialDLBWPsearchSpaceZero                                             = 0;\n\n\n\n  #uplinkConfigCommon\n     #frequencyInfoUL\n      ul_frequencyBand                                                 = 78;\n      #scs-SpecificCarrierList\n      ul_offstToCarrier                                              = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      ul_subcarrierSpacing                                           = 1;\n      ul_carrierBandwidth                                            = 106;\n      pMax                                                          = 20;\n     #initialUplinkBWP\n      #genericParameters\n        initialULBWPlocationAndBandwidth                                        = 28875;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialULBWPsubcarrierSpacing                                           = 1;\n      #rach-ConfigCommon\n        #rach-ConfigGeneric\n          prach_ConfigurationIndex                                  = 98;\n#prach_msg1_FDM\n#0 = one, 1=two, 2=four, 3=eight\n          prach_msg1_FDM                                            = 0;\n          prach_msg1_FrequencyStart                                 = 0;\n          zeroCorrelationZoneConfig                                 = 12;\n          preambleReceivedTargetPower                               = -104;\n#preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)\n          preambleTransMax                                          = 6;\n#powerRampingStep\n# 0=dB0,1=dB2,2=dB4,3=dB6\n        powerRampingStep                                            = 1;\n#ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR\n#1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR                = 4;\n#one (0..15) 4,8,12,16,...60,64\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB                   = 15;\n#ra_ContentionResolutionTimer\n#(0..7) 8,16,24,32,40,48,56,64\n        ra_ContentionResolutionTimer                                = 7;\n        rsrp_ThresholdSSB                                           = 19;\n#prach-RootSequenceIndex_PR\n#1 = 839, 2 = 139\n        prach_RootSequenceIndex_PR                                  = 2;\n        prach_RootSequenceIndex                                     = 1;\n        # SCS for msg1, can only be 15 for 30 kHz \u003c 6 GHz, takes precendence over the one derived from prach-ConfigIndex\n        #\n        msg1_SubcarrierSpacing                                      = 1,\n# restrictedSetConfig\n# 0=unrestricted, 1=restricted type A, 2=restricted type B\n        restrictedSetConfig                                         = 0,\n\n        msg3_DeltaPreamble                                          = 1;\n        p0_NominalWithGrant                                         =-90;\n\n# pucch-ConfigCommon setup :\n# pucchGroupHopping\n# 0 = neither, 1= group hopping, 2=sequence hopping\n        pucchGroupHopping                                           = 0;\n        hoppingId                                                   = 40;\n        p0_nominal                                                  = -90;\n\n      ssb_PositionsInBurst_Bitmap                                   = 1;\n\n# ssb_periodicityServingCell\n# 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1\n      ssb_periodicityServingCell                                    = 2;\n\n# dmrs_TypeA_position\n# 0 = pos2, 1 = pos3\n      dmrs_TypeA_Position                                           = 0;\n\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      subcarrierSpacing                                             = 1;\n\n\n  #tdd-UL-DL-ConfigurationCommon\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      referenceSubcarrierSpacing                                    = 1;\n      # pattern1\n      # dl_UL_TransmissionPeriodicity\n      # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10\n      dl_UL_TransmissionPeriodicity                                 = 6;\n      nrofDownlinkSlots                                             = 7;\n      nrofDownlinkSymbols                                           = 6;\n      nrofUplinkSlots                                               = 2;\n      nrofUplinkSymbols                                             = 4;\n\n  ssPBCH_BlockPower                                             = -25;\n  }\n\n  );\n\n\n    # ------- SCTP definitions\n    SCTP :\n    {\n        # Number of streams to use in input/output\n        SCTP_INSTREAMS  = 2;\n        SCTP_OUTSTREAMS = 2;\n    };\n\n    ////////// AMF parameters:\n        amf_ip_address = ({ ipv4 = \"10.10.0.101\"; });\n\n        NETWORK_INTERFACES :\n        {\n\n           GNB_IPV4_ADDRESS_FOR_NG_AMF = \"10.10.0.111\";\n           GNB_IPV4_ADDRESS_FOR_NGU = \"10.20.0.111\";\n           GNB_PORT_FOR_S1U                         = 2152; # Spec 2152\n        };\n\n  }\n);\n\nMACRLCs = (\n  {\n    num_cc           = 1;\n    tr_s_preference  = \"local_L1\";\n    tr_n_preference  = \"local_RRC\";\n    pusch_TargetSNRx10 = 200;\n    pucch_TargetSNRx10 = 200;\n  }\n);\n\nL1s = (\n{\n  num_cc = 1;\n  tr_n_preference = \"local_mac\";\n  prach_dtx_threshold = 200;\n#  pucch0_dtx_threshold = 150;\n}\n);\n\nRUs = (\n    {\n       local_rf       = \"yes\"\n         nb_tx          = 1\n         nb_rx          = 1\n         att_tx         = 0\n         att_rx         = 0;\n         bands          = [78];\n         max_pdschReferenceSignalPower = -27;\n         max_rxgain                    = 75;\n         eNB_instances  = [0];\n         sf_extension = 0\n         sdr_addrs = \"serial=XXXXXXX\"\n    }\n);\n\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nsecurity = {\n  # preferred ciphering algorithms\n  # the first one of the list that an UE supports in chosen\n  # valid values: nea0, nea1, nea2, nea3\n  ciphering_algorithms = ( \"nea0\" );\n\n  # preferred integrity algorithms\n  # the first one of the list that an UE supports in chosen\n  # valid values: nia0, nia1, nia2, nia3\n  integrity_algorithms = ( \"nia2\", \"nia0\" );\n\n  # setting 'drb_ciphering' to \"no\" disables ciphering for DRBs, no matter\n  # what 'ciphering_algorithms' configures; same thing for 'drb_integrity'\n  drb_ciphering = \"yes\";\n  drb_integrity = \"no\";\n};\n\n     log_config :\n     {\n       global_log_level                      =\"info\";\n       hw_log_level                          =\"info\";\n       phy_log_level                         =\"info\";\n       mac_log_level                         =\"info\";\n       rlc_log_level                         =\"info\";\n       pdcp_log_level                        =\"info\";\n       rrc_log_level                         =\"info\";\n       f1ap_log_level                         =\"debug\";\n    };\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-gnb-b-config","namespace":"oran-ran"}}
+    creationTimestamp: "2026-04-17T16:44:02Z"
+    name: oai-gnb-b-config
+    namespace: oran-ran
+    resourceVersion: "350232"
+    uid: 25a83bd8-370c-4002-8a10-b4d27b3f23a0
+- apiVersion: v1
+  data:
+    gnb.conf: |
+      Active_gNBs = ( "gnb-rfsim");
+      # Asn1_verbosity, choice in: none, info, annoying
+      Asn1_verbosity = "none";
+
+      gNBs =
+      (
+       {
+          ////////// Identification parameters:
+          gNB_ID = 0xe00;
+
+      #     cell_type =  "CELL_MACRO_GNB";
+
+          gNB_name  =  "gnb-rfsim";
+
+          // Tracking area code, 0x0000 and 0xfffe are reserved values
+          tracking_area_code  =  1;
+
+          plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });
+
+          nr_cellid = 12345678L
+
+      #     tr_s_preference     = "local_mac"
+
+          ////////// Physical parameters:
+
+          min_rxtxtime = 6;
+
+          servingCellConfigCommon = (
+          {
+       #spCellConfigCommon
+
+            physCellId                                                    = 0;
+
+      #  downlinkConfigCommon
+          #frequencyInfoDL
+            # this is 3300.60 MHz + 53*12*30e-3 MHz = 3319.68
+            absoluteFrequencySSB                                          = 621312;
+            # this is 3300.60 MHz
+            dl_absoluteFrequencyPointA                                       = 620040;
+            #scs-SpecificCarrierList
+              dl_offstToCarrier                                              = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              dl_subcarrierSpacing                                           = 1;
+              dl_carrierBandwidth                                            = 106;
+           #initialDownlinkBWP
+            #genericParameters
+              # this is RBstart=0,L=106 (275*(L-1))+RBstart
+              initialDLBWPlocationAndBandwidth                                        = 28875;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialDLBWPsubcarrierSpacing                                           = 1;
+            #pdcch-ConfigCommon
+              initialDLBWPcontrolResourceSetZero                                      = 11;
+              initialDLBWPsearchSpaceZero                                             = 0;
+
+
+
+        #uplinkConfigCommon
+           #frequencyInfoUL
+            ul_frequencyBand                                                 = 78;
+            #scs-SpecificCarrierList
+            ul_offstToCarrier                                              = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            ul_subcarrierSpacing                                           = 1;
+            ul_carrierBandwidth                                            = 106;
+            pMax                                                          = 20;
+           #initialUplinkBWP
+            #genericParameters
+              initialULBWPlocationAndBandwidth                                        = 28875;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialULBWPsubcarrierSpacing                                           = 1;
+            #rach-ConfigCommon
+              #rach-ConfigGeneric
+                prach_ConfigurationIndex                                  = 98;
+      #prach_msg1_FDM
+      #0 = one, 1=two, 2=four, 3=eight
+                prach_msg1_FDM                                            = 0;
+                prach_msg1_FrequencyStart                                 = 0;
+                zeroCorrelationZoneConfig                                 = 12;
+                preambleReceivedTargetPower                               = -104;
+      #preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)
+                preambleTransMax                                          = 6;
+      #powerRampingStep
+      # 0=dB0,1=dB2,2=dB4,3=dB6
+              powerRampingStep                                            = 1;
+      #ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR
+      #1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR                = 4;
+      #one (0..15) 4,8,12,16,...60,64
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB                   = 15;
+      #ra_ContentionResolutionTimer
+      #(0..7) 8,16,24,32,40,48,56,64
+              ra_ContentionResolutionTimer                                = 7;
+              rsrp_ThresholdSSB                                           = 19;
+      #prach-RootSequenceIndex_PR
+      #1 = 839, 2 = 139
+              prach_RootSequenceIndex_PR                                  = 2;
+              prach_RootSequenceIndex                                     = 1;
+              # SCS for msg1, can only be 15 for 30 kHz < 6 GHz, takes precendence over the one derived from prach-ConfigIndex
+              #
+              msg1_SubcarrierSpacing                                      = 1,
+      # restrictedSetConfig
+      # 0=unrestricted, 1=restricted type A, 2=restricted type B
+              restrictedSetConfig                                         = 0,
+
+              msg3_DeltaPreamble                                          = 1;
+              p0_NominalWithGrant                                         =-90;
+
+      # pucch-ConfigCommon setup :
+      # pucchGroupHopping
+      # 0 = neither, 1= group hopping, 2=sequence hopping
+              pucchGroupHopping                                           = 0;
+              hoppingId                                                   = 40;
+              p0_nominal                                                  = -90;
+
+            ssb_PositionsInBurst_Bitmap                                   = 1;
+
+      # ssb_periodicityServingCell
+      # 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1
+            ssb_periodicityServingCell                                    = 2;
+
+      # dmrs_TypeA_position
+      # 0 = pos2, 1 = pos3
+            dmrs_TypeA_Position                                           = 0;
+
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            subcarrierSpacing                                             = 1;
+
+
+        #tdd-UL-DL-ConfigurationCommon
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            referenceSubcarrierSpacing                                    = 1;
+            # pattern1
+            # dl_UL_TransmissionPeriodicity
+            # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10
+            dl_UL_TransmissionPeriodicity                                 = 6;
+            nrofDownlinkSlots                                             = 7;
+            nrofDownlinkSymbols                                           = 6;
+            nrofUplinkSlots                                               = 2;
+            nrofUplinkSymbols                                             = 4;
+
+        ssPBCH_BlockPower                                             = -25;
+        }
+
+        );
+
+
+          # ------- SCTP definitions
+          SCTP :
+          {
+              # Number of streams to use in input/output
+              SCTP_INSTREAMS  = 2;
+              SCTP_OUTSTREAMS = 2;
+          };
+
+          ////////// AMF parameters:
+              amf_ip_address = ({ ipv4 = "10.10.0.101"; });
+
+              NETWORK_INTERFACES :
+              {
+
+                 GNB_IPV4_ADDRESS_FOR_NG_AMF = "10.10.0.110";
+                 GNB_IPV4_ADDRESS_FOR_NGU = "10.20.0.110";
+                 GNB_PORT_FOR_S1U                         = 2152; # Spec 2152
+              };
+
+        }
+      );
+
+      MACRLCs = (
+        {
+          num_cc           = 1;
+          tr_s_preference  = "local_L1";
+          tr_n_preference  = "local_RRC";
+          pusch_TargetSNRx10 = 200;
+          pucch_TargetSNRx10 = 200;
+        }
+      );
+
+      L1s = (
+      {
+        num_cc = 1;
+        tr_n_preference = "local_mac";
+        prach_dtx_threshold = 200;
+      #  pucch0_dtx_threshold = 150;
+      }
+      );
+
+      RUs = (
+          {
+             local_rf       = "yes"
+               nb_tx          = 1
+               nb_rx          = 1
+               att_tx         = 0
+               att_rx         = 0;
+               bands          = [78];
+               max_pdschReferenceSignalPower = -27;
+               max_rxgain                    = 75;
+               eNB_instances  = [0];
+               sf_extension = 0
+               sdr_addrs = "serial=XXXXXXX"
+          }
+      );
+
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      security = {
+        # preferred ciphering algorithms
+        # the first one of the list that an UE supports in chosen
+        # valid values: nea0, nea1, nea2, nea3
+        ciphering_algorithms = ( "nea0" );
+
+        # preferred integrity algorithms
+        # the first one of the list that an UE supports in chosen
+        # valid values: nia0, nia1, nia2, nia3
+        integrity_algorithms = ( "nia2", "nia0" );
+
+        # setting 'drb_ciphering' to "no" disables ciphering for DRBs, no matter
+        # what 'ciphering_algorithms' configures; same thing for 'drb_integrity'
+        drb_ciphering = "yes";
+        drb_integrity = "no";
+      };
+
+           log_config :
+           {
+             global_log_level                      ="info";
+             hw_log_level                          ="info";
+             phy_log_level                         ="info";
+             mac_log_level                         ="info";
+             rlc_log_level                         ="info";
+             pdcp_log_level                        ="info";
+             rrc_log_level                         ="info";
+             f1ap_log_level                         ="debug";
+          };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"gnb.conf":"Active_gNBs = ( \"gnb-rfsim\");\n# Asn1_verbosity, choice in: none, info, annoying\nAsn1_verbosity = \"none\";\n\ngNBs =\n(\n {\n    ////////// Identification parameters:\n    gNB_ID = 0xe00;\n\n#     cell_type =  \"CELL_MACRO_GNB\";\n\n    gNB_name  =  \"gnb-rfsim\";\n\n    // Tracking area code, 0x0000 and 0xfffe are reserved values\n    tracking_area_code  =  1;\n\n    plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });\n\n    nr_cellid = 12345678L\n\n#     tr_s_preference     = \"local_mac\"\n\n    ////////// Physical parameters:\n\n    min_rxtxtime = 6;\n\n    servingCellConfigCommon = (\n    {\n #spCellConfigCommon\n\n      physCellId                                                    = 0;\n\n#  downlinkConfigCommon\n    #frequencyInfoDL\n      # this is 3300.60 MHz + 53*12*30e-3 MHz = 3319.68\n      absoluteFrequencySSB                                          = 621312;\n      # this is 3300.60 MHz\n      dl_absoluteFrequencyPointA                                       = 620040;\n      #scs-SpecificCarrierList\n        dl_offstToCarrier                                              = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        dl_subcarrierSpacing                                           = 1;\n        dl_carrierBandwidth                                            = 106;\n     #initialDownlinkBWP\n      #genericParameters\n        # this is RBstart=0,L=106 (275*(L-1))+RBstart\n        initialDLBWPlocationAndBandwidth                                        = 28875;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialDLBWPsubcarrierSpacing                                           = 1;\n      #pdcch-ConfigCommon\n        initialDLBWPcontrolResourceSetZero                                      = 11;\n        initialDLBWPsearchSpaceZero                                             = 0;\n\n\n\n  #uplinkConfigCommon\n     #frequencyInfoUL\n      ul_frequencyBand                                                 = 78;\n      #scs-SpecificCarrierList\n      ul_offstToCarrier                                              = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      ul_subcarrierSpacing                                           = 1;\n      ul_carrierBandwidth                                            = 106;\n      pMax                                                          = 20;\n     #initialUplinkBWP\n      #genericParameters\n        initialULBWPlocationAndBandwidth                                        = 28875;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialULBWPsubcarrierSpacing                                           = 1;\n      #rach-ConfigCommon\n        #rach-ConfigGeneric\n          prach_ConfigurationIndex                                  = 98;\n#prach_msg1_FDM\n#0 = one, 1=two, 2=four, 3=eight\n          prach_msg1_FDM                                            = 0;\n          prach_msg1_FrequencyStart                                 = 0;\n          zeroCorrelationZoneConfig                                 = 12;\n          preambleReceivedTargetPower                               = -104;\n#preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)\n          preambleTransMax                                          = 6;\n#powerRampingStep\n# 0=dB0,1=dB2,2=dB4,3=dB6\n        powerRampingStep                                            = 1;\n#ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR\n#1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR                = 4;\n#one (0..15) 4,8,12,16,...60,64\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB                   = 15;\n#ra_ContentionResolutionTimer\n#(0..7) 8,16,24,32,40,48,56,64\n        ra_ContentionResolutionTimer                                = 7;\n        rsrp_ThresholdSSB                                           = 19;\n#prach-RootSequenceIndex_PR\n#1 = 839, 2 = 139\n        prach_RootSequenceIndex_PR                                  = 2;\n        prach_RootSequenceIndex                                     = 1;\n        # SCS for msg1, can only be 15 for 30 kHz \u003c 6 GHz, takes precendence over the one derived from prach-ConfigIndex\n        #\n        msg1_SubcarrierSpacing                                      = 1,\n# restrictedSetConfig\n# 0=unrestricted, 1=restricted type A, 2=restricted type B\n        restrictedSetConfig                                         = 0,\n\n        msg3_DeltaPreamble                                          = 1;\n        p0_NominalWithGrant                                         =-90;\n\n# pucch-ConfigCommon setup :\n# pucchGroupHopping\n# 0 = neither, 1= group hopping, 2=sequence hopping\n        pucchGroupHopping                                           = 0;\n        hoppingId                                                   = 40;\n        p0_nominal                                                  = -90;\n\n      ssb_PositionsInBurst_Bitmap                                   = 1;\n\n# ssb_periodicityServingCell\n# 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1\n      ssb_periodicityServingCell                                    = 2;\n\n# dmrs_TypeA_position\n# 0 = pos2, 1 = pos3\n      dmrs_TypeA_Position                                           = 0;\n\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      subcarrierSpacing                                             = 1;\n\n\n  #tdd-UL-DL-ConfigurationCommon\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      referenceSubcarrierSpacing                                    = 1;\n      # pattern1\n      # dl_UL_TransmissionPeriodicity\n      # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10\n      dl_UL_TransmissionPeriodicity                                 = 6;\n      nrofDownlinkSlots                                             = 7;\n      nrofDownlinkSymbols                                           = 6;\n      nrofUplinkSlots                                               = 2;\n      nrofUplinkSymbols                                             = 4;\n\n  ssPBCH_BlockPower                                             = -25;\n  }\n\n  );\n\n\n    # ------- SCTP definitions\n    SCTP :\n    {\n        # Number of streams to use in input/output\n        SCTP_INSTREAMS  = 2;\n        SCTP_OUTSTREAMS = 2;\n    };\n\n    ////////// AMF parameters:\n        amf_ip_address = ({ ipv4 = \"10.10.0.101\"; });\n\n        NETWORK_INTERFACES :\n        {\n\n           GNB_IPV4_ADDRESS_FOR_NG_AMF = \"10.10.0.110\";\n           GNB_IPV4_ADDRESS_FOR_NGU = \"10.20.0.110\";\n           GNB_PORT_FOR_S1U                         = 2152; # Spec 2152\n        };\n\n  }\n);\n\nMACRLCs = (\n  {\n    num_cc           = 1;\n    tr_s_preference  = \"local_L1\";\n    tr_n_preference  = \"local_RRC\";\n    pusch_TargetSNRx10 = 200;\n    pucch_TargetSNRx10 = 200;\n  }\n);\n\nL1s = (\n{\n  num_cc = 1;\n  tr_n_preference = \"local_mac\";\n  prach_dtx_threshold = 200;\n#  pucch0_dtx_threshold = 150;\n}\n);\n\nRUs = (\n    {\n       local_rf       = \"yes\"\n         nb_tx          = 1\n         nb_rx          = 1\n         att_tx         = 0\n         att_rx         = 0;\n         bands          = [78];\n         max_pdschReferenceSignalPower = -27;\n         max_rxgain                    = 75;\n         eNB_instances  = [0];\n         sf_extension = 0\n         sdr_addrs = \"serial=XXXXXXX\"\n    }\n);\n\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nsecurity = {\n  # preferred ciphering algorithms\n  # the first one of the list that an UE supports in chosen\n  # valid values: nea0, nea1, nea2, nea3\n  ciphering_algorithms = ( \"nea0\" );\n\n  # preferred integrity algorithms\n  # the first one of the list that an UE supports in chosen\n  # valid values: nia0, nia1, nia2, nia3\n  integrity_algorithms = ( \"nia2\", \"nia0\" );\n\n  # setting 'drb_ciphering' to \"no\" disables ciphering for DRBs, no matter\n  # what 'ciphering_algorithms' configures; same thing for 'drb_integrity'\n  drb_ciphering = \"yes\";\n  drb_integrity = \"no\";\n};\n\n     log_config :\n     {\n       global_log_level                      =\"info\";\n       hw_log_level                          =\"info\";\n       phy_log_level                         =\"info\";\n       mac_log_level                         =\"info\";\n       rlc_log_level                         =\"info\";\n       pdcp_log_level                        =\"info\";\n       rrc_log_level                         =\"info\";\n       f1ap_log_level                         =\"debug\";\n    };\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-gnb-config","namespace":"oran-ran"}}
+    creationTimestamp: "2026-03-16T13:42:56Z"
+    name: oai-gnb-config
+    namespace: oran-ran
+    resourceVersion: "425965"
+    uid: 2b8e00e0-1a08-43f8-ad8f-5ad25277b702
+- apiVersion: v1
+  data:
+    gnb.conf: |
+      Active_gNBs = ( "gnb-rfsim");
+      # Asn1_verbosity, choice in: none, info, annoying
+      Asn1_verbosity = "none";
+
+      gNBs =
+      (
+       {
+          ////////// Identification parameters:
+          gNB_ID = 0xe00;
+
+      #     cell_type =  "CELL_MACRO_GNB";
+
+          gNB_name  =  "gnb-rfsim";
+
+          // Tracking area code, 0x0000 and 0xfffe are reserved values
+          tracking_area_code  =  1;
+
+          plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });
+
+          nr_cellid = 12345678L
+
+      #     tr_s_preference     = "local_mac"
+
+          ////////// Physical parameters:
+
+          min_rxtxtime = 6;
+
+          servingCellConfigCommon = (
+          {
+       #spCellConfigCommon
+
+            physCellId                                                    = 0;
+
+      #  downlinkConfigCommon
+          #frequencyInfoDL
+            # this is 3300.60 MHz + 53*12*30e-3 MHz = 3319.68
+            absoluteFrequencySSB                                          = 621312;
+            # this is 3300.60 MHz
+            dl_absoluteFrequencyPointA                                       = 620040;
+            #scs-SpecificCarrierList
+              dl_offstToCarrier                                              = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              dl_subcarrierSpacing                                           = 1;
+              dl_carrierBandwidth                                            = 106;
+           #initialDownlinkBWP
+            #genericParameters
+              # this is RBstart=0,L=106 (275*(L-1))+RBstart
+              initialDLBWPlocationAndBandwidth                                        = 28875;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialDLBWPsubcarrierSpacing                                           = 1;
+            #pdcch-ConfigCommon
+              initialDLBWPcontrolResourceSetZero                                      = 11;
+              initialDLBWPsearchSpaceZero                                             = 0;
+
+
+
+        #uplinkConfigCommon
+           #frequencyInfoUL
+            ul_frequencyBand                                                 = 78;
+            #scs-SpecificCarrierList
+            ul_offstToCarrier                                              = 0;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            ul_subcarrierSpacing                                           = 1;
+            ul_carrierBandwidth                                            = 106;
+            pMax                                                          = 20;
+           #initialUplinkBWP
+            #genericParameters
+              initialULBWPlocationAndBandwidth                                        = 28875;
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+              initialULBWPsubcarrierSpacing                                           = 1;
+            #rach-ConfigCommon
+              #rach-ConfigGeneric
+                prach_ConfigurationIndex                                  = 98;
+      #prach_msg1_FDM
+      #0 = one, 1=two, 2=four, 3=eight
+                prach_msg1_FDM                                            = 0;
+                prach_msg1_FrequencyStart                                 = 0;
+                zeroCorrelationZoneConfig                                 = 12;
+                preambleReceivedTargetPower                               = -104;
+      #preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)
+                preambleTransMax                                          = 6;
+      #powerRampingStep
+      # 0=dB0,1=dB2,2=dB4,3=dB6
+              powerRampingStep                                            = 1;
+      #ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR
+      #1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR                = 4;
+      #one (0..15) 4,8,12,16,...60,64
+              ssb_perRACH_OccasionAndCB_PreamblesPerSSB                   = 15;
+      #ra_ContentionResolutionTimer
+      #(0..7) 8,16,24,32,40,48,56,64
+              ra_ContentionResolutionTimer                                = 7;
+              rsrp_ThresholdSSB                                           = 19;
+      #prach-RootSequenceIndex_PR
+      #1 = 839, 2 = 139
+              prach_RootSequenceIndex_PR                                  = 2;
+              prach_RootSequenceIndex                                     = 1;
+              # SCS for msg1, can only be 15 for 30 kHz < 6 GHz, takes precendence over the one derived from prach-ConfigIndex
+              #
+              msg1_SubcarrierSpacing                                      = 1,
+      # restrictedSetConfig
+      # 0=unrestricted, 1=restricted type A, 2=restricted type B
+              restrictedSetConfig                                         = 0,
+
+              msg3_DeltaPreamble                                          = 1;
+              p0_NominalWithGrant                                         =-90;
+
+      # pucch-ConfigCommon setup :
+      # pucchGroupHopping
+      # 0 = neither, 1= group hopping, 2=sequence hopping
+              pucchGroupHopping                                           = 0;
+              hoppingId                                                   = 40;
+              p0_nominal                                                  = -90;
+
+            ssb_PositionsInBurst_Bitmap                                   = 1;
+
+      # ssb_periodicityServingCell
+      # 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1
+            ssb_periodicityServingCell                                    = 2;
+
+      # dmrs_TypeA_position
+      # 0 = pos2, 1 = pos3
+            dmrs_TypeA_Position                                           = 0;
+
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            subcarrierSpacing                                             = 1;
+
+
+        #tdd-UL-DL-ConfigurationCommon
+      # subcarrierSpacing
+      # 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120
+            referenceSubcarrierSpacing                                    = 1;
+            # pattern1
+            # dl_UL_TransmissionPeriodicity
+            # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10
+            dl_UL_TransmissionPeriodicity                                 = 6;
+            nrofDownlinkSlots                                             = 7;
+            nrofDownlinkSymbols                                           = 6;
+            nrofUplinkSlots                                               = 2;
+            nrofUplinkSymbols                                             = 4;
+
+        ssPBCH_BlockPower                                             = -25;
+        }
+
+        );
+
+
+          # ------- SCTP definitions
+          SCTP :
+          {
+              # Number of streams to use in input/output
+              SCTP_INSTREAMS  = 2;
+              SCTP_OUTSTREAMS = 2;
+          };
+
+          ////////// AMF parameters:
+              amf_ip_address = ({ ipv4 = "10.10.0.101"; });
+
+              NETWORK_INTERFACES :
+              {
+
+                 GNB_IPV4_ADDRESS_FOR_NG_AMF = "10.10.0.110";
+                 GNB_IPV4_ADDRESS_FOR_NGU = "10.20.0.110";
+                 GNB_PORT_FOR_S1U                         = 2152; # Spec 2152
+              };
+
+        }
+      );
+
+      MACRLCs = (
+        {
+          num_cc           = 1;
+          tr_s_preference  = "local_L1";
+          tr_n_preference  = "local_RRC";
+          pusch_TargetSNRx10 = 200;
+          pucch_TargetSNRx10 = 200;
+        }
+      );
+
+      L1s = (
+      {
+        num_cc = 1;
+        tr_n_preference = "local_mac";
+        prach_dtx_threshold = 200;
+      #  pucch0_dtx_threshold = 150;
+      }
+      );
+
+      RUs = (
+          {
+             local_rf       = "yes"
+               nb_tx          = 1
+               nb_rx          = 1
+               att_tx         = 0
+               att_rx         = 0;
+               bands          = [78];
+               max_pdschReferenceSignalPower = -27;
+               max_rxgain                    = 75;
+               eNB_instances  = [0];
+               sf_extension = 0
+               sdr_addrs = "serial=XXXXXXX"
+          }
+      );
+
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      security = {
+        # preferred ciphering algorithms
+        # the first one of the list that an UE supports in chosen
+        # valid values: nea0, nea1, nea2, nea3
+        ciphering_algorithms = ( "nea0" );
+
+        # preferred integrity algorithms
+        # the first one of the list that an UE supports in chosen
+        # valid values: nia0, nia1, nia2, nia3
+        integrity_algorithms = ( "nia2", "nia0" );
+
+        # setting 'drb_ciphering' to "no" disables ciphering for DRBs, no matter
+        # what 'ciphering_algorithms' configures; same thing for 'drb_integrity'
+        drb_ciphering = "yes";
+        drb_integrity = "no";
+      };
+
+           log_config :
+           {
+             global_log_level                      ="info";
+             hw_log_level                          ="info";
+             phy_log_level                         ="info";
+             mac_log_level                         ="info";
+             rlc_log_level                         ="info";
+             pdcp_log_level                        ="info";
+             rrc_log_level                         ="info";
+             f1ap_log_level                         ="debug";
+          };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"gnb.conf":"Active_gNBs = ( \"gnb-rfsim\");\n# Asn1_verbosity, choice in: none, info, annoying\nAsn1_verbosity = \"none\";\n\ngNBs =\n(\n {\n    ////////// Identification parameters:\n    gNB_ID = 0xe00;\n\n#     cell_type =  \"CELL_MACRO_GNB\";\n\n    gNB_name  =  \"gnb-rfsim\";\n\n    // Tracking area code, 0x0000 and 0xfffe are reserved values\n    tracking_area_code  =  1;\n\n    plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }) });\n\n    nr_cellid = 12345678L\n\n#     tr_s_preference     = \"local_mac\"\n\n    ////////// Physical parameters:\n\n    min_rxtxtime = 6;\n\n    servingCellConfigCommon = (\n    {\n #spCellConfigCommon\n\n      physCellId                                                    = 0;\n\n#  downlinkConfigCommon\n    #frequencyInfoDL\n      # this is 3300.60 MHz + 53*12*30e-3 MHz = 3319.68\n      absoluteFrequencySSB                                          = 621312;\n      # this is 3300.60 MHz\n      dl_absoluteFrequencyPointA                                       = 620040;\n      #scs-SpecificCarrierList\n        dl_offstToCarrier                                              = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        dl_subcarrierSpacing                                           = 1;\n        dl_carrierBandwidth                                            = 106;\n     #initialDownlinkBWP\n      #genericParameters\n        # this is RBstart=0,L=106 (275*(L-1))+RBstart\n        initialDLBWPlocationAndBandwidth                                        = 28875;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialDLBWPsubcarrierSpacing                                           = 1;\n      #pdcch-ConfigCommon\n        initialDLBWPcontrolResourceSetZero                                      = 11;\n        initialDLBWPsearchSpaceZero                                             = 0;\n\n\n\n  #uplinkConfigCommon\n     #frequencyInfoUL\n      ul_frequencyBand                                                 = 78;\n      #scs-SpecificCarrierList\n      ul_offstToCarrier                                              = 0;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      ul_subcarrierSpacing                                           = 1;\n      ul_carrierBandwidth                                            = 106;\n      pMax                                                          = 20;\n     #initialUplinkBWP\n      #genericParameters\n        initialULBWPlocationAndBandwidth                                        = 28875;\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n        initialULBWPsubcarrierSpacing                                           = 1;\n      #rach-ConfigCommon\n        #rach-ConfigGeneric\n          prach_ConfigurationIndex                                  = 98;\n#prach_msg1_FDM\n#0 = one, 1=two, 2=four, 3=eight\n          prach_msg1_FDM                                            = 0;\n          prach_msg1_FrequencyStart                                 = 0;\n          zeroCorrelationZoneConfig                                 = 12;\n          preambleReceivedTargetPower                               = -104;\n#preamblTransMax (0...10) = (3,4,5,6,7,8,10,20,50,100,200)\n          preambleTransMax                                          = 6;\n#powerRampingStep\n# 0=dB0,1=dB2,2=dB4,3=dB6\n        powerRampingStep                                            = 1;\n#ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR\n#1=oneeighth,2=onefourth,3=half,4=one,5=two,6=four,7=eight,8=sixteen\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB_PR                = 4;\n#one (0..15) 4,8,12,16,...60,64\n        ssb_perRACH_OccasionAndCB_PreamblesPerSSB                   = 15;\n#ra_ContentionResolutionTimer\n#(0..7) 8,16,24,32,40,48,56,64\n        ra_ContentionResolutionTimer                                = 7;\n        rsrp_ThresholdSSB                                           = 19;\n#prach-RootSequenceIndex_PR\n#1 = 839, 2 = 139\n        prach_RootSequenceIndex_PR                                  = 2;\n        prach_RootSequenceIndex                                     = 1;\n        # SCS for msg1, can only be 15 for 30 kHz \u003c 6 GHz, takes precendence over the one derived from prach-ConfigIndex\n        #\n        msg1_SubcarrierSpacing                                      = 1,\n# restrictedSetConfig\n# 0=unrestricted, 1=restricted type A, 2=restricted type B\n        restrictedSetConfig                                         = 0,\n\n        msg3_DeltaPreamble                                          = 1;\n        p0_NominalWithGrant                                         =-90;\n\n# pucch-ConfigCommon setup :\n# pucchGroupHopping\n# 0 = neither, 1= group hopping, 2=sequence hopping\n        pucchGroupHopping                                           = 0;\n        hoppingId                                                   = 40;\n        p0_nominal                                                  = -90;\n\n      ssb_PositionsInBurst_Bitmap                                   = 1;\n\n# ssb_periodicityServingCell\n# 0 = ms5, 1=ms10, 2=ms20, 3=ms40, 4=ms80, 5=ms160, 6=spare2, 7=spare1\n      ssb_periodicityServingCell                                    = 2;\n\n# dmrs_TypeA_position\n# 0 = pos2, 1 = pos3\n      dmrs_TypeA_Position                                           = 0;\n\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      subcarrierSpacing                                             = 1;\n\n\n  #tdd-UL-DL-ConfigurationCommon\n# subcarrierSpacing\n# 0=kHz15, 1=kHz30, 2=kHz60, 3=kHz120\n      referenceSubcarrierSpacing                                    = 1;\n      # pattern1\n      # dl_UL_TransmissionPeriodicity\n      # 0=ms0p5, 1=ms0p625, 2=ms1, 3=ms1p25, 4=ms2, 5=ms2p5, 6=ms5, 7=ms10\n      dl_UL_TransmissionPeriodicity                                 = 6;\n      nrofDownlinkSlots                                             = 7;\n      nrofDownlinkSymbols                                           = 6;\n      nrofUplinkSlots                                               = 2;\n      nrofUplinkSymbols                                             = 4;\n\n  ssPBCH_BlockPower                                             = -25;\n  }\n\n  );\n\n\n    # ------- SCTP definitions\n    SCTP :\n    {\n        # Number of streams to use in input/output\n        SCTP_INSTREAMS  = 2;\n        SCTP_OUTSTREAMS = 2;\n    };\n\n    ////////// AMF parameters:\n        amf_ip_address = ({ ipv4 = \"10.10.0.101\"; });\n\n        NETWORK_INTERFACES :\n        {\n\n           GNB_IPV4_ADDRESS_FOR_NG_AMF = \"10.10.0.110\";\n           GNB_IPV4_ADDRESS_FOR_NGU = \"10.20.0.110\";\n           GNB_PORT_FOR_S1U                         = 2152; # Spec 2152\n        };\n\n  }\n);\n\nMACRLCs = (\n  {\n    num_cc           = 1;\n    tr_s_preference  = \"local_L1\";\n    tr_n_preference  = \"local_RRC\";\n    pusch_TargetSNRx10 = 200;\n    pucch_TargetSNRx10 = 200;\n  }\n);\n\nL1s = (\n{\n  num_cc = 1;\n  tr_n_preference = \"local_mac\";\n  prach_dtx_threshold = 200;\n#  pucch0_dtx_threshold = 150;\n}\n);\n\nRUs = (\n    {\n       local_rf       = \"yes\"\n         nb_tx          = 1\n         nb_rx          = 1\n         att_tx         = 0\n         att_rx         = 0;\n         bands          = [78];\n         max_pdschReferenceSignalPower = -27;\n         max_rxgain                    = 75;\n         eNB_instances  = [0];\n         sf_extension = 0\n         sdr_addrs = \"serial=XXXXXXX\"\n    }\n);\n\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nsecurity = {\n  # preferred ciphering algorithms\n  # the first one of the list that an UE supports in chosen\n  # valid values: nea0, nea1, nea2, nea3\n  ciphering_algorithms = ( \"nea0\" );\n\n  # preferred integrity algorithms\n  # the first one of the list that an UE supports in chosen\n  # valid values: nia0, nia1, nia2, nia3\n  integrity_algorithms = ( \"nia2\", \"nia0\" );\n\n  # setting 'drb_ciphering' to \"no\" disables ciphering for DRBs, no matter\n  # what 'ciphering_algorithms' configures; same thing for 'drb_integrity'\n  drb_ciphering = \"yes\";\n  drb_integrity = \"no\";\n};\n\n     log_config :\n     {\n       global_log_level                      =\"info\";\n       hw_log_level                          =\"info\";\n       phy_log_level                         =\"info\";\n       mac_log_level                         =\"info\";\n       rlc_log_level                         =\"info\";\n       pdcp_log_level                        =\"info\";\n       rrc_log_level                         =\"info\";\n       f1ap_log_level                         =\"debug\";\n    };\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-gnb-neighbor-conf","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-10T23:18:44Z"
+    name: oai-gnb-neighbor-conf
+    namespace: oran-ran
+    resourceVersion: "344041"
+    uid: 8a467a1e-be76-4b23-bd22-ed29d4f6429c
+- apiVersion: v1
+  data:
+    nr-ue.conf: |
+      uicc0 = {
+        imsi = "999700000000001";
+        key = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+        opc = "E8ED289DEBA952E4283B54E88E6183CA";
+        pdu_sessions = ({ dnn = "oai"; nssai_sst = 1; nssai_sd = 0xffffff; });
+      }
+
+      position0 = {
+          x = 0.0;
+          y = 0.0;
+          z = 6377900.0;
+      }
+
+      thread-pool = "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      channelmod = {
+        max_chan = 10;
+        modellist = "modellist_rfsimu_1";
+        modellist_rfsimu_1 = (
+          {
+            model_name     = "rfsimu_channel_enB0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -4;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          },
+          {
+            model_name     = "rfsimu_channel_ue0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -2;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          }
+        );
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"nr-ue.conf":"uicc0 = {\n  imsi = \"999700000000001\";\n  key = \"465B5CE8B199B49FAA5F0A2EE238A6BC\";\n  opc = \"E8ED289DEBA952E4283B54E88E6183CA\";\n  pdu_sessions = ({ dnn = \"oai\"; nssai_sst = 1; nssai_sd = 0xffffff; });\n}\n\nposition0 = {\n    x = 0.0;\n    y = 0.0;\n    z = 6377900.0;\n}\n\nthread-pool = \"-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1\"\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nchannelmod = {\n  max_chan = 10;\n  modellist = \"modellist_rfsimu_1\";\n  modellist_rfsimu_1 = (\n    {\n      model_name     = \"rfsimu_channel_enB0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -4;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    },\n    {\n      model_name     = \"rfsimu_channel_ue0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -2;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    }\n  );\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-nrue-config","namespace":"oran-ran"}}
+    creationTimestamp: "2026-03-16T13:42:56Z"
+    name: oai-nrue-config
+    namespace: oran-ran
+    resourceVersion: "425967"
+    uid: 00f4a50d-a30e-4e31-967a-45a2c988311c
+- apiVersion: v1
+  data:
+    nr-ue.conf: |
+      uicc0 = {
+        imsi = "999700000000002";
+        key = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+        opc = "E8ED289DEBA952E4283B54E88E6183CA";
+        pdu_sessions = ({ dnn = "oai"; nssai_sst = 1; nssai_sd = 0xffffff; });
+      }
+
+      position0 = {
+          x = 0.0;
+          y = 0.0;
+          z = 6377900.0;
+      }
+
+      thread-pool = "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      channelmod = {
+        max_chan = 10;
+        modellist = "modellist_rfsimu_1";
+        modellist_rfsimu_1 = (
+          {
+            model_name     = "rfsimu_channel_enB0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -4;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          },
+          {
+            model_name     = "rfsimu_channel_ue0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -2;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          }
+        );
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"nr-ue.conf":"uicc0 = {\n  imsi = \"999700000000002\";\n  key = \"465B5CE8B199B49FAA5F0A2EE238A6BC\";\n  opc = \"E8ED289DEBA952E4283B54E88E6183CA\";\n  pdu_sessions = ({ dnn = \"oai\"; nssai_sst = 1; nssai_sd = 0xffffff; });\n}\n\nposition0 = {\n    x = 0.0;\n    y = 0.0;\n    z = 6377900.0;\n}\n\nthread-pool = \"-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1\"\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nchannelmod = {\n  max_chan = 10;\n  modellist = \"modellist_rfsimu_1\";\n  modellist_rfsimu_1 = (\n    {\n      model_name     = \"rfsimu_channel_enB0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -4;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    },\n    {\n      model_name     = \"rfsimu_channel_ue0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -2;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    }\n  );\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-nrue-config-2","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-07T09:11:18Z"
+    name: oai-nrue-config-2
+    namespace: oran-ran
+    resourceVersion: "326115"
+    uid: 00a776ab-c4e2-420e-b761-14730091ea8a
+- apiVersion: v1
+  data:
+    nr-ue.conf: |
+      uicc0 = {
+        imsi = "999700000000003";
+        key = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+        opc = "E8ED289DEBA952E4283B54E88E6183CA";
+        pdu_sessions = ({ dnn = "oai"; nssai_sst = 1; nssai_sd = 0xffffff; });
+      }
+
+      position0 = {
+          x = 0.0;
+          y = 0.0;
+          z = 6377900.0;
+      }
+
+      thread-pool = "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      channelmod = {
+        max_chan = 10;
+        modellist = "modellist_rfsimu_1";
+        modellist_rfsimu_1 = (
+          {
+            model_name     = "rfsimu_channel_enB0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -4;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          },
+          {
+            model_name     = "rfsimu_channel_ue0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -2;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          }
+        );
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"nr-ue.conf":"uicc0 = {\n  imsi = \"999700000000003\";\n  key = \"465B5CE8B199B49FAA5F0A2EE238A6BC\";\n  opc = \"E8ED289DEBA952E4283B54E88E6183CA\";\n  pdu_sessions = ({ dnn = \"oai\"; nssai_sst = 1; nssai_sd = 0xffffff; });\n}\n\nposition0 = {\n    x = 0.0;\n    y = 0.0;\n    z = 6377900.0;\n}\n\nthread-pool = \"-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1\"\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nchannelmod = {\n  max_chan = 10;\n  modellist = \"modellist_rfsimu_1\";\n  modellist_rfsimu_1 = (\n    {\n      model_name     = \"rfsimu_channel_enB0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -4;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    },\n    {\n      model_name     = \"rfsimu_channel_ue0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -2;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    }\n  );\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-nrue-config-3","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-07T09:11:18Z"
+    name: oai-nrue-config-3
+    namespace: oran-ran
+    resourceVersion: "326117"
+    uid: 112e00bf-8b63-42fe-b703-dc9d9d47b710
+- apiVersion: v1
+  data:
+    nr-ue.conf: |
+      uicc0 = {
+        imsi = "999700000000004";
+        key = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+        opc = "E8ED289DEBA952E4283B54E88E6183CA";
+        pdu_sessions = ({ dnn = "oai"; nssai_sst = 1; nssai_sd = 0xffffff; });
+      }
+
+      position0 = {
+          x = 0.0;
+          y = 0.0;
+          z = 6377900.0;
+      }
+
+      thread-pool = "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      channelmod = {
+        max_chan = 10;
+        modellist = "modellist_rfsimu_1";
+        modellist_rfsimu_1 = (
+          {
+            model_name     = "rfsimu_channel_enB0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -4;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          },
+          {
+            model_name     = "rfsimu_channel_ue0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -2;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          }
+        );
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"nr-ue.conf":"uicc0 = {\n  imsi = \"999700000000004\";\n  key = \"465B5CE8B199B49FAA5F0A2EE238A6BC\";\n  opc = \"E8ED289DEBA952E4283B54E88E6183CA\";\n  pdu_sessions = ({ dnn = \"oai\"; nssai_sst = 1; nssai_sd = 0xffffff; });\n}\n\nposition0 = {\n    x = 0.0;\n    y = 0.0;\n    z = 6377900.0;\n}\n\nthread-pool = \"-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1\"\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nchannelmod = {\n  max_chan = 10;\n  modellist = \"modellist_rfsimu_1\";\n  modellist_rfsimu_1 = (\n    {\n      model_name     = \"rfsimu_channel_enB0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -4;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    },\n    {\n      model_name     = \"rfsimu_channel_ue0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -2;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    }\n  );\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-nrue-config-4","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-07T09:11:18Z"
+    name: oai-nrue-config-4
+    namespace: oran-ran
+    resourceVersion: "326125"
+    uid: 36fd156d-443e-4cea-bd50-ea44a943f0e2
+- apiVersion: v1
+  data:
+    nr-ue.conf: |
+      uicc0 = {
+        imsi = "999700000000005";
+        key = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+        opc = "E8ED289DEBA952E4283B54E88E6183CA";
+        pdu_sessions = ({ dnn = "oai"; nssai_sst = 1; nssai_sd = 0xffffff; });
+      }
+
+      position0 = {
+          x = 0.0;
+          y = 0.0;
+          z = 6377900.0;
+      }
+
+      thread-pool = "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      channelmod = {
+        max_chan = 10;
+        modellist = "modellist_rfsimu_1";
+        modellist_rfsimu_1 = (
+          {
+            model_name     = "rfsimu_channel_enB0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -4;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          },
+          {
+            model_name     = "rfsimu_channel_ue0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -2;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          }
+        );
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"nr-ue.conf":"uicc0 = {\n  imsi = \"999700000000005\";\n  key = \"465B5CE8B199B49FAA5F0A2EE238A6BC\";\n  opc = \"E8ED289DEBA952E4283B54E88E6183CA\";\n  pdu_sessions = ({ dnn = \"oai\"; nssai_sst = 1; nssai_sd = 0xffffff; });\n}\n\nposition0 = {\n    x = 0.0;\n    y = 0.0;\n    z = 6377900.0;\n}\n\nthread-pool = \"-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1\"\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nchannelmod = {\n  max_chan = 10;\n  modellist = \"modellist_rfsimu_1\";\n  modellist_rfsimu_1 = (\n    {\n      model_name     = \"rfsimu_channel_enB0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -4;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    },\n    {\n      model_name     = \"rfsimu_channel_ue0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -2;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    }\n  );\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-nrue-config-5","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-07T09:11:18Z"
+    name: oai-nrue-config-5
+    namespace: oran-ran
+    resourceVersion: "326132"
+    uid: c1a2be3d-c200-47ab-9a9e-af9d4f14b248
+- apiVersion: v1
+  data:
+    nr-ue.conf: |
+      uicc0 = {
+        imsi = "999700000000006";
+        key = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+        opc = "E8ED289DEBA952E4283B54E88E6183CA";
+        pdu_sessions = ({ dnn = "oai"; nssai_sst = 1; nssai_sd = 0xffffff; });
+      }
+
+      position0 = {
+          x = 0.0;
+          y = 0.0;
+          z = 6377900.0;
+      }
+
+      thread-pool = "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
+
+      rfsimulator = (
+        {
+          serveraddr = "server";
+        }
+      );
+
+      channelmod = {
+        max_chan = 10;
+        modellist = "modellist_rfsimu_1";
+        modellist_rfsimu_1 = (
+          {
+            model_name     = "rfsimu_channel_enB0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -4;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          },
+          {
+            model_name     = "rfsimu_channel_ue0"
+            type           = "AWGN";
+            ploss_dB       = 20;
+            noise_power_dB = -2;
+            forgetfact     = 0;
+            offset         = 0;
+            ds_tdl         = 0;
+          }
+        );
+      };
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"nr-ue.conf":"uicc0 = {\n  imsi = \"999700000000006\";\n  key = \"465B5CE8B199B49FAA5F0A2EE238A6BC\";\n  opc = \"E8ED289DEBA952E4283B54E88E6183CA\";\n  pdu_sessions = ({ dnn = \"oai\"; nssai_sst = 1; nssai_sd = 0xffffff; });\n}\n\nposition0 = {\n    x = 0.0;\n    y = 0.0;\n    z = 6377900.0;\n}\n\nthread-pool = \"-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1\"\n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nchannelmod = {\n  max_chan = 10;\n  modellist = \"modellist_rfsimu_1\";\n  modellist_rfsimu_1 = (\n    {\n      model_name     = \"rfsimu_channel_enB0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -4;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    },\n    {\n      model_name     = \"rfsimu_channel_ue0\"\n      type           = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -2;\n      forgetfact     = 0;\n      offset         = 0;\n      ds_tdl         = 0;\n    }\n  );\n};\n"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"oai-nrue-f1-config","namespace":"oran-ran"}}
+    creationTimestamp: "2026-05-19T01:01:54Z"
+    name: oai-nrue-f1-config
+    namespace: oran-ran
+    resourceVersion: "395978"
+    uid: 5da52b19-2148-4d0a-9ced-b93b1634a7e4
+kind: List
+metadata:
+  resourceVersion: ""
