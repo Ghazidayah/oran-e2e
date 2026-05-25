@@ -90,52 +90,78 @@
 </section>
 
 
+
 <section class="card section">
-    <h3>End-to-End UE Validation Scenarios</h3>
-<p class="muted scenario-note">Select the active UE count, then run validation or traffic scenarios.</p>
-    <div class="grid cards">
-      <div>
-        <h3>Serving gNB Check</h3>
-        <p class="small">Shows the serving cell for selected UE(s).</p>
-        <button onclick="runActionInteractive('ownership', this)">Check Serving gNB</button>
-      </div>
-      <div>
-        <h3>UE Attach + PDU Session</h3>
-        <p class="small">Checks attach, PDU session, and RAN-Core path.</p>
-        <button onclick="runUeScenarioInteractive('attach_pdu', this)">Validate UE Session</button>
-      </div>
-      <div>
-        <h3>UE Connectivity Test</h3>
-        <p class="small">Tests DN gateway reachability through selected UE tunnel(s).</p>
-        <button onclick="runUeScenarioInteractive('connectivity', this)">Run Connectivity</button>
-      </div>
-      <div>
-        <h3>UE Throughput KPI</h3>
-        <p class="small">Runs traffic and reports throughput KPIs.</p>
-        <button onclick="runUeScenarioInteractive('throughput', this)">Run KPI Test</button>
-      </div>
-      <div>
-        <h3>UE Video-like Stream</h3>
-        <p class="small">Starts controlled stream-like user-plane traffic.</p>
-        <button onclick="runUeScenarioInteractive('video', this)">Start Stream</button>
-      </div>
-      <div>
-        <h3>UE Stability Traffic</h3>
-        <p class="small">Starts low-rate stability traffic.</p>
-        <button onclick="runUeScenarioInteractive('stability', this)">Start Stability</button>
-      </div>
-      <div>
-        <h3>UE Stress Traffic</h3>
-        <p class="small">Starts higher-load user-plane traffic.</p>
-        <button onclick="runUeScenarioInteractive('stress', this)">Start Stress</button>
-      </div>
-      <div>
-        <h3>Stop UE Traffic</h3>
-        <p class="small">Stops traffic started by this dashboard.</p>
-        <button class="danger" onclick="runUeScenarioInteractive('stop', this)">Stop UE Traffic</button>
-      </div>
+  <h3>End-to-End UE Validation Scenarios</h3>
+  <p class="muted scenario-note">
+    Baseline validation is kept, while old ping-like traffic scenarios are replaced by realistic Phase 2 service traffic.
+  </p>
+
+  <div class="grid cards">
+    <div>
+      <h3>Serving gNB Check</h3>
+      <p class="small">Shows the serving cell for selected UE(s).</p>
+      <button onclick="runActionInteractive('ownership', this)">Check Serving gNB</button>
     </div>
-  </section>
+
+    <div>
+      <h3>UE Attach + PDU Session</h3>
+      <p class="small">Checks attach, PDU session, and RAN-Core path.</p>
+      <button onclick="runUeScenarioInteractive('attach_pdu', this)">Validate UE Session</button>
+    </div>
+
+    <div>
+      <h3>UE Connectivity Test</h3>
+      <p class="small">Tests DN gateway reachability through selected UE tunnel(s).</p>
+      <button onclick="runUeScenarioInteractive('connectivity', this)">Run Connectivity</button>
+    </div>
+
+    <div>
+      <h3>Image Download</h3>
+      <p class="small">Downloads a real image payload through oaitun_ue1.</p>
+      <button onclick="runPhase2Traffic('image', this)">Run Image</button>
+    </div>
+
+    <div>
+      <h3>iperf3 TCP Throughput</h3>
+      <p class="small">Measures TCP throughput over the UE tunnel.</p>
+      <button onclick="runPhase2Traffic('iperf-tcp', this)">Run TCP</button>
+    </div>
+
+    <div>
+      <h3>UDP Jitter / Loss</h3>
+      <p class="small">Runs custom UDP traffic for jitter and packet-loss KPIs.</p>
+      <button onclick="runPhase2Traffic('udp', this)">Run UDP</button>
+    </div>
+
+    <div>
+      <h3>Video Download</h3>
+      <p class="small">Downloads a 10 MB video payload through the UE tunnel.</p>
+      <button onclick="runPhase2Traffic('video', this)">Run Video</button>
+    </div>
+
+    <div>
+      <h3>Web Browsing</h3>
+      <p class="small">Downloads HTML, CSS, JS and image resources.</p>
+      <button onclick="runPhase2Traffic('web', this)">Run Web</button>
+    </div>
+
+    <div>
+      <h3>Streaming-like HLS</h3>
+      <p class="small">Downloads a playlist and several media segments.</p>
+      <button onclick="runPhase2Traffic('streaming', this)">Run Streaming</button>
+    </div>
+
+    <div>
+      <h3>Run All Realistic Traffic</h3>
+      <p class="small">Runs all Phase 2 scenarios and creates a full evidence suite.</p>
+      <button onclick="runPhase2Traffic('run-all', this)">Run All</button>
+    </div>
+  </div>
+
+  <pre id="phase2TrafficOutput" class="multi-ue-output">Traffic API ready: http://192.168.1.142:5055</pre>
+</section>
+
 
   <section class="grid two section">
     <div class="card">

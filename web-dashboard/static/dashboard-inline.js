@@ -598,3 +598,99 @@ const ueScenarioInteractiveLabels = {
     }
   }
 
+
+// PHASE2_TRAFFIC_JS_START
+const PHASE2_TRAFFIC_API = "http://192.168.1.142:5055";
+
+function setPhase2TrafficOutput(text) {
+  const el = document.getElementById("phase2TrafficOutput");
+  if (el) {
+    el.textContent = text || "";
+  }
+}
+
+function setPhase2TrafficButtons(disabled, activeButton) {
+  document.querySelectorAll('button[onclick*="runPhase2Traffic"]').forEach((button) => {
+    if (button !== activeButton) {
+      button.disabled = disabled;
+    }
+  });
+}
+
+async function runPhase2Traffic(scenario, button) {
+  const originalText = button ? button.textContent : "Run";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Starting...";
+  }
+
+  setPhase2TrafficButtons(true, button);
+  setPhase2TrafficOutput("Starting realistic traffic scenario: " + scenario);
+
+  try {
+    const startRes = await fetch(PHASE2_TRAFFIC_API + "/api/traffic/run/" + encodeURIComponent(scenario), {
+      method: "POST"
+    });
+
+    const startData = await startRes.json();
+
+    if (!startData.ok) {
+      throw new Error(startData.error || "Failed to start scenario");
+    }
+
+    const jobId = startData.job_id;
+
+    setPhase2TrafficOutput(
+      "Started: " + startData.label + "\n" +
+      "Job ID: " + jobId + "\n" +
+      "Waiting for result..."
+    );
+
+    for (let i = 0; i < 300; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      const jobRes = await fetch(PHASE2_TRAFFIC_API + "/api/traffic/jobs/" + encodeURIComponent(jobId));
+      const jobData = await jobRes.json();
+
+      if (!jobData.ok) {
+        setPhase2TrafficOutput("Job lookup failed:\n" + JSON.stringify(jobData, null, 2));
+        continue;
+      }
+
+      const job = jobData.job || {};
+      const status = job.status || "unknown";
+
+      setPhase2TrafficOutput(
+        "Scenario: " + scenario + "\n" +
+        "Job ID: " + jobId + "\n" +
+        "Status: " + status + "\n" +
+        "Exit: " + (job.exit ?? "-") + "\n" +
+        "Proof: " + (job.job_dir || "-") + "\n\n" +
+        "----- Output tail -----\n" +
+        (jobData.output || "")
+      );
+
+      if (["ok", "failed", "timeout", "error"].includes(status)) {
+        if (button) {
+          button.textContent = status === "ok" ? "Done ✓" : "Failed ✗";
+        }
+        break;
+      }
+    }
+  } catch (error) {
+    setPhase2TrafficOutput("Traffic scenario failed: " + error);
+    if (button) {
+      button.textContent = "Failed ✗";
+    }
+  } finally {
+    setPhase2TrafficButtons(false, button);
+    if (button) {
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+      }, 2500);
+    }
+  }
+}
+// PHASE2_TRAFFIC_JS_END
+
