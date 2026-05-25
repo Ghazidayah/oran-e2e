@@ -11,22 +11,27 @@ WORK_DIR="$(mktemp -d)"
 
 mkdir -p "$BACKUP_DIR"
 
-echo "===== INSTALL PHASE 2 TRAFFIC PANEL ====="
+echo "===== INSTALL PHASE 2 TRAFFIC PANEL INTO EXISTING DASHBOARD ====="
 echo "NS=$NS"
 echo "CM=$CM"
 echo "DEPLOY=$DEPLOY"
 echo "API_BASE=$API_BASE"
 echo "BACKUP_DIR=$BACKUP_DIR"
+echo "WORK_DIR=$WORK_DIR"
 
 echo "===== 1. BACKUP CURRENT CONFIGMAP ====="
 kubectl -n "$NS" get configmap "$CM" -o yaml > "$BACKUP_DIR/${CM}.yaml"
+kubectl -n "$NS" get configmap "$CM" -o json > "$WORK_DIR/configmap.json"
 
-kubectl -n "$NS" get configmap "$CM" -o json | python3 - "$WORK_DIR" <<'PY'
-import json, sys
+python3 - "$WORK_DIR/configmap.json" "$WORK_DIR" <<'PY'
+import json
+import sys
 from pathlib import Path
 
-out = Path(sys.argv[1])
-data = json.load(sys.stdin).get("data", {})
+json_path = Path(sys.argv[1])
+out = Path(sys.argv[2])
+
+data = json.loads(json_path.read_text()).get("data", {})
 (out / "index.html").write_text(data.get("index.html", ""))
 (out / "status.json").write_text(data.get("status.json", "{}"))
 PY
@@ -34,7 +39,7 @@ PY
 cp "$WORK_DIR/index.html" "$BACKUP_DIR/index.html"
 cp "$WORK_DIR/status.json" "$BACKUP_DIR/status.json"
 
-echo "===== 2. PATCH INDEX.HTML WITH TRAFFIC PANEL ====="
+echo "===== 2. PATCH INDEX.HTML ====="
 python3 - "$WORK_DIR/index.html" "$API_BASE" <<'PY'
 import sys
 from pathlib import Path
@@ -51,7 +56,7 @@ panel = f"""
 <section class="card section" id="phase2TrafficPanel">
   <h3>Realistic Traffic Scenarios - Phase 2</h3>
   <p class="small">
-    Launch real application traffic through the UE tunnel: image, video, web, streaming, TCP throughput and UDP jitter/loss.
+    These scenarios replace the old basic traffic tests with real application traffic through the UE tunnel.
   </p>
 
   <div class="grid cards">
@@ -60,34 +65,40 @@ panel = f"""
       <p class="small">HTTP image transfer through oaitun_ue1.</p>
       <button onclick="runPhase2Traffic('image', this)">Run Image</button>
     </div>
+
     <div>
-      <h3>iperf3 TCP</h3>
-      <p class="small">Measures TCP throughput KPI.</p>
+      <h3>iperf3 TCP Throughput</h3>
+      <p class="small">Measures TCP throughput over the UE tunnel.</p>
       <button onclick="runPhase2Traffic('iperf-tcp', this)">Run TCP</button>
     </div>
+
     <div>
-      <h3>UDP Jitter/Loss</h3>
-      <p class="small">Custom UDP traffic for loss and jitter.</p>
+      <h3>UDP Jitter / Loss</h3>
+      <p class="small">Custom UDP packets for URLLC-style jitter and loss KPI.</p>
       <button onclick="runPhase2Traffic('udp', this)">Run UDP</button>
     </div>
+
     <div>
       <h3>Video Download</h3>
-      <p class="small">Downloads a 10 MB video payload.</p>
+      <p class="small">Downloads a 10 MB video payload through oaitun_ue1.</p>
       <button onclick="runPhase2Traffic('video', this)">Run Video</button>
     </div>
+
     <div>
       <h3>Web Browsing</h3>
-      <p class="small">HTML, CSS, JS and image resources.</p>
+      <p class="small">Downloads HTML, CSS, JS and image resources.</p>
       <button onclick="runPhase2Traffic('web', this)">Run Web</button>
     </div>
+
     <div>
       <h3>Streaming-like HLS</h3>
-      <p class="small">Playlist plus segmented media traffic.</p>
+      <p class="small">Downloads playlist and media segments.</p>
       <button onclick="runPhase2Traffic('streaming', this)">Run Streaming</button>
     </div>
+
     <div>
-      <h3>Run All</h3>
-      <p class="small">Runs the full Phase 2 traffic suite.</p>
+      <h3>Run All Realistic Traffic</h3>
+      <p class="small">Runs all Phase 2 traffic scenarios.</p>
       <button onclick="runPhase2Traffic('run-all', this)">Run All</button>
     </div>
   </div>
@@ -110,18 +121,20 @@ function setPhase2TrafficButtons(disabled, activeButton) {{
 }}
 
 async function runPhase2Traffic(scenario, button) {{
-  const original = button ? button.textContent : "";
+  const originalText = button ? button.textContent : "";
   if (button) {{
     button.disabled = true;
     button.textContent = "Starting...";
   }}
+
   setPhase2TrafficButtons(true, button);
-  setPhase2TrafficOutput("Starting Phase 2 traffic scenario: " + scenario);
+  setPhase2TrafficOutput("Starting Phase 2 scenario: " + scenario);
 
   try {{
     const startRes = await fetch(PHASE2_TRAFFIC_API + "/api/traffic/run/" + encodeURIComponent(scenario), {{
       method: "POST"
     }});
+
     const startData = await startRes.json();
 
     if (!startData.ok) {{
@@ -129,7 +142,12 @@ async function runPhase2Traffic(scenario, button) {{
     }}
 
     const jobId = startData.job_id;
-    setPhase2TrafficOutput("Started " + startData.label + "\\nJob ID: " + jobId + "\\nWaiting for result...");
+
+    setPhase2TrafficOutput(
+      "Started: " + startData.label + "\\n" +
+      "Job ID: " + jobId + "\\n" +
+      "Waiting for result..."
+    );
 
     for (let i = 0; i < 300; i++) {{
       await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -138,7 +156,7 @@ async function runPhase2Traffic(scenario, button) {{
       const jobData = await jobRes.json();
 
       if (!jobData.ok) {{
-        setPhase2TrafficOutput("Job lookup failed: " + JSON.stringify(jobData, null, 2));
+        setPhase2TrafficOutput("Job lookup failed:\\n" + JSON.stringify(jobData, null, 2));
         continue;
       }}
 
@@ -169,7 +187,7 @@ async function runPhase2Traffic(scenario, button) {{
     setPhase2TrafficButtons(false, button);
     if (button) {{
       setTimeout(() => {{
-        button.textContent = original;
+        button.textContent = originalText;
         button.disabled = false;
       }}, 2500);
     }}
@@ -184,9 +202,15 @@ if start in html and end in html:
     after = html.split(end, 1)[1]
     html = before + panel + after
 else:
-    marker = '<section class="grid two section">'
-    if marker in html:
-        html = html.replace(marker, panel + "\n" + marker, 1)
+    # Insert before the Kubernetes State section if present.
+    marker = "Current Kubernetes State"
+    idx = html.find(marker)
+    if idx != -1:
+        section_start = html.rfind("<section", 0, idx)
+        if section_start != -1:
+            html = html[:section_start] + panel + "\n" + html[section_start:]
+        else:
+            html = html.replace(marker, panel + "\n" + marker, 1)
     elif "</main>" in html:
         html = html.replace("</main>", panel + "\n</main>", 1)
     else:
@@ -205,13 +229,11 @@ echo "===== 4. RESTART DASHBOARD ====="
 kubectl -n "$NS" rollout restart deploy/"$DEPLOY"
 kubectl -n "$NS" rollout status deploy/"$DEPLOY" --timeout=120s
 
-echo "===== 5. VERIFY PANEL ====="
-curl -s http://127.0.0.1:30080/ | grep -n "Realistic Traffic Scenarios" || {
-  echo "[FAIL] Panel marker not found in dashboard HTML"
-  exit 1
-}
+echo "===== 5. VERIFY DASHBOARD HTML ====="
+curl -s http://127.0.0.1:30080/ | grep -n "Realistic Traffic Scenarios - Phase 2"
+curl -s http://127.0.0.1:30080/ | grep -n "runPhase2Traffic"
 
-echo "[OK] Phase 2 traffic panel installed"
+echo "===== OK ====="
 echo "Dashboard: http://192.168.1.142:30080"
 echo "Traffic API: $API_BASE"
 echo "Backup: $BACKUP_DIR"
