@@ -162,6 +162,44 @@
   <pre id="phase2TrafficOutput" class="multi-ue-output">Traffic API ready: http://192.168.1.142:5055</pre>
 </section>
 
+<!-- PHASE3_REAL_SLICE_PANEL_START -->
+<section class="card section" id="phase3RealSlicePanel">
+  <h3>Real S-NSSAI Slice Traffic - Phase 3</h3>
+  <p class="muted scenario-note">
+    These buttons switch the OAI NR-UE requested S-NSSAI, validate oaitun_ue1, run realistic traffic, then restore the UE to default eMBB SST=1.
+  </p>
+
+  <div class="grid cards">
+    <div>
+      <h3>eMBB Real Slice</h3>
+      <p class="small">SST=1, DNN=oai. Runs image, video, web, streaming and iperf TCP.</p>
+      <button onclick="runRealSliceTraffic('embb', this)">Run eMBB Slice</button>
+    </div>
+
+    <div>
+      <h3>URLLC Real Slice</h3>
+      <p class="small">SST=2, DNN=oai. Runs UDP jitter/loss traffic.</p>
+      <button onclick="runRealSliceTraffic('urllc', this)">Run URLLC Slice</button>
+    </div>
+
+    <div>
+      <h3>mMTC Real Slice</h3>
+      <p class="small">SST=3, DNN=oai. Runs IoT-style small UDP packets.</p>
+      <button onclick="runRealSliceTraffic('mmtc', this)">Run mMTC Slice</button>
+    </div>
+
+    <div>
+      <h3>V2X Real Slice</h3>
+      <p class="small">SST=4, DNN=oai. Runs streaming-like HLS plus UDP continuity traffic.</p>
+      <button onclick="runRealSliceTraffic('v2x', this)">Run V2X Slice</button>
+    </div>
+  </div>
+
+  <pre id="phase3RealSliceOutput" class="multi-ue-output">Real Slice API ready: http://192.168.1.142:5055</pre>
+</section>
+<!-- PHASE3_REAL_SLICE_PANEL_END -->
+
+
 
   <section class="grid two section">
     <div class="card">
