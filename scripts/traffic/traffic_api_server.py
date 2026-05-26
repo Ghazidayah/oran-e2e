@@ -231,6 +231,162 @@ def get_job(job_id):
     })
 
 
+
+# PHASE3_REAL_SLICE_API_START
+REAL_SLICE_PROFILES = {
+    "embb": {
+        "label": "eMBB Real Slice Traffic",
+        "sst": 1,
+        "description": "High-throughput broadband traffic on real SST=1.",
+        "traffic": ["image", "video", "web", "streaming", "iperf-tcp"],
+    },
+    "urllc": {
+        "label": "URLLC Real Slice Traffic",
+        "sst": 2,
+        "description": "UDP jitter/loss traffic on real SST=2.",
+        "traffic": ["udp"],
+    },
+    "mmtc": {
+        "label": "mMTC Real Slice Traffic",
+        "sst": 3,
+        "description": "IoT-style small UDP packets on real SST=3.",
+        "traffic": ["mmtc-udp"],
+    },
+    "v2x": {
+        "label": "V2X Real Slice Traffic",
+        "sst": 4,
+        "description": "Streaming-like HLS plus UDP continuity traffic on real SST=4.",
+        "traffic": ["streaming", "udp"],
+    },
+}
+
+
+@app.route("/api/traffic/real-slices", methods=["GET"])
+def real_slice_profiles():
+    return jsonify({
+        "ok": True,
+        "note": "These profiles switch the OAI NR-UE requested S-NSSAI, validate oaitun_ue1, run realistic traffic, then restore SST=1.",
+        "slices": [
+            {
+                "id": key,
+                "label": value["label"],
+                "sst": value["sst"],
+                "description": value["description"],
+                "traffic": value["traffic"],
+            }
+            for key, value in REAL_SLICE_PROFILES.items()
+        ],
+    })
+
+
+@app.route("/api/traffic/run-real-slice/<profile>", methods=["POST", "OPTIONS"])
+def run_real_slice_traffic(profile):
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True})
+
+    if profile not in REAL_SLICE_PROFILES:
+        return jsonify({
+            "ok": False,
+            "error": f"Unknown real slice profile: {profile}",
+            "available": sorted(REAL_SLICE_PROFILES.keys()),
+        }), 404
+
+    script = REPO / "scripts/slicing/run-real-slice-traffic.sh"
+    if not script.exists():
+        return jsonify({"ok": False, "error": f"Missing script: {script}"}), 500
+
+    info = REAL_SLICE_PROFILES[profile]
+    job_id = time.strftime("%Y%m%d-%H%M%S") + "-real-slice-" + profile + "-" + uuid.uuid4().hex[:6]
+    job_dir = PROOF / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    log_file = job_dir / "output.log"
+
+    with LOCK:
+        JOBS[job_id] = {
+            "ok": None,
+            "status": "queued",
+            "job_id": job_id,
+            "scenario": "real-slice-traffic",
+            "profile": profile,
+            "label": info["label"],
+            "sst": info["sst"],
+            "traffic": info["traffic"],
+            "script": str(script),
+            "job_dir": str(job_dir),
+            "log_file": str(log_file),
+            "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+    def worker():
+        with LOCK:
+            JOBS[job_id]["status"] = "running"
+            JOBS[job_id]["started_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        try:
+            proc = subprocess.run(
+                ["bash", str(script), profile],
+                cwd=str(REPO),
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=2400,
+            )
+            output = proc.stdout or ""
+            log_file.write_text(output)
+
+            ok = proc.returncode == 0
+            status = "ok" if ok else "failed"
+
+            with LOCK:
+                JOBS[job_id].update({
+                    "ok": ok,
+                    "status": status,
+                    "exit": proc.returncode,
+                    "finished_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                })
+
+        except subprocess.TimeoutExpired as exc:
+            output = exc.stdout or ""
+            if isinstance(output, bytes):
+                output = output.decode(errors="replace")
+            log_file.write_text(output + "\n[TIMEOUT]\n")
+
+            with LOCK:
+                JOBS[job_id].update({
+                    "ok": False,
+                    "status": "timeout",
+                    "exit": 124,
+                    "finished_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                })
+
+        except Exception as exc:
+            log_file.write_text(f"ERROR: {exc}\n")
+
+            with LOCK:
+                JOBS[job_id].update({
+                    "ok": False,
+                    "status": "error",
+                    "exit": 1,
+                    "error": str(exc),
+                    "finished_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                })
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+    return jsonify({
+        "ok": True,
+        "started": True,
+        "job_id": job_id,
+        "profile": profile,
+        "label": info["label"],
+        "sst": info["sst"],
+        "traffic": info["traffic"],
+        "note": "This runs real slice traffic and restores UE to SST=1 at the end.",
+    })
+# PHASE3_REAL_SLICE_API_END
+
+
 if __name__ == "__main__":
     host = os.environ.get("TRAFFIC_API_HOST", "0.0.0.0")
     port = int(os.environ.get("TRAFFIC_API_PORT", "5055"))
