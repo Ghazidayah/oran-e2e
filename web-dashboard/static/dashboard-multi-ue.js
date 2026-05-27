@@ -7,10 +7,11 @@ let desiredUeCountUserEdited = false;
     ["none", "None"],
     ["attach_pdu", "Attach + PDU"],
     ["connectivity", "Connectivity"],
-    ["light", "Light traffic"],
-    ["throughput", "Throughput KPI"],
-    ["heavy", "Heavy traffic"],
-    ["video", "Video-like stream"],
+    ["image", "Image Download eMBB"],
+    ["video_download", "Video Download eMBB"],
+    ["web", "Web Browsing eMBB"],
+    ["streaming", "Streaming-like HLS eMBB"],
+    ["tcp_download", "TCP Download KPI eMBB"],
     ["stop", "Stop traffic"]
   ];
 
@@ -368,10 +369,10 @@ ${escapeHtml(result.output || '')}
     }
 
     setMultiUeBusy(true);
-    setMultiUeOutput('Running independent per-UE scenarios in parallel...\n' + jobs.map((job) => `${job.ue}: ${job.scenario}`).join('\n'));
+    setMultiUeOutput('Running independent per-UE eMBB realistic scenarios in parallel...\n' + jobs.map((job) => `${job.ue}: ${job.scenario}`).join('\n'));
 
     try {
-      const response = await fetch('/api/ues/scenarios', {
+      const response = await fetch('/api/ues/embb-scenarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobs })
