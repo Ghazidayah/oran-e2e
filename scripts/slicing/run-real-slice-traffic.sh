@@ -58,11 +58,15 @@ echo
 echo "===== 2. VALIDATE SLICE TUNNEL ====="
 scripts/slicing/validate-current-slice.sh | tee "$DIR/validate-sst${SST}.log"
 
+echo
+echo "===== 3. APPLY PHASE 4 SLICE RESOURCE PROFILE ====="
+scripts/slicing/apply-slice-resource-profile.sh "$PROFILE" | tee "$DIR/resource-profile-${PROFILE}.log"
+
 run_scenario() {
   local scenario="$1"
 
   echo
-  echo "===== RUN SCENARIO $scenario ON SLICE $LABEL SST=$SST ====="
+  echo "===== RUN SCENARIO $scenario ON SLICE $LABEL SST=$SST WITH PHASE 4 RESOURCE PROFILE ====="
 
   case "$scenario" in
     image)

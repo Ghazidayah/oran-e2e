@@ -44,8 +44,9 @@ kubectl -n "$NS" create configmap "$CM" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Restarting UE with SST=$SST SD=$SD"
+kubectl -n "$NS" scale deploy/oai-nr-ue --replicas=1
 kubectl -n "$NS" rollout restart deploy/oai-nr-ue
-kubectl -n "$NS" rollout status deploy/oai-nr-ue --timeout=180s
+kubectl -n "$NS" rollout status deploy/oai-nr-ue --timeout=300s
 
 echo "Current UE requested slice:"
 kubectl -n "$NS" get cm "$CM" -o json \
