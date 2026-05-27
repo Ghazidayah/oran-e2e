@@ -183,7 +183,7 @@ block = r'''
     }
 
     def phase4_multi_ue_embb_client_code():
-        return r'''
+        return """
 import hashlib
 import json
 import socket
