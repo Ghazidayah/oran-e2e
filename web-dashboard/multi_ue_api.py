@@ -1030,7 +1030,8 @@ sys.exit(0 if ok else 1)
     @app.route("/api/ues/embb-scenarios", methods=["POST"])
     def api_ues_embb_realistic_scenarios_multi():
         if f1_mode_active():
-            return reject_multi_ue_in_f1("run selected eMBB realistic UE scenarios")
+            # Mixed DU0/DU1 mode: allow Multi-UE traffic; old F1-only blocker disabled.
+            pass
 
         import json
         import os
