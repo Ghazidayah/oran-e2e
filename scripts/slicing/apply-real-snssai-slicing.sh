@@ -1,4 +1,25 @@
 #!/usr/bin/env bash
+
+# DU-aware safety guard.
+#
+# This installer/generator predates the Mixed-DU architecture.
+# It can overwrite DU-aware runtime scripts such as:
+#   scripts/slicing/switch-ue-slice.sh
+#   scripts/slicing/validate-current-slice.sh
+#
+# The validated runtime scripts are now committed separately.
+# To intentionally rerun this legacy generator, set:
+#   ALLOW_LEGACY_SNSSAI_GENERATOR=1
+if [ "${ALLOW_LEGACY_SNSSAI_GENERATOR:-0}" != "1" ]; then
+  echo "BLOCKED: legacy real S-NSSAI generator is disabled by default."
+  echo "Reason: it may overwrite DU-aware Phase 3 / Phase 4 / E2E runtime scripts."
+  echo "Use the committed DU-aware runtime scripts instead."
+  echo "To force this legacy generator, rerun with ALLOW_LEGACY_SNSSAI_GENERATOR=1."
+  echo "VERDICT=LEGACY_SNSSAI_GENERATOR_BLOCKED"
+  exit 0
+fi
+
+
 set -euo pipefail
 
 NS_CORE="${NS_CORE:-oran-core}"
