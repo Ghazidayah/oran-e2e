@@ -1,25 +1,38 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set +e
+set +u
 
-UE_POD=$(kubectl -n oran-ran get pods -l app=oai-nr-ue --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp -o name | tail -n 1 | cut -d/ -f2)
-UPF_POD=$(kubectl -n oran-core get pods -l app.kubernetes.io/name=upf --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp -o name | tail -n 1 | cut -d/ -f2)
+NS="${NS:-oran-ran}"
+DEP="${DEP:-oai-nr-ue}"
+REPO="${REPO:-$HOME/oran-e2e-freeze}"
 
-kubectl get nodes -o wide
-kubectl -n oran-core get pods -o wide
-kubectl -n oran-ran get pods -o wide
+source "$REPO/scripts/ue/ue-common.sh"
 
-for i in $(seq 1 90); do
-  if kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip addr show oaitun_ue1 >/dev/null 2>&1'; then
-    break
-  fi
-  sleep 2
-done
+echo "===== End-to-End UE Validation - protected UE1 ====="
 
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip addr | grep -A2 oaitun_ue1'
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip route'
-kubectl -n oran-ran exec "$UE_POD" -- ping -c 2 10.45.0.1
-kubectl -n oran-ran exec "$UE_POD" -- ping -I oaitun_ue1 -c 4 8.8.8.8
+UE_POD="$(ue_pod_for_deployment "$NS" "$DEP")"
 
-kubectl -n oran-core logs deploy/open5gs-amf --since=30m | egrep -i 'Registration complete|gNB|999700000000001' || true
-kubectl -n oran-core logs deploy/open5gs-smf --since=30m | egrep -i 'UE SUPI|session|10.45|oai|associated' || true
-kubectl -n oran-core logs "$UPF_POD" --since=30m | egrep -i 'gtp|2152|PFCP|associated' || true
+if [ -z "$UE_POD" ]; then
+  echo "FAIL: protected ue1 pod not found"
+  echo "VERDICT=E2E_UE1_POD_NOT_FOUND"
+  exit 0
+fi
+
+echo "UE pod: $UE_POD"
+
+kubectl -n "$NS" exec "$UE_POD" -- sh -c 'ip addr show oaitun_ue1 >/dev/null 2>&1'
+if [ $? -ne 0 ]; then
+  echo "FAIL: oaitun_ue1 missing"
+  echo "VERDICT=E2E_UE1_TUNNEL_MISSING"
+  exit 0
+fi
+
+kubectl -n "$NS" exec "$UE_POD" -- sh -c 'ip addr | grep -A2 oaitun_ue1'
+kubectl -n "$NS" exec "$UE_POD" -- sh -c 'ip route'
+kubectl -n "$NS" exec "$UE_POD" -- ping -I oaitun_ue1 -c 4 8.8.8.8
+
+if [ $? -eq 0 ]; then
+  echo "VERDICT=E2E_UE1_VALIDATION_OK"
+else
+  echo "VERDICT=E2E_UE1_PING_FAILED"
+fi

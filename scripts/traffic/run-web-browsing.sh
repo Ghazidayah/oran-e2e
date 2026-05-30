@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO="${REPO:-$HOME/oran-e2e-freeze}"
+source "$REPO/scripts/ue/ue-common.sh"
+UE_DEP="${UE_DEP:-oai-nr-ue}"
+
 NS="${NS:-oran-ran}"
 PORT="${PORT:-8090}"
 BASE="${BASE:-$HOME/oran-proof/phase2-realistic-traffic}"
@@ -15,7 +19,7 @@ echo "RUN_ID=$RUN_ID"
 echo "PROOF_DIR=$DIR"
 echo "PORT=$PORT"
 
-UE="$(kubectl -n "$NS" get pods --no-headers | awk '/oai-nr-ue/ && $3=="Running"{print $1; exit}')"
+UE="$(ue_pod_for_deployment "$NS" "$UE_DEP")"
 [ -n "$UE" ] || { echo "[FAIL] No running UE pod found"; exit 1; }
 
 UE_IP="$(kubectl -n "$NS" exec "$UE" -- sh -c "ip -4 -o addr show oaitun_ue1 | awk '{print \$4}' | cut -d/ -f1")"
