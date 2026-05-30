@@ -682,5 +682,15 @@ def api_action(action):
 
 register_multi_ue_routes(app, run_cmd, BASE_DIR)
 
+
+# BEGIN MIXED-DU HANDOVER API
+try:
+    from mixed_du_handover_api import install_mixed_du_handover_api
+    install_mixed_du_handover_api(app)
+    print("[dashboard] Mixed-DU handover API installed")
+except Exception as exc:
+    print(f"[dashboard] Mixed-DU handover API not installed: {exc}")
+# END MIXED-DU HANDOVER API
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=18080)

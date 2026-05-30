@@ -52,9 +52,9 @@
 
   
 <section class="panel handover-panel">
-  <h3>F1 Handover Validation</h3>
+  <h3>Multi-UE DU Continuity / Handover</h3>
   <p class="muted">
-    Dedicated CU/DU RFsim handover using oai-nr-ue-f1.
+    Dedicated CU/DU RFsim handover using ue2-ue5.
   </p>
 
   <div class="handover-grid">
@@ -63,7 +63,7 @@
       <div id="handoverMode" class="value">checking...</div>
     </div>
     <div class="handover-card">
-      <div class="label">F1 Topology</div>
+      <div class="label">Mixed-DU Topology</div>
       <div id="handoverTopology" class="value">checking...</div>
     </div>
     <div class="handover-card">
@@ -82,7 +82,7 @@
 
   <div class="handover-actions">
     <button type="button" data-handover-button="true" onclick="refreshHandoverStatus()">Check F1 Status</button>
-    <button type="button" id="runF1HandoverButton" data-handover-button="true" onclick="runF1Handover()" title="Checks readiness before running F1 handover.">Run F1 Handover</button>
+    <button type="button" id="runF1HandoverButton" data-handover-button="true" onclick="runF1Handover()" title="Checks readiness before running F1 handover.">Run Mixed-DU Handover</button>
   </div>
 
   <div id="handoverChecks" class="handover-result-grid"></div>
@@ -343,5 +343,6 @@
   <script src="{{ url_for('static', filename='dashboard-inline.js') }}"></script>
   <script src="{{ url_for('static', filename='handover.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-ui-feedback.js') }}"></script>
+  <script src="{{ url_for('static', filename='mixed-du-handover.js') }}"></script>
 </body>
 </html>
