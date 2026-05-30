@@ -16,11 +16,11 @@ REPO = Path(os.environ.get("ORAN_REPO", Path(__file__).resolve().parents[1]))
 SWITCH_SCRIPT = REPO / "scripts" / "handover" / "switch-ue-du-target.sh"
 
 UE_MAP = {
-    "ue1": {"deployment": "oai-nr-ue", "configmap": "oai-nrue-config", "protected": True},
-    "ue2": {"deployment": "oai-nr-ue-2", "configmap": "oai-nrue-config-2", "protected": False},
-    "ue3": {"deployment": "oai-nr-ue-3", "configmap": "oai-nrue-config-3", "protected": False},
-    "ue4": {"deployment": "oai-nr-ue-4", "configmap": "oai-nrue-config-4", "protected": False},
-    "ue5": {"deployment": "oai-nr-ue-5", "configmap": "oai-nrue-config-5", "protected": False},
+    "ue1": {"deployment": "oai-nr-ue", "configmap": "oai-nrue-config", "protected": False, "phase_reference": True},
+    "ue2": {"deployment": "oai-nr-ue-2", "configmap": "oai-nrue-config-2", "protected": False, "phase_reference": False},
+    "ue3": {"deployment": "oai-nr-ue-3", "configmap": "oai-nrue-config-3", "protected": False, "phase_reference": False},
+    "ue4": {"deployment": "oai-nr-ue-4", "configmap": "oai-nrue-config-4", "protected": False, "phase_reference": False},
+    "ue5": {"deployment": "oai-nr-ue-5", "configmap": "oai-nrue-config-5", "protected": False, "phase_reference": False},
 }
 
 MATRIX_JOBS = [
@@ -153,12 +153,10 @@ def _status():
 
     ues = []
     attached_count = 0
-    switchable_count = 0
 
     for name, meta in UE_MAP.items():
         dep = meta["deployment"]
         cm = meta["configmap"]
-        protected = meta["protected"]
 
         serveraddr = _serveraddr_for_configmap(cm)
         du = _du_from_serveraddr(serveraddr)
@@ -169,15 +167,13 @@ def _status():
         if attached:
             attached_count += 1
 
-        if not protected:
-            switchable_count += 1
-
         ues.append({
             "name": name,
             "deployment": dep,
             "configmap": cm,
-            "protected": protected,
-            "switchable": not protected,
+            "protected": bool(meta.get("protected", False)),
+            "phase_reference": bool(meta.get("phase_reference", False)),
+            "switchable": True,
             "serveraddr": serveraddr,
             "du": du,
             "pod": pod,
@@ -186,9 +182,9 @@ def _status():
         })
 
     ue1 = next((u for u in ues if u["name"] == "ue1"), {})
-    ue1_protected_ok = ue1.get("protected") is True and ue1.get("du") == "du0"
+    ue1_du_aware_ok = ue1.get("du") in ["du0", "du1"] and bool(ue1.get("attached"))
 
-    ready = du0_ready and du1_ready and attached_count == len(UE_MAP) and ue1_protected_ok
+    ready = du0_ready and du1_ready and attached_count == len(UE_MAP) and ue1_du_aware_ok
 
     return {
         "ok": True,
@@ -199,13 +195,14 @@ def _status():
         "topology_ready": du0_ready and du1_ready,
         "attached_count": attached_count,
         "expected_count": len(UE_MAP),
-        "switchable_count": switchable_count,
-        "ue1_protected_ok": ue1_protected_ok,
+        "switchable_count": len(UE_MAP),
+        "ue1_protected_ok": ue1_du_aware_ok,
+        "ue1_du_aware_ok": ue1_du_aware_ok,
         "handover_ready": ready,
         "ues": ues,
-        "allowed_ues": ["ue2", "ue3", "ue4", "ue5"],
-        "blocked_ues": ["ue1"],
-        "note": "ue1 is protected on DU0. DU switching is allowed only for ue2-ue5.",
+        "allowed_ues": ["ue1", "ue2", "ue3", "ue4", "ue5"],
+        "blocked_ues": [],
+        "note": "ue1 is DU-aware: Phase 3/4 scripts preserve serveraddr, so DU switching is allowed for ue1-ue5.",
     }
 
 
@@ -242,13 +239,6 @@ def _run_single_job(job):
 
 
 def _run_matrix_resilient():
-    """
-    First try the real 5-UE parallel matrix.
-    If the RFsim/DU path times out under simultaneous load, fall back to
-    sequential per-UE validation. This is better for the handover panel:
-    it proves each UE survives its DU target while Multi-UE Control remains
-    responsible for the dedicated parallel stress test.
-    """
     parallel_attempt = None
 
     try:
@@ -278,8 +268,8 @@ def _run_matrix_resilient():
         try:
             one = _run_single_job(job)
             sequential_responses.append(one)
-
             job_results = one.get("results", [])
+
             if job_results:
                 sequential_results.extend(job_results)
             else:
@@ -325,20 +315,10 @@ def _switch_ue():
     ue = str(data.get("ue", "")).strip()
     target = str(data.get("target", data.get("du", ""))).strip().lower()
 
-    if ue == "ue1":
+    if ue not in ["ue1", "ue2", "ue3", "ue4", "ue5"]:
         return jsonify({
             "ok": False,
-            "blocked": True,
-            "mode": "mixed-du-rfsim",
-            "error": "ue1 is protected and cannot be switched",
-            "verdict": "UE1_PROTECTED_NO_DU_SWITCH",
-            "status": _status(),
-        }), 200
-
-    if ue not in ["ue2", "ue3", "ue4", "ue5"]:
-        return jsonify({
-            "ok": False,
-            "error": "invalid UE. Allowed: ue2, ue3, ue4, ue5",
+            "error": "invalid UE. Allowed: ue1, ue2, ue3, ue4, ue5",
             "verdict": "INVALID_UE",
         }), 400
 
@@ -383,12 +363,12 @@ def _run_handover_validation():
             "status": status,
         }), 200
 
-    if not status.get("ue1_protected_ok"):
+    if not status.get("ue1_du_aware_ok"):
         return jsonify({
             "ok": False,
             "mode": "mixed-du-rfsim",
             "handover_success": False,
-            "error": "ue1 is not protected on DU0",
+            "error": "ue1 is not attached on a valid DU target",
             "status": status,
         }), 200
 

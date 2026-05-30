@@ -55,7 +55,7 @@
     panel.innerHTML = `
       <h2>Multi-UE DU Continuity / Handover</h2>
       <p>
-        ue1 is protected on DU0. DU switching is available only for ue2, ue3, ue4, and ue5.
+        ue1 is DU-aware. DU switching is available for ue1, ue2, ue3, ue4, and ue5. Phase 3/4 slice scripts preserve the current DU target.
       </p>
       <div style="margin: 10px 0;">
         <button id="mixed-du-refresh" type="button">Refresh DU Status</button>
@@ -97,7 +97,7 @@
       "DU0 ready=" + data.du0_ready + "\n" +
       "DU1 ready=" + data.du1_ready + "\n" +
       "attached=" + data.attached_count + "/" + data.expected_count + "\n" +
-      "ue1 protected=" + data.ue1_protected_ok + "\n" +
+      "ue1 DU-aware ready=" + data.ue1_protected_ok + "\n" +
       "handover ready=" + data.handover_ready;
 
     tbody.innerHTML = "";
