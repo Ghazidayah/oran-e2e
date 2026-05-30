@@ -1,13 +1,181 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="${ORAN_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 STATE_DIR="${HOME}/.oran-lab"
 STATE_FILE="${STATE_DIR}/platform-replicas.tsv"
+PORT="${ORAN_DASHBOARD_PORT:-18080}"
+START_DASHBOARD="${ORAN_START_DASHBOARD:-1}"
+RECOVER_MIXED_DU="${ORAN_RECOVER_MIXED_DU:-1}"
+TARGET_NAMESPACES="${ORAN_PLATFORM_NAMESPACES:-oran-core oran-ran monitoring}"
+
+section() {
+  echo
+  echo "===== $* ====="
+}
+
+have_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+namespace_exists() {
+  kubectl get namespace "$1" >/dev/null 2>&1
+}
+
+state_replicas() {
+  ns="$1"
+  kind="$2"
+  name="$3"
+
+  awk -v ns="$ns" -v kind="$kind" -v name="$name" \
+    '$1 == ns && $2 == kind && $3 == name {print $4}' "$STATE_FILE" | tail -1
+}
+
+restore_one() {
+  ns="$1"
+  kind="$2"
+  name="$3"
+  replicas="$4"
+
+  replicas="${replicas:-0}"
+
+  if ! namespace_exists "$ns"; then
+    echo "[SKIP] namespace does not exist: $ns"
+    return 0
+  fi
+
+  if ! kubectl -n "$ns" get "$kind/$name" >/dev/null 2>&1; then
+    echo "[SKIP] missing resource: $ns $kind/$name"
+    return 0
+  fi
+
+  echo "Restoring $ns $kind/$name to replicas=$replicas"
+  kubectl -n "$ns" scale "$kind/$name" --replicas="$replicas" || true
+}
+
+restore_all() {
+  while read -r ns kind name replicas; do
+    [ -z "${ns:-}" ] && continue
+    restore_one "$ns" "$kind" "$name" "$replicas"
+  done < "$STATE_FILE"
+}
+
+wait_deploy_if_needed() {
+  ns="$1"
+  name="$2"
+  timeout="${3:-240s}"
+
+  if ! namespace_exists "$ns"; then
+    return 0
+  fi
+
+  if ! kubectl -n "$ns" get "deploy/$name" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  replicas="$(state_replicas "$ns" deploy "$name")"
+  replicas="${replicas:-0}"
+
+  if [ "$replicas" -gt 0 ]; then
+    echo "Waiting for $ns deploy/$name..."
+    kubectl -n "$ns" rollout status "deploy/$name" --timeout="$timeout" || true
+  fi
+}
+
+wait_statefulset_if_needed() {
+  ns="$1"
+  name="$2"
+  timeout="${3:-240s}"
+
+  if ! namespace_exists "$ns"; then
+    return 0
+  fi
+
+  if ! kubectl -n "$ns" get "statefulset/$name" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  replicas="$(state_replicas "$ns" statefulset "$name")"
+  replicas="${replicas:-0}"
+
+  if [ "$replicas" -gt 0 ]; then
+    echo "Waiting for $ns statefulset/$name..."
+    kubectl -n "$ns" rollout status "statefulset/$name" --timeout="$timeout" || true
+  fi
+}
+
+start_dashboard() {
+  if [ "$START_DASHBOARD" != "1" ]; then
+    echo "[SKIP] ORAN_START_DASHBOARD=$START_DASHBOARD"
+    return 0
+  fi
+
+  section "Starting local dashboard on port ${PORT}"
+
+  if ss -ltn 2>/dev/null | grep -q ":${PORT} "; then
+    echo "Dashboard port already listening: $PORT"
+    return 0
+  fi
+
+  if [ ! -x "$ROOT_DIR/run-web-dashboard.sh" ]; then
+    echo "[WARN] run-web-dashboard.sh not found or not executable"
+    return 0
+  fi
+
+  mkdir -p "${HOME}/oran-proof/dashboard-logs"
+  log="${HOME}/oran-proof/dashboard-logs/platform-start-dashboard-$(date +%Y%m%d-%H%M%S).log"
+
+  (
+    cd "$ROOT_DIR"
+    nohup env \
+      ORAN_DASHBOARD_PORT="$PORT" \
+      ORAN_RAN_NS="${ORAN_RAN_NS:-oran-ran}" \
+      ORAN_REPO="$ROOT_DIR" \
+      ./run-web-dashboard.sh > "$log" 2>&1 &
+  )
+
+  sleep 5
+  echo "Dashboard log: $log"
+  tail -40 "$log" || true
+}
+
+show_namespace_pods() {
+  ns="$1"
+
+  if ! namespace_exists "$ns"; then
+    return 0
+  fi
+
+  echo
+  echo "----- $ns -----"
+  kubectl -n "$ns" get pods -o wide || true
+}
+
+recover_mixed_du_if_available() {
+  if [ "$RECOVER_MIXED_DU" != "1" ]; then
+    echo "[SKIP] ORAN_RECOVER_MIXED_DU=$RECOVER_MIXED_DU"
+    return 0
+  fi
+
+  if [ ! -x "$ROOT_DIR/scripts/handover/recover-mixed-du-state.sh" ]; then
+    echo "[SKIP] Mixed-DU recovery script not found"
+    return 0
+  fi
+
+  section "Recovering validated Mixed-DU state"
+  (
+    cd "$ROOT_DIR"
+    ORAN_DASHBOARD_PORT="$PORT" bash "$ROOT_DIR/scripts/handover/recover-mixed-du-state.sh" || true
+  )
+}
 
 echo "===== O-RAN platform start ====="
-echo
+echo "Root dir: $ROOT_DIR"
+echo "State file: $STATE_FILE"
+echo "Dashboard port: $PORT"
+echo "Recover Mixed-DU: $RECOVER_MIXED_DU"
 
-command -v kubectl >/dev/null 2>&1 || {
+have_cmd kubectl || {
   echo "ERROR: kubectl not found"
   exit 1
 }
@@ -19,100 +187,32 @@ if [ ! -s "$STATE_FILE" ]; then
   exit 1
 fi
 
-echo "Using replica state:"
-echo "$STATE_FILE"
-echo
+section "Saved replica state"
 cat "$STATE_FILE"
-echo
 
-restore_one() {
-  ns="$1"
-  kind="$2"
-  name="$3"
-  replicas="$4"
+section "Restoring saved replicas"
+restore_all
 
-  echo "Restoring $ns $kind/$name to replicas=$replicas"
-  kubectl -n "$ns" scale "$kind/$name" --replicas="$replicas" || true
-}
+section "Waiting for key workloads"
+for dep in mongodb amf smf upf; do
+  wait_deploy_if_needed oran-core "$dep" 240s
+done
 
-restore_namespace() {
-  ns_filter="$1"
-  awk -v ns="$ns_filter" '$1 == ns {print $0}' "$STATE_FILE" \
-    | while read -r ns kind name replicas; do
-        restore_one "$ns" "$kind" "$name" "$replicas"
-      done
-}
+for dep in oai-cu oai-du0 oai-du1 oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
+  wait_deploy_if_needed oran-ran "$dep" 240s
+done
 
-restore_ran_gnbs() {
-  awk '$1 == "oran-ran" && $3 ~ /^oai-gnb/ {print $0}' "$STATE_FILE" \
-    | while read -r ns kind name replicas; do
-        restore_one "$ns" "$kind" "$name" "$replicas"
-      done
-}
+for dep in prometheus grafana; do
+  wait_deploy_if_needed monitoring "$dep" 240s
+done
 
-restore_ran_ues() {
-  awk '$1 == "oran-ran" && $3 ~ /^oai-nr-ue/ {print $0}' "$STATE_FILE" \
-    | while read -r ns kind name replicas; do
-        restore_one "$ns" "$kind" "$name" "$replicas"
-      done
-}
+start_dashboard
+recover_mixed_du_if_available
 
-wait_deploy_if_needed() {
-  ns="$1"
-  name="$2"
-  timeout="${3:-240s}"
-
-  replicas="$(awk -v ns="$ns" -v name="$name" '$1 == ns && $2 == "deploy" && $3 == name {print $4}' "$STATE_FILE" | tail -1)"
-  replicas="${replicas:-0}"
-
-  if [ "$replicas" -gt 0 ]; then
-    echo "Waiting for $ns deploy/$name..."
-    kubectl -n "$ns" rollout status "deploy/$name" --timeout="$timeout"
-  fi
-}
-
-echo "===== Restoring Open5GS core first ====="
-restore_namespace "oran-core"
-
-wait_deploy_if_needed oran-core open5gs-amf 240s
-wait_deploy_if_needed oran-core open5gs-smf 240s
-wait_deploy_if_needed oran-core open5gs-upf 240s
+section "Final pod state"
+for ns in $TARGET_NAMESPACES; do
+  show_namespace_pods "$ns"
+done
 
 echo
-echo "===== Restoring gNBs ====="
-restore_ran_gnbs
-
-wait_deploy_if_needed oran-ran oai-gnb 300s
-wait_deploy_if_needed oran-ran oai-gnb-b 300s
-
-echo
-echo "===== Restoring UEs ====="
-restore_ran_ues
-
-wait_deploy_if_needed oran-ran oai-nr-ue 300s
-wait_deploy_if_needed oran-ran oai-nr-ue-2 300s
-wait_deploy_if_needed oran-ran oai-nr-ue-3 300s
-wait_deploy_if_needed oran-ran oai-nr-ue-4 300s
-wait_deploy_if_needed oran-ran oai-nr-ue-5 300s
-
-echo
-echo "===== Restoring monitoring ====="
-restore_namespace "monitoring"
-
-echo
-echo "===== Final status ====="
-
-echo
-echo "----- oran-core -----"
-kubectl -n oran-core get pods -o wide || true
-
-echo
-echo "----- oran-ran -----"
-kubectl -n oran-ran get pods -o wide || true
-
-echo
-echo "----- monitoring -----"
-kubectl -n monitoring get pods -o wide | grep -E 'grafana|prometheus|alertmanager|kube-state|operator' || true
-
-echo
-echo "Platform workloads have been restored from saved replica state."
+echo "VERDICT=PLATFORM_STARTED"
