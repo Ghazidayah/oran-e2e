@@ -1,0 +1,52 @@
+[
+  {
+    "profile": "scheduler-auto",
+    "netem_params": "clear/no-shaping",
+    "rf_values": "enB0 20/-4, ue0 20/-2",
+    "tcp_mbps": "32.786",
+    "retransmits": "99",
+    "ping_avg_ms": "67.161",
+    "image_mbps": "see proof logs",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "qpsk-robust",
+    "netem_params": "rate=18mbit delay=8ms jitter=2ms loss=0%",
+    "rf_values": "enB0 40/10, ue0 40/12",
+    "tcp_mbps": "17.106",
+    "retransmits": "64",
+    "ping_avg_ms": "73.621",
+    "image_mbps": "see proof logs",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "qam16-balanced",
+    "netem_params": "rate=32mbit delay=2ms jitter=1ms loss=0%",
+    "rf_values": "enB0 26/0, ue0 26/2",
+    "tcp_mbps": "29.356",
+    "retransmits": "165",
+    "ping_avg_ms": "68.936",
+    "image_mbps": "see proof logs",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "qam64-throughput",
+    "netem_params": "rate=45mbit delay=1ms jitter=0ms loss=0%",
+    "rf_values": "enB0 18/-6, ue0 18/-4",
+    "tcp_mbps": "32.206",
+    "retransmits": "76",
+    "ping_avg_ms": "70.153",
+    "image_mbps": "see proof logs",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "qam256-max",
+    "netem_params": "clear/no-shaping/native-ceiling",
+    "rf_values": "enB0 12/-10, ue0 12/-8",
+    "tcp_mbps": "32.618",
+    "retransmits": "105",
+    "ping_avg_ms": "78.453",
+    "image_mbps": "see proof logs",
+    "verdict": "PASS"
+  }
+]

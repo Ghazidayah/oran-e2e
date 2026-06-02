@@ -8,6 +8,7 @@ from datetime import datetime
 from flask import Flask, render_template, jsonify
 from multi_ue_api import register_multi_ue_routes
 from handover_api import handover_bp
+from radio_profile_api import radio_bp
 
 BASE_DIR = Path.home() / "oran-e2e-freeze"
 PROOF_DIR = Path.home() / "oran-proof"
@@ -691,6 +692,14 @@ try:
 except Exception as exc:
     print(f"[dashboard] Mixed-DU handover API not installed: {exc}")
 # END MIXED-DU HANDOVER API
+
+
+
+
+# BEGIN RADIO PROFILE API BLUEPRINT
+app.register_blueprint(radio_bp, url_prefix="/api/radio")
+print("[dashboard] Radio profile blueprint installed at /api/radio")
+# END RADIO PROFILE API BLUEPRINT
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=18080)
