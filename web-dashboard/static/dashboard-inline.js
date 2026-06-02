@@ -664,7 +664,7 @@ async function runPhase2Traffic(scenario, button) {
         "Scenario: " + scenario + "\n" +
         "Job ID: " + jobId + "\n" +
         "Status: " + status + "\n" +
-        "Exit: " + (job.exit ?? "-") + "\n" +
+        "Exit: " + ((job.exit === null || job.exit === undefined) ? "-" : job.exit) + "\n" +
         "Proof: " + (job.job_dir || "-") + "\n\n" +
         "----- Output tail -----\n" +
         (jobData.output || "")
@@ -761,9 +761,9 @@ async function runRealSliceTraffic(profile, button) {
       setPhase3RealSliceOutput(
         "Real Slice Profile: " + profile + "\n" +
         "Label: " + (job.label || "-") + "\n" +
-        "SST: " + (job.sst ?? "-") + "\n" +
+        "SST: " + (((job.sst === null || job.sst === undefined) ? "-" : job.sst)) + "\n" +
         "Status: " + status + "\n" +
-        "Exit: " + (job.exit ?? "-") + "\n" +
+        "Exit: " + ((job.exit === null || job.exit === undefined) ? "-" : job.exit) + "\n" +
         "Proof: " + (job.job_dir || "-") + "\n\n" +
         "----- Output tail -----\n" +
         (jobData.output || "")
