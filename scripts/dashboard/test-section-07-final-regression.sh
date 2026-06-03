@@ -66,6 +66,9 @@ fi
 
 for marker in \
   "Radio / Modulation Profile Control" \
+  "Frequency Profile Control" \
+  "Frequency KPI Results / Comparison" \
+  "Frequency Profile Logs" \
   "End-to-End UE Validation Scenarios" \
   "Real S-NSSAI Slice Traffic - Phase 3" \
   "Real-Time Multi-UE Data Transfer" \
@@ -93,6 +96,7 @@ for asset in \
   dashboard-multi-ue.js \
   mixed-du-handover.js \
   mixed-du-table.js \
+  frequency-profile.js \
   dashboard-status-live.js
 do
   if curl -fsS --max-time 20 "$BASE/static/$asset" > "$OUT/$asset"; then
@@ -117,6 +121,9 @@ json_get "GET /api/ues" "$BASE/api/ues" "$OUT/api-ues.json"
 json_get "GET /api/ues/live_metrics" "$BASE/api/ues/live_metrics" "$OUT/live-metrics.json"
 json_get "GET /api/radio/status" "$BASE/api/radio/status" "$OUT/radio-status.json"
 json_get "GET /api/radio/results" "$BASE/api/radio/results" "$OUT/radio-results.json"
+json_get "GET /api/frequency/status" "$BASE/api/frequency/status" "$OUT/frequency-status.json"
+json_get "GET /api/frequency/results" "$BASE/api/frequency/results" "$OUT/frequency-results.json"
+json_get "GET /api/frequency/profiles" "$BASE/api/frequency/profiles" "$OUT/frequency-profiles.json"
 json_get "GET /api/handover/mixed-du/status" "$BASE/api/handover/mixed-du/status" "$OUT/handover-status.json"
 json_get "Traffic API health" "$TRAFFIC_API/api/traffic/health" "$OUT/traffic-health.json"
 
@@ -139,6 +146,7 @@ def load(name):
 
 ues = load("api-ues.json")
 radio = load("radio-status.json")
+frequency = load("frequency-status.json")
 handover = load("handover-status.json")
 traffic = load("traffic-health.json")
 
@@ -158,6 +166,12 @@ check(radio.get("ok") is True, "radio API ok=true", "radio API not ok")
 check(radio.get("active_profile") == "scheduler-auto", "radio active profile is scheduler-auto", f"active_profile={radio.get('active_profile')}")
 check(radio.get("tunnel_ready") == "yes", "radio UE tunnel ready", f"tunnel_ready={radio.get('tunnel_ready')}")
 check(radio.get("slice") in ("1 / 0xffffff", "1 / 16777215"), "radio slice is eMBB SST=1", f"slice={radio.get('slice')}")
+
+check(frequency.get("ok") is True, "frequency API ok=true", "frequency API not ok")
+check(frequency.get("active_profile") == "mid-band-3500", "frequency active profile is mid-band-3500", f"active_profile={frequency.get('active_profile')}")
+check(frequency.get("tunnel_ready") == "yes", "frequency UE tunnel ready", f"tunnel_ready={frequency.get('tunnel_ready')}")
+check("20/-4" in str(frequency.get("rf_values")) and "20/-2" in str(frequency.get("rf_values")), "frequency RF baseline restored", f"rf_values={frequency.get('rf_values')}")
+check("netem" not in str(frequency.get("qdisc", "")), "frequency tc/netem cleared after restore", f"qdisc={frequency.get('qdisc')}")
 
 check(handover.get("ok") is True, "handover API ok=true", "handover API not ok")
 check(handover.get("attached_count") == 5, "handover attached_count=5", f"handover attached_count={handover.get('attached_count')}")

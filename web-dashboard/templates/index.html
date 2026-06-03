@@ -59,6 +59,61 @@
 </section>
 
 
+<section class="panel" id="frequencyProfileRoot">
+  <h3>Frequency Profile Control</h3>
+  <p class="muted">
+    Realistic frequency-channel profiles for ue1. This does not only change a displayed number:
+    it applies RFsim channel metadata plus tc/netem shaping, then measures KPI impact.
+  </p>
+
+  <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <label for="frequencyProfileSelect">Frequency profile:</label>
+    <select id="frequencyProfileSelect">
+      <option value="low-band-700">low-band-700 — coverage band</option>
+      <option value="mid-band-3500" selected>mid-band-3500 — baseline n78-like</option>
+      <option value="cband-3800">cband-3800 — upper mid-band</option>
+      <option value="mmwave-28000-los">mmwave-28000-los — high capacity LOS</option>
+      <option value="mmwave-28000-nlos">mmwave-28000-nlos — blockage/NLOS</option>
+    </select>
+
+    <button type="button" id="frequencyRefreshBtn">Refresh Frequency Status</button>
+    <button type="button" id="frequencyApplyBtn">Apply Frequency Profile</button>
+    <button type="button" id="frequencyKpiBtn">Run Frequency KPI Test</button>
+    <button type="button" id="frequencyRestoreBtn">Restore mid-band-3500</button>
+  </div>
+
+  <h4>Frequency Profile Status</h4>
+  <pre id="frequencySummary">Loading frequency status...</pre>
+
+  <h4>Frequency KPI Results / Comparison</h4>
+  <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:8px;">Profile</th>
+          <th style="text-align:left; padding:8px;">MHz</th>
+          <th style="text-align:left; padding:8px;">Band</th>
+          <th style="text-align:left; padding:8px;">RFsim</th>
+          <th style="text-align:left; padding:8px;">tc/netem</th>
+          <th style="text-align:left; padding:8px;">Ping avg ms</th>
+          <th style="text-align:left; padding:8px;">Image Mbps</th>
+          <th style="text-align:left; padding:8px;">TCP Mbps</th>
+        </tr>
+      </thead>
+      <tbody id="frequencyResultsBody">
+        <tr><td colspan="8">No frequency KPI results yet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Frequency Profile Logs</h4>
+  <pre id="frequencyLog">Ready.</pre>
+</section>
+
+
+
+
+
 
 <section class="card section">
   <h3>End-to-End UE Validation Scenarios</h3>
@@ -356,5 +411,6 @@
   <script src="{{ url_for('static', filename='dashboard-ui-feedback.js') }}"></script>
   <script src="{{ url_for('static', filename='mixed-du-handover.js') }}"></script>
   <script src="{{ url_for('static', filename='mixed-du-table.js') }}"></script>
+  <script src="{{ url_for('static', filename='frequency-profile.js') }}"></script>
 </body>
 </html>
