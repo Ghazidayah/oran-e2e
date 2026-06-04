@@ -33,6 +33,7 @@ Usage:
   $0 n78-current
   $0 n78-raster-high
   $0 n78-raster-higher
+  $0 n78-cband-3780
   $0 restore
 
 Raster-safe Phase-A actual OAI carrier retune for ue1/DU0 only.
@@ -76,6 +77,18 @@ profile_values(){
       TARGET_BAND="78"
       TARGET_BW="106"
       TARGET_C_HZ="3322560000"
+      ;;
+
+    n78-cband-3780)
+      # Experimental real upper n78 / C-band profile.
+      # SSB = 3779.04 MHz, raster-safe.
+      # PointA keeps same SSB-PointA offset: 1272 ARFCN.
+      TARGET_NAME="n78-cband-3780"
+      TARGET_SSB="651936"
+      TARGET_POINTA="650664"
+      TARGET_BAND="78"
+      TARGET_BW="106"
+      TARGET_C_HZ="3779040000"
       ;;
 
     n78-low|n78-high)
