@@ -34,6 +34,7 @@ Usage:
   $0 n78-raster-high
   $0 n78-raster-higher
   $0 n78-cband-3780
+  $0 n78-3500
   $0 restore
 
 Raster-safe Phase-A actual OAI carrier retune for ue1/DU0 only.
@@ -89,6 +90,24 @@ profile_values(){
       TARGET_BAND="78"
       TARGET_BW="106"
       TARGET_C_HZ="3779040000"
+      ;;
+
+    n78-3500)
+      # Real 3500 MHz-class n78 profile.
+      # SSB = 3499.68 MHz, raster-safe.
+      # PointA keeps same SSB-PointA offset: 1272 ARFCN.
+      TARGET_NAME="n78-3500"
+      TARGET_SSB="633312"
+      TARGET_POINTA="632040"
+      TARGET_BAND="78"
+      TARGET_BW="106"
+      TARGET_C_HZ="3499680000"
+      ;;
+
+    n41-2600)
+      usage
+      fail "n41-2600 is not validated yet. It failed UE rollout/attach and needs a dedicated band-41 audit."
+      exit 2
       ;;
 
     n78-low|n78-high)
