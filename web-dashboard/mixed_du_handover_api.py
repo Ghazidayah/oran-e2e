@@ -16,7 +16,7 @@ REPO = Path(os.environ.get("ORAN_REPO", Path(__file__).resolve().parents[1]))
 SWITCH_SCRIPT = REPO / "scripts" / "handover" / "switch-ue-du-target.sh"
 
 UE_MAP = {
-    "ue1": {"deployment": "oai-nr-ue", "configmap": "oai-nrue-config", "protected": True},
+    "ue1": {"deployment": "oai-nr-ue", "configmap": "oai-nrue-config", "protected": False, "reference": True, "baseline_du": "du0"},
     "ue2": {"deployment": "oai-nr-ue-2", "configmap": "oai-nrue-config-2", "protected": False},
     "ue3": {"deployment": "oai-nr-ue-3", "configmap": "oai-nrue-config-3", "protected": False},
     "ue4": {"deployment": "oai-nr-ue-4", "configmap": "oai-nrue-config-4", "protected": False},
@@ -186,9 +186,10 @@ def _status():
         })
 
     ue1 = next((u for u in ues if u["name"] == "ue1"), {})
-    ue1_protected_ok = ue1.get("protected") is True and ue1.get("du") == "du0"
+    ue1_du = ue1.get("du", "unknown")
+    ue1_attached = ue1.get("attached") is True
 
-    ready = du0_ready and du1_ready and attached_count == len(UE_MAP) and ue1_protected_ok
+    ready = du0_ready and du1_ready and attached_count == len(UE_MAP)
 
     return {
         "ok": True,
@@ -200,12 +201,14 @@ def _status():
         "attached_count": attached_count,
         "expected_count": len(UE_MAP),
         "switchable_count": switchable_count,
-        "ue1_protected_ok": ue1_protected_ok,
+        "ue1_du": ue1_du,
+        "ue1_attached": ue1_attached,
+        "ue1_baseline_du": "du0",
         "handover_ready": ready,
         "ues": ues,
-        "allowed_ues": ["ue2", "ue3", "ue4", "ue5"],
-        "blocked_ues": ["ue1"],
-        "note": "ue1 is protected on DU0. DU switching is allowed only for ue2-ue5.",
+        "allowed_ues": ["ue1", "ue2", "ue3", "ue4", "ue5"],
+        "blocked_ues": [],
+        "note": "All UEs (ue1-ue5) are DU-switchable between DU0 and DU1. ue1 is the reference UE; DU0 is its baseline home.",
     }
 
 
@@ -325,20 +328,10 @@ def _switch_ue():
     ue = str(data.get("ue", "")).strip()
     target = str(data.get("target", data.get("du", ""))).strip().lower()
 
-    if ue == "ue1":
+    if ue not in ["ue1", "ue2", "ue3", "ue4", "ue5"]:
         return jsonify({
             "ok": False,
-            "blocked": True,
-            "mode": "mixed-du-rfsim",
-            "error": "ue1 is protected and cannot be switched",
-            "verdict": "UE1_PROTECTED_NO_DU_SWITCH",
-            "status": _status(),
-        }), 200
-
-    if ue not in ["ue2", "ue3", "ue4", "ue5"]:
-        return jsonify({
-            "ok": False,
-            "error": "invalid UE. Allowed: ue2, ue3, ue4, ue5",
+            "error": "invalid UE. Allowed: ue1, ue2, ue3, ue4, ue5",
             "verdict": "INVALID_UE",
         }), 400
 
@@ -380,15 +373,6 @@ def _run_handover_validation():
             "mode": "mixed-du-rfsim",
             "handover_success": False,
             "error": "DU0/DU1 RFsim topology is not ready",
-            "status": status,
-        }), 200
-
-    if not status.get("ue1_protected_ok"):
-        return jsonify({
-            "ok": False,
-            "mode": "mixed-du-rfsim",
-            "handover_success": False,
-            "error": "ue1 is not protected on DU0",
             "status": status,
         }), 200
 

@@ -7,8 +7,20 @@ NS="${RAN_NS:-${NS:-oran-ran}}"
 
 UE_DEPLOY="${UE_DEPLOY:-oai-nr-ue}"
 UE_CM="${UE_CM:-oai-nrue-config}"
-DU_DEPLOY="${DU_DEPLOY:-oai-du0}"
-DU_CM="${DU_CM:-oai-du0-f1-config}"
+
+# DU-aware: follow the UE's CURRENT DU unless DU_DEPLOY is explicitly provided.
+# Resolves serveraddr (oai-du0-rfsim / oai-du1-rfsim) -> DU deployment, and
+# derives the matching F1 ConfigMap. Keeps full backward-compat via env override.
+if [ -z "${DU_DEPLOY:-}" ]; then
+  # shellcheck disable=SC1091
+  . "$REPO/scripts/ue/ue-common.sh" 2>/dev/null || true
+  _ue_sa="$(ue_serveraddr_from_cm "$NS" "$UE_CM" 2>/dev/null)"
+  case "$_ue_sa" in
+    oai-du1-rfsim) DU_DEPLOY="oai-du1" ;;
+    *)             DU_DEPLOY="oai-du0" ;;
+  esac
+fi
+DU_CM="${DU_CM:-${DU_DEPLOY}-f1-config}"
 
 PROFILE="${1:-status}"
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -45,7 +57,8 @@ Usage:
   $0 n41-2600
   $0 restore
 
-Validated real actual OAI carrier retune profiles for UE1 / DU0 only.
+Validated real actual OAI carrier retune profiles for UE1.
+DU is auto-detected from the UE current serveraddr (DU0 or DU1); override with DU_DEPLOY=.
 USAGE
 }
 
@@ -172,7 +185,7 @@ status_report(){
   echo "PROOF_DIR=$PROOF_DIR"
 
   echo
-  echo "--- Current DU0 carrier keys ---"
+  echo "--- Current $DU_DEPLOY carrier keys ---"
   kubectl -n "$NS" get cm "$DU_CM" -o jsonpath='{.data.gnb\.conf}' > "$PROOF_DIR/work/current-gnb.conf" 2>/dev/null || true
   grep -E 'absoluteFrequencySSB|dl_frequencyBand|dl_absoluteFrequencyPointA|dl_carrierBandwidth|ul_frequencyBand|ul_carrierBandwidth|subcarrierSpacing|ssb_' \
     "$PROOF_DIR/work/current-gnb.conf" || true
@@ -184,7 +197,7 @@ status_report(){
 }
 
 patch_du_cm(){
-  section "Patch DU0 actual carrier keys"
+  section "Patch $DU_DEPLOY actual carrier keys"
 
   kubectl -n "$NS" get cm "$DU_CM" -o json > "$PROOF_DIR/work/$DU_CM.before.json" || return 1
 
@@ -222,7 +235,7 @@ json.dump(obj, open(dst, "w"), indent=2)
 PY
 
   kubectl apply -f "$PROOF_DIR/work/$DU_CM.after.json"
-  pass "patched DU0: SSB=$TARGET_SSB PointA=$TARGET_POINTA band=$TARGET_BAND bw=$TARGET_BW"
+  pass "patched $DU_DEPLOY: SSB=$TARGET_SSB PointA=$TARGET_POINTA band=$TARGET_BAND bw=$TARGET_BW"
 }
 
 patch_ue_args(){
@@ -292,7 +305,7 @@ PY
 }
 
 rollout_and_wait(){
-  section "Rollout DU0 and UE1"
+  section "Rollout $DU_DEPLOY and UE1"
 
   kubectl -n "$NS" rollout restart deploy "$DU_DEPLOY" || return 1
   kubectl -n "$NS" rollout status deploy "$DU_DEPLOY" --timeout=8m || return 1

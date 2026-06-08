@@ -202,41 +202,76 @@ else
   fail "preflight Mixed-DU topology not ready"
 fi
 
-section "3. SAFETY TEST: ue1 MUST BE BLOCKED"
+section "3. UE1 DU-SWITCH TEST: ue1 -> DU1 -> DU0 (reference UE, DU0 baseline)"
 cat > "$OUT/switch-ue1-du1.json" <<'JSON'
 {"ue":"ue1","target":"du1"}
 JSON
 
-post_json_file \
-  "ue1 protection request" \
+if post_json_file \
+  "switch ue1 to du1" \
   "$BASE/api/handover/mixed-du/switch" \
   "$OUT/switch-ue1-du1.json" \
   "$OUT/switch-ue1-du1-response.json" \
-  300
+  900; then
 
-python3 - "$OUT/switch-ue1-du1-response.json" <<'PY'
+  python3 - "$OUT/switch-ue1-du1-response.json" <<'PY'
 import json, sys
 d=json.load(open(sys.argv[1]))
-print("response=", d)
-blocked = d.get("blocked") is True or d.get("verdict") == "UE1_PROTECTED_NO_DU_SWITCH" or "protected" in str(d).lower()
-if blocked:
-    print("PASS: ue1 protection confirmed")
-else:
-    print("FAIL: ue1 protection not confirmed")
-    raise SystemExit(1)
+assert d.get("ok") is True, d
+assert d.get("verdict") == "UE_DU_SWITCH_OK", d.get("verdict")
+print("PASS: ue1 DU1 switch response OK")
 PY
 
-if [ "$?" -eq 0 ]; then
-  pass "ue1 protection confirmed"
+  if [ "$?" -eq 0 ]; then
+    pass "ue1 switched to DU1"
+  else
+    fail "ue1 DU1 switch response invalid"
+  fi
 else
-  fail "ue1 protection failed"
+  fail "ue1 DU1 switch request failed"
 fi
 
-json_get "status after ue1 block test" "$BASE/api/handover/mixed-du/status" "$OUT/status-after-ue1-block.json"
-if check_ue_du "$OUT/status-after-ue1-block.json" "ue1" "du0" "oai-du0-rfsim"; then
-  pass "ue1 remained on DU0 after blocked switch"
+json_get "status after ue1 -> du1" "$BASE/api/handover/mixed-du/status" "$OUT/status-after-ue1-du1.json"
+if check_ue_du "$OUT/status-after-ue1-du1.json" "ue1" "du1" "oai-du1-rfsim"; then
+  pass "ue1 on DU1 after switch"
 else
-  fail "ue1 did not remain on DU0"
+  fail "ue1 not on DU1 after switch"
+fi
+
+# restore ue1 to its baseline home DU0
+cat > "$OUT/switch-ue1-du0.json" <<'JSON'
+{"ue":"ue1","target":"du0"}
+JSON
+
+if post_json_file \
+  "restore ue1 to du0" \
+  "$BASE/api/handover/mixed-du/switch" \
+  "$OUT/switch-ue1-du0.json" \
+  "$OUT/switch-ue1-du0-response.json" \
+  900; then
+
+  python3 - "$OUT/switch-ue1-du0-response.json" <<'PY'
+import json, sys
+d=json.load(open(sys.argv[1]))
+assert d.get("ok") is True, d
+assert d.get("verdict") == "UE_DU_SWITCH_OK", d.get("verdict")
+print("PASS: ue1 restore-to-DU0 response OK")
+PY
+
+  if [ "$?" -eq 0 ]; then
+    pass "ue1 restored to DU0"
+  else
+    fail "ue1 restore-to-DU0 response invalid"
+  fi
+else
+  fail "ue1 restore-to-DU0 request failed"
+fi
+
+json_get "status after ue1 -> du0" "$BASE/api/handover/mixed-du/status" "$OUT/status-after-ue1-du0.json"
+if check_ue_du "$OUT/status-after-ue1-du0.json" "ue1" "du0" "oai-du0-rfsim"; then
+  pass "ue1 restored to DU0 baseline"
+else
+  fail "ue1 did not return to DU0"
 fi
 
 section "4. SWITCH ue2 DU1 -> DU0"

@@ -4,7 +4,7 @@ set +u
 
 echo "============================================================"
 echo " Recover ue3/ue4/ue5 on DU1 and rerun Mixed-DU validation"
-echo " ue1 remains protected"
+echo " ue1 restored to baseline DU0"
 echo " SAFE MODE: no exit 1"
 echo "============================================================"
 
@@ -35,7 +35,7 @@ print("mode:", d.get("mode"))
 print("du0_ready:", d.get("du0_ready"))
 print("du1_ready:", d.get("du1_ready"))
 print("attached:", d.get("attached_count"), "/", d.get("expected_count"))
-print("ue1_protected_ok:", d.get("ue1_protected_ok"))
+print("ue1_du:", d.get("ue1_du"))
 print("handover_ready:", d.get("handover_ready"))
 for u in d.get("ues", []):
     print(
@@ -110,19 +110,19 @@ echo "1) Current status"
 save_status "01-status-before"
 
 echo
-echo "2) Safety check: ue1 must still be blocked"
-UE1_OUT="$PROOF_DIR/02-ue1-block.json"
+echo "2) Restore ue1 to baseline DU0"
+UE1_OUT="$PROOF_DIR/02-ue1-restore-du0.json"
 
 curl -sS \
   -H "Content-Type: application/json" \
   -X POST \
-  -d '{"ue":"ue1","target":"du1"}' \
+  -d '{"ue":"ue1","target":"du0"}' \
   "$DASH/api/handover/mixed-du/switch" > "$UE1_OUT"
 
 python3 - "$UE1_OUT" <<'PY'
 import json, sys
 d=json.load(open(sys.argv[1]))
-print("blocked:", d.get("blocked"))
+print("ok:", d.get("ok"))
 print("verdict:", d.get("verdict"))
 PY
 
@@ -196,7 +196,7 @@ echo "Proof dir: $PROOF_DIR"
 
 if [ "$OK" = "true" ]; then
   echo "VERDICT=MIXED_DU_RECOVERY_AND_VALIDATION_OK"
-  echo "RESULT=ue3/ue4/ue5 recovered on DU1; ue1 protected; full Mixed-DU validation passed"
+  echo "RESULT=ue3/ue4/ue5 recovered on DU1; ue1 on baseline DU0; full Mixed-DU validation passed"
 else
   echo "VERDICT=MIXED_DU_RECOVERY_STILL_NEEDS_CHECK"
   echo "Check proof dir: $PROOF_DIR"

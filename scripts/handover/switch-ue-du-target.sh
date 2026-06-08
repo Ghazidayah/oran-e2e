@@ -8,14 +8,14 @@ TARGET="${2:-}"
 
 usage() {
   echo "Usage:"
-  echo "  $0 ue2 du0"
-  echo "  $0 ue2 du1"
+  echo "  $0 ue1 du0|du1   (ue1 is the reference UE; DU0 is its baseline home)"
+  echo "  $0 ue2 du0|du1"
   echo "  $0 ue3 du0|du1"
   echo "  $0 ue4 du0|du1"
   echo "  $0 ue5 du0|du1"
   echo
-  echo "Safety rule:"
-  echo "  ue1 is protected and cannot be switched by this script."
+  echo "Note:"
+  echo "  All UEs (ue1-ue5) are DU-switchable between DU0 and DU1."
 }
 
 if [ -z "$UE" ] || [ -z "$TARGET" ]; then
@@ -24,13 +24,8 @@ if [ -z "$UE" ] || [ -z "$TARGET" ]; then
   exit 0
 fi
 
-if [ "$UE" = "ue1" ]; then
-  echo "BLOCKED: ue1 is protected for Phase 3 / Phase 4 / End-to-End validation."
-  echo "VERDICT=UE1_PROTECTED_NO_DU_SWITCH"
-  exit 0
-fi
-
 case "$UE" in
+  ue1) CM="oai-nrue-config";   DEP="oai-nr-ue"   ;;
   ue2) CM="oai-nrue-config-2"; DEP="oai-nr-ue-2" ;;
   ue3) CM="oai-nrue-config-3"; DEP="oai-nr-ue-3" ;;
   ue4) CM="oai-nrue-config-4"; DEP="oai-nr-ue-4" ;;
