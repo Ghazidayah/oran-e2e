@@ -40,3 +40,4 @@ web-dashboard/templates/*.bak.*
 scripts/ue/*.bak.*
 backups/
 allow-ue1-du-switch-all-scenarios.patch
+allow-ue1-du-switch-all-scenarios.patch
