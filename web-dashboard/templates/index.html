@@ -58,34 +58,33 @@
   </p>
 </section>
 
-
-<section class="panel" id="frequencyProfileRoot">
-  <h3>Frequency Profile Control</h3>
+<section class="panel" id="realFrequencyRoot">
+  <h3>Real Carrier Retune Control</h3>
   <p class="muted">
-    Realistic frequency-channel profiles for ue1. This does not only change a displayed number:
-    it applies RFsim channel metadata plus tc/netem shaping, then measures KPI impact.
+    Actual OAI NR carrier retune for ue1 — patches the DU ConfigMap (absoluteFrequencySSB,
+    dl_absoluteFrequencyPointA, band, bandwidth) and the UE deployment args (-C, --band, --ssb),
+    then restarts both pods. DU is auto-detected from the UE current serveraddr.
+    <strong>This causes a full pod restart and takes several minutes.</strong>
   </p>
 
   <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-    <label for="frequencyProfileSelect">Frequency profile:</label>
-    <select id="frequencyProfileSelect">
-      <option value="low-band-700">low-band-700 — coverage band</option>
-      <option value="mid-band-3500" selected>mid-band-3500 — baseline n78-like</option>
-      <option value="cband-3800">cband-3800 — upper mid-band</option>
-      <option value="mmwave-28000-los">mmwave-28000-los — high capacity LOS</option>
-      <option value="mmwave-28000-nlos">mmwave-28000-nlos — blockage/NLOS</option>
+    <label for="realFreqSelect">Carrier profile:</label>
+    <select id="realFreqSelect">
+      <option value="n78-3500" selected>n78-3500 — 3499.68 MHz</option>
+      <option value="n78-cband-3780">n78-cband-3780 — 3779.04 MHz C-band</option>
+      <option value="n41-2600">n41-2600 — 2593.35 MHz Band 41 (validated)</option>
+      <option value="n28-700">⚠ n28-700 — 781 MHz FDD (experimental: sync-only, no data tunnel)</option>
     </select>
 
-    <button type="button" id="frequencyRefreshBtn">Refresh Frequency Status</button>
-    <button type="button" id="frequencyApplyBtn">Apply Frequency Profile</button>
-    <button type="button" id="frequencyKpiBtn">Run Frequency KPI Test</button>
-    <button type="button" id="frequencyRestoreBtn">Restore mid-band-3500</button>
+    <button type="button" id="realFreqRefreshBtn">Refresh Status</button>
+    <button type="button" id="realFreqApplyBtn">Apply Retune</button>
+    <button type="button" id="realFreqRestoreBtn">Restore n78-current</button>
   </div>
 
-  <h4>Frequency Profile Status</h4>
-  <pre id="frequencySummary">Loading frequency status...</pre>
+  <h4>Current DU Carrier Keys</h4>
+  <pre id="realFreqSummary">Loading retune status...</pre>
 
-  <h4>Frequency KPI Results / Comparison</h4>
+  <h4>Retune History</h4>
   <div style="overflow-x:auto;">
     <table style="width:100%; border-collapse:collapse;">
       <thead>
@@ -93,24 +92,68 @@
           <th style="text-align:left; padding:8px;">Profile</th>
           <th style="text-align:left; padding:8px;">MHz</th>
           <th style="text-align:left; padding:8px;">Band</th>
-          <th style="text-align:left; padding:8px;">RFsim</th>
-          <th style="text-align:left; padding:8px;">tc/netem</th>
-          <th style="text-align:left; padding:8px;">Ping avg ms</th>
-          <th style="text-align:left; padding:8px;">Image Mbps</th>
-          <th style="text-align:left; padding:8px;">TCP Mbps</th>
+          <th style="text-align:left; padding:8px;">SSB ARFCN</th>
+          <th style="text-align:left; padding:8px;">DU</th>
+          <th style="text-align:left; padding:8px;">Verdict</th>
+          <th style="text-align:left; padding:8px;">Time</th>
         </tr>
       </thead>
-      <tbody id="frequencyResultsBody">
-        <tr><td colspan="8">No frequency KPI results yet.</td></tr>
+      <tbody id="realFreqResultsBody">
+        <tr><td colspan="7">No retune history yet.</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h4>Frequency Profile Logs</h4>
-  <pre id="frequencyLog">Ready.</pre>
+  <h4>Retune Logs</h4>
+  <pre id="realFreqLog">Ready.</pre>
 </section>
 
+<section class="panel" id="freqKpiRoot">
+  <h3>Frequency Band KPI Comparison
+    <span class="muted" style="font-size:0.75em; font-weight:normal; margin-left:8px;">EMULATED — tc netem on oaitun_ue1</span>
+  </h3>
+  <p class="muted">
+    Applies representative <code>tc netem</code> profiles on <code>oaitun_ue1</code> per band scenario and
+    measures real ping latency, packet loss, and TCP throughput. DU stays on the n78 baseline —
+    differences come entirely from the emulation profile, not RFsim physics.
+  </p>
 
+  <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+    <label for="kpiProfileSelect">Scenario:</label>
+    <select id="kpiProfileSelect">
+      <option value="n78-3500">n78-3500 — 3499.68 MHz C-band</option>
+      <option value="n78-cband-3780">n78-cband-3780 — 3779.04 MHz C-band</option>
+      <option value="n41-2600">n41-2600 — 2593.35 MHz Band 41</option>
+      <option value="n28-700">n28-700 — 781 MHz FDD (emulated)</option>
+    </select>
+    <button type="button" id="kpiRunOneBtn">Run Selected</button>
+    <button type="button" id="kpiRunAllBtn">Run All Bands</button>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:8px;">Scenario</th>
+          <th style="text-align:left; padding:8px;">Band</th>
+          <th style="text-align:left; padding:8px;">MHz</th>
+          <th style="text-align:left; padding:8px;">Duplex</th>
+          <th style="text-align:left; padding:8px;">Netem Profile (EMULATED)</th>
+          <th style="text-align:left; padding:8px;">Ping avg</th>
+          <th style="text-align:left; padding:8px;">Loss</th>
+          <th style="text-align:left; padding:8px;">TCP Mbps</th>
+          <th style="text-align:left; padding:8px;">Retrans</th>
+          <th style="text-align:left; padding:8px;">Time</th>
+        </tr>
+      </thead>
+      <tbody id="kpiTableBody">
+        <tr><td colspan="10" style="padding:8px; color:#888;">No KPI results yet — click "Run All Bands".</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre id="kpiLog">Ready.</pre>
+</section>
 
 
 
@@ -411,6 +454,6 @@
   <script src="{{ url_for('static', filename='dashboard-ui-feedback.js') }}"></script>
   <script src="{{ url_for('static', filename='mixed-du-handover.js') }}"></script>
   <script src="{{ url_for('static', filename='mixed-du-table.js') }}"></script>
-  <script src="{{ url_for('static', filename='frequency-profile.js') }}"></script>
+  <script src="{{ url_for('static', filename='real-frequency.js') }}"></script>
 </body>
 </html>
