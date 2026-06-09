@@ -603,7 +603,7 @@ const ueScenarioInteractiveLabels = {
 const PHASE2_TRAFFIC_API = "http://192.168.1.142:5055";
 
 function setPhase2TrafficOutput(text) {
-  const el = document.getElementById("phase2TrafficOutput");
+  const el = document.getElementById("actionOutput");
   if (el) {
     el.textContent = text || "";
   }

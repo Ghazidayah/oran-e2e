@@ -56,8 +56,9 @@ async function reloadStatus() {
       document.getElementById("prometheusLink").href = data.links.prometheus;
     }
 
-    if (data.recent_runs) {
-      document.getElementById("runsTable").innerHTML = data.recent_runs.map(r => `
+    const runsTable = document.getElementById("runsTable");
+    if (data.recent_runs && runsTable) {
+      runsTable.innerHTML = data.recent_runs.map(r => `
         <tr>
           <td>${r.time || "-"}</td>
           <td>${r.action || "-"}</td>
