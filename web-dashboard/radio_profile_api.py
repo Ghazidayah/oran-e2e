@@ -22,6 +22,14 @@ PROFILE_MCS = {
     "qpsk-stress":      {"max_mcs": "2",    "qm": "2",        "mod": "QPSK low (calibration)"},
 }
 
+REFERENCE_ROWS = [
+    {"profile": "scheduler-auto",   "max_mcs": "none", "modulation": "adaptive → 64QAM",        "tcp_mbps": "~30",  "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
+    {"profile": "qpsk-robust",      "max_mcs": "4",    "modulation": "QPSK (Qm 2, forced)",      "tcp_mbps": "~6.7", "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
+    {"profile": "qam16-balanced",   "max_mcs": "13",   "modulation": "16QAM (Qm 4, forced)",     "tcp_mbps": "~17.7","ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
+    {"profile": "qam64-throughput", "max_mcs": "28",   "modulation": "64QAM (Qm 6, forced)",     "tcp_mbps": "~30",  "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
+    {"profile": "qam256-max",       "max_mcs": "28",   "modulation": "64QAM (UE-cap, no 256QAM)","tcp_mbps": "~30",  "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED ⚠ 256QAM UE-cap", "source": "modulation-scenarios-validation.md"},
+]
+
 
 def _run(cmd, timeout=240):
     try:
@@ -228,9 +236,13 @@ done
 
 @radio_bp.get("/results")
 def radio_results():
+    live = _load_rows()
+    live_profiles = {r.get("profile") for r in live}
+    ref = [r for r in REFERENCE_ROWS if r["profile"] not in live_profiles]
     return jsonify({
         "ok": True,
-        "rows": _load_rows(),
+        "rows": live,
+        "reference_rows": ref,
         "profile_mcs": PROFILE_MCS,
         "note": "Real forced MCS per profile via --MACRLCs.[0].dl/ul_max_mcs on the active DU, verified by Qm in DU logs. 256QAM is UE-capability-limited (UE does not advertise pdsch-256QAM-FR1) so qam256-max effectively reaches 64QAM.",
     })
