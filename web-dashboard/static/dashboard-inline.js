@@ -64,7 +64,6 @@ setInterval(loadMetrics, 2000);
         </div>
         <div class="feedback-actions">
           <button class="feedback-report-button" type="button" data-action="report">Generate Evidence Report</button>
-          <span id="action-feedback-pill" class="feedback-pill">IDLE</span>
         </div>
       </div>
       <div class="feedback-progress">

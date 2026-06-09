@@ -589,79 +589,211 @@ def action_stop_traffic():
 def action_report():
     cmd = r'''
 set -u
+RAN_NS="oran-ran"
+CORE_NS="oran-core"
+SEP="─────────────────────────────────────────────────────────"
 
-echo "# O-RAN Lab Dashboard Report"
-echo
-echo "Generated: $(date -Iseconds)"
-echo "Host: $(hostname)"
-echo
+echo "╔══════════════════════════════════════════════════════╗"
+echo "║      O-RAN F1-Split Lab — Platform Analysis          ║"
+echo "╚══════════════════════════════════════════════════════╝"
+echo "Generated : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+echo "Host      : $(hostname)  /  kernel $(uname -r)"
+echo "PLMN      : 999/70   DNN: oai   AMF: 10.10.0.101:38412"
+echo ""
 
-echo "## Kubernetes node"
-kubectl get nodes -o wide || true
-echo
+echo "$SEP"
+echo "1. KUBERNETES NODE"
+echo "$SEP"
+kubectl get nodes -o wide 2>/dev/null || echo "(kubectl error)"
+echo ""
+echo "Resource usage:"
+kubectl top nodes 2>/dev/null || echo "(metrics-server not available)"
+echo ""
+echo "Disk:"
+df -h / /var/lib 2>/dev/null | tail -n+1 || true
+echo ""
 
-echo "## Core pods"
-kubectl -n oran-core get pods -o wide | egrep 'open5gs-(amf|smf|upf)|NAME' || true
-echo
+echo "$SEP"
+echo "2. POD HEALTH SUMMARY"
+echo "$SEP"
+echo "--- Core (oran-core) ---"
+kubectl -n "$CORE_NS" get pods -o wide 2>/dev/null || echo "(error)"
+echo ""
+echo "--- RAN (oran-ran) ---"
+kubectl -n "$RAN_NS" get pods -o wide 2>/dev/null || echo "(error)"
+echo ""
+echo "--- Monitoring (monitoring) ---"
+kubectl -n monitoring get pods --no-headers 2>/dev/null \
+  | awk '{printf "  %-45s %s/%s\n", $1, $2, $3}' | head -12 || echo "(error)"
+echo ""
 
-echo "## RAN pods"
-kubectl -n oran-ran get pods -o wide | egrep 'oai-gnb|oai-nr-ue|NAME' || true
-echo
+echo "$SEP"
+echo "3. F1-SPLIT RAN TOPOLOGY"
+echo "$SEP"
 
-UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-GNB_A_POD=$(kubectl -n oran-ran get pod -o name 2>/dev/null | grep '^pod/oai-gnb-' | grep -v '^pod/oai-gnb-b-' | head -n1 | cut -d/ -f2)
-GNB_B_POD=$(kubectl -n oran-ran get pod -o name 2>/dev/null | grep '^pod/oai-gnb-b-' | head -n1 | cut -d/ -f2)
+CU_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+CU_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu \
+  -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
+echo "CU  : ${CU_POD:-NOT FOUND}  [$CU_PHASE]"
 
-echo "## Selected pods"
-echo "UE_POD=$UE_POD"
-echo "GNB_A_POD=$GNB_A_POD"
-echo "GNB_B_POD=$GNB_B_POD"
-echo
+DU0_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-du0 \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+DU0_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-du0 \
+  -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
+DU0_MCS=$(kubectl -n "$RAN_NS" get deploy oai-du0 -o json 2>/dev/null \
+  | python3 -c '
+import json,sys
+a=json.load(sys.stdin)["spec"]["template"]["spec"]["containers"][0]["args"]
+v=a[a.index("--MACRLCs.[0].dl_max_mcs")+1] if "--MACRLCs.[0].dl_max_mcs" in a else "none(adaptive)"
+print(v)' 2>/dev/null || echo "?")
+echo "DU0 : ${DU0_POD:-NOT FOUND}  [$DU0_PHASE]  dl_max_mcs=$DU0_MCS"
 
-echo "## UE tunnel and route"
+DU1_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-du1 \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+DU1_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-du1 \
+  -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
+DU1_MCS=$(kubectl -n "$RAN_NS" get deploy oai-du1 -o json 2>/dev/null \
+  | python3 -c '
+import json,sys
+a=json.load(sys.stdin)["spec"]["template"]["spec"]["containers"][0]["args"]
+v=a[a.index("--MACRLCs.[0].dl_max_mcs")+1] if "--MACRLCs.[0].dl_max_mcs" in a else "none(adaptive)"
+print(v)' 2>/dev/null || echo "?")
+echo "DU1 : ${DU1_POD:-NOT FOUND}  [$DU1_PHASE]  dl_max_mcs=$DU1_MCS"
+echo ""
+
+echo "$SEP"
+echo "4. UE1 — SERVING DU + USER PLANE"
+echo "$SEP"
+
+SERVERADDR=$(kubectl -n "$RAN_NS" get cm oai-nrue-config \
+  -o jsonpath='{.data.nr-ue\.conf}' 2>/dev/null \
+  | sed -n 's/.*serveraddr[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+case "$SERVERADDR" in
+  oai-du0-rfsim|server) ACTIVE_DU="oai-du0 (DU0)" ;;
+  oai-du1-rfsim)        ACTIVE_DU="oai-du1 (DU1)" ;;
+  *) ACTIVE_DU="unknown (serveraddr=${SERVERADDR:-empty})" ;;
+esac
+echo "UE1 serveraddr  : ${SERVERADDR:-not found}"
+echo "Active serving  : $ACTIVE_DU"
+echo ""
+
+UE_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-nr-ue \
+  --field-selector=status.phase=Running \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+echo "UE1 pod         : ${UE_POD:-NOT FOUND}"
 if [ -n "$UE_POD" ]; then
-  kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip addr show oaitun_ue1; ip route' || true
+  TUNNEL=$(kubectl -n "$RAN_NS" exec "$UE_POD" -- \
+    sh -c 'ip -br addr show oaitun_ue1 2>/dev/null || echo NONE' 2>/dev/null || echo NONE)
+  echo "oaitun_ue1      : $TUNNEL"
+  echo ""
+  echo "--- UE1 ping: DN gateway (10.45.0.1) ---"
+  kubectl -n "$RAN_NS" exec "$UE_POD" -- \
+    ping -I oaitun_ue1 -c 4 -W 2 10.45.0.1 2>/dev/null || echo "FAIL"
+  echo ""
+  echo "--- UE1 ping: Internet (8.8.8.8) ---"
+  kubectl -n "$RAN_NS" exec "$UE_POD" -- \
+    ping -I oaitun_ue1 -c 4 -W 2 8.8.8.8 2>/dev/null || echo "FAIL"
 else
-  echo "UE pod not found"
+  echo "oaitun_ue1      : NO POD — skipping pings"
 fi
-echo
+echo ""
 
-echo "## Quick user-plane checks"
-if [ -n "$UE_POD" ]; then
-  echo "DN gateway ping:"
-  kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -c 2 10.45.0.1' || true
-  echo
-  echo "Internet ping:"
-  kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -c 2 8.8.8.8' || true
+echo "$SEP"
+echo "5. ALL UE TUNNEL STATUS (UE1–UE5)"
+echo "$SEP"
+for app in oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
+  pod=$(kubectl -n "$RAN_NS" get pod -l app="$app" \
+    --field-selector=status.phase=Running \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  if [ -n "$pod" ]; then
+    tun=$(kubectl -n "$RAN_NS" exec "$pod" -- \
+      sh -c 'ip -br addr show | grep oaitun || echo NO_TUNNEL' 2>/dev/null || echo NO_TUNNEL)
+    echo "$app ($pod): $tun"
+  else
+    echo "$app: pod not running"
+  fi
+done
+echo ""
+
+echo "$SEP"
+echo "6. SERVING DU — RECENT UE ACTIVITY"
+echo "$SEP"
+case "$SERVERADDR" in
+  oai-du0-rfsim|server) ACTIVE_DU_APP="oai-du0"; ACTIVE_DU_POD="$DU0_POD" ;;
+  oai-du1-rfsim)        ACTIVE_DU_APP="oai-du1"; ACTIVE_DU_POD="$DU1_POD" ;;
+  *) ACTIVE_DU_APP=""; ACTIVE_DU_POD="" ;;
+esac
+if [ -n "$ACTIVE_DU_POD" ]; then
+  echo "Serving DU pod: $ACTIVE_DU_POD (last 90s)"
+  kubectl -n "$RAN_NS" logs "$ACTIVE_DU_POD" --since=90s 2>/dev/null \
+    | grep -E "RNTI|Qm [0-9]|dlsch_rounds|RRC.*Reconfig|UE.*connect" \
+    | tail -20 || echo "(no matching log lines)"
 else
-  echo "Skipped pings because UE pod was not found"
+  echo "(could not determine serving DU pod)"
 fi
-echo
+echo ""
 
-echo "## Recent AMF registration hints"
-AMF_POD=$(kubectl -n oran-core get pod -o name 2>/dev/null | grep '^pod/open5gs-amf-' | head -n1 | cut -d/ -f2)
+echo "$SEP"
+echo "7. CORE NETWORK"
+echo "$SEP"
+AMF_POD=$(kubectl -n "$CORE_NS" get pod -l app=open5gs-amf \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+echo "--- AMF ($AMF_POD) — last registrations ---"
 if [ -n "$AMF_POD" ]; then
-  kubectl -n oran-core logs "$AMF_POD" --tail=120 2>/dev/null | egrep -i 'Registration complete|imsi|ngap|ran|ue' | tail -40 || true
+  kubectl -n "$CORE_NS" logs "$AMF_POD" --tail=200 2>/dev/null \
+    | grep -E "Registration.Complete|InitialContext|PDU.Session|IMSI|NGAP" \
+    | tail -15 || echo "(no matching lines)"
+  echo ""
+  echo "AMF NGAP socket:"
+  kubectl -n "$CORE_NS" exec "$AMF_POD" -- \
+    ss -lnp 2>/dev/null | grep 38412 || echo "(not found)"
 else
   echo "AMF pod not found"
 fi
-echo
+echo ""
 
-echo "## Recent SMF session hints"
-SMF_POD=$(kubectl -n oran-core get pod -o name 2>/dev/null | grep '^pod/open5gs-smf-' | head -n1 | cut -d/ -f2)
+SMF_POD=$(kubectl -n "$CORE_NS" get pod -l app=open5gs-smf \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+echo "--- SMF ($SMF_POD) — active PDU sessions ---"
 if [ -n "$SMF_POD" ]; then
-  kubectl -n oran-core logs "$SMF_POD" --tail=120 2>/dev/null | egrep -i 'session|dnn|10\.45\.0\.2|imsi|created|pdu' | tail -40 || true
+  kubectl -n "$CORE_NS" logs "$SMF_POD" --tail=200 2>/dev/null \
+    | grep -E "PDU.Session.Establishment|10\.45\.0\.|DNN|IMSI|Create.Session" \
+    | tail -15 || echo "(no matching lines)"
 else
   echo "SMF pod not found"
 fi
-echo
+echo ""
 
-echo "## Recent dashboard runs"
-find "$HOME/oran-proof/web-dashboard-runs" -maxdepth 2 -name output.log 2>/dev/null | sort | tail -12 || true
+UPF_POD=$(kubectl -n "$CORE_NS" get pod -l app=open5gs-upf \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+echo "--- UPF ($UPF_POD) — GTP-U socket ---"
+if [ -n "$UPF_POD" ]; then
+  kubectl -n "$CORE_NS" exec "$UPF_POD" -- \
+    ss -lunp 2>/dev/null | grep -E '2152|8805' || echo "(GTP-U socket not found)"
+else
+  echo "UPF pod not found"
+fi
+echo ""
 
-exit 0
+echo "$SEP"
+echo "8. RECENT RUN HISTORY"
+echo "$SEP"
+find "$HOME/oran-proof" -maxdepth 3 -name summary.json 2>/dev/null \
+  | sort -r | head -10 \
+  | xargs -I{} python3 -c '
+import json,sys
+try:
+    d=json.load(open(sys.argv[1]))
+    print(f"  {d.get(\"time\",\"?\"):<22} {d.get(\"action\",\"?\"):<18} {d.get(\"status\",\"?\")}")
+except: pass
+' {} 2>/dev/null || echo "(no run history)"
+echo ""
+
+echo "$SEP"
+echo "VERDICT=REPORT_DONE"
 '''
-    return save_run("report", cmd, timeout=120)
+    return save_run("report", cmd, timeout=180)
 
 
 def action_traffic_profile(action_name, gw_count, internet_count, packet_size, http_timeout):
