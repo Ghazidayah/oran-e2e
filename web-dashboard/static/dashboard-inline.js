@@ -695,99 +695,40 @@ async function runPhase2Traffic(scenario, button) {
 
 
 // PHASE3_REAL_SLICE_JS_START
-const PHASE3_REAL_SLICE_API = "http://192.168.1.142:5055";
 
 function setPhase3RealSliceOutput(text) {
   const el = document.getElementById("phase3RealSliceOutput");
-  if (el) {
-    el.textContent = text || "";
-  }
+  if (el) el.textContent = text || "";
 }
 
 function setPhase3RealSliceButtons(disabled, activeButton) {
-  document.querySelectorAll('button[onclick*="runRealSliceTraffic"]').forEach((button) => {
-    if (button !== activeButton) {
-      button.disabled = disabled;
-    }
+  document.querySelectorAll('button[onclick*="runRealSliceTraffic"]').forEach((btn) => {
+    if (btn !== activeButton) btn.disabled = disabled;
   });
 }
 
 async function runRealSliceTraffic(profile, button) {
   const originalText = button ? button.textContent : "Run";
-  if (button) {
-    button.disabled = true;
-    button.textContent = "Starting...";
-  }
-
+  if (button) { button.disabled = true; button.textContent = "Running…"; }
   setPhase3RealSliceButtons(true, button);
-  setPhase3RealSliceOutput("Starting real S-NSSAI slice traffic profile: " + profile);
+  setPhase3RealSliceOutput(
+    "Starting real S-NSSAI slice traffic: " + profile + "\n" +
+    "This will switch UE1 slice, validate the tunnel, run traffic, then restore SST=1.\n" +
+    "Please wait (may take several minutes)…"
+  );
 
   try {
-    const startRes = await fetch(PHASE3_REAL_SLICE_API + "/api/traffic/run-real-slice/" + encodeURIComponent(profile), {
-      method: "POST"
-    });
-
-    const startData = await startRes.json();
-
-    if (!startData.ok) {
-      throw new Error(startData.error || "Failed to start real slice traffic");
-    }
-
-    const jobId = startData.job_id;
-
-    setPhase3RealSliceOutput(
-      "Started: " + startData.label + "\n" +
-      "Profile: " + profile + "\n" +
-      "SST: " + startData.sst + "\n" +
-      "Job ID: " + jobId + "\n" +
-      "Waiting for result..."
-    );
-
-    for (let i = 0; i < 600; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      const jobRes = await fetch(PHASE3_REAL_SLICE_API + "/api/traffic/jobs/" + encodeURIComponent(jobId));
-      const jobData = await jobRes.json();
-
-      if (!jobData.ok) {
-        setPhase3RealSliceOutput("Job lookup failed:\n" + JSON.stringify(jobData, null, 2));
-        continue;
-      }
-
-      const job = jobData.job || {};
-      const status = job.status || "unknown";
-
-      setPhase3RealSliceOutput(
-        "Real Slice Profile: " + profile + "\n" +
-        "Label: " + (job.label || "-") + "\n" +
-        "SST: " + (((job.sst === null || job.sst === undefined) ? "-" : job.sst)) + "\n" +
-        "Status: " + status + "\n" +
-        "Exit: " + ((job.exit === null || job.exit === undefined) ? "-" : job.exit) + "\n" +
-        "Proof: " + (job.job_dir || "-") + "\n\n" +
-        "----- Output tail -----\n" +
-        (jobData.output || "")
-      );
-
-      if (["ok", "failed", "timeout", "error"].includes(status)) {
-        if (button) {
-          button.textContent = status === "ok" ? "Done ✓" : "Failed ✗";
-        }
-        break;
-      }
-    }
-  } catch (error) {
-    setPhase3RealSliceOutput("Real slice traffic failed: " + error);
-    if (button) {
-      button.textContent = "Failed ✗";
-    }
+    const res = await fetch("/api/real-slice/" + encodeURIComponent(profile), { method: "POST" });
+    const data = await res.json();
+    const verdict = data.ok ? "✅ PASS" : "❌ FAIL (exit " + data.exit + ")";
+    setPhase3RealSliceOutput(verdict + "\n\n" + (data.output || JSON.stringify(data, null, 2)));
+    if (button) button.textContent = data.ok ? "Done ✓" : "Failed ✗";
+  } catch (err) {
+    setPhase3RealSliceOutput("Error: " + err);
+    if (button) button.textContent = "Failed ✗";
   } finally {
     setPhase3RealSliceButtons(false, button);
-    if (button) {
-      setTimeout(() => {
-        button.textContent = originalText;
-        button.disabled = false;
-      }, 2500);
-    }
+    if (button) setTimeout(() => { button.textContent = originalText; button.disabled = false; }, 3000);
   }
 }
 // PHASE3_REAL_SLICE_JS_END

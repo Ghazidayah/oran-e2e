@@ -877,6 +877,26 @@ def api_action(action):
     return save_run(action, f"echo 'Unknown action: {action}'; exit 1", timeout=5)
 
 
+REAL_SLICE_PROFILES = {
+    "embb":  {"sst": 1, "label": "eMBB",  "desc": "SST=1 — image, video, web, streaming, iperf TCP"},
+    "urllc": {"sst": 2, "label": "URLLC", "desc": "SST=2 — UDP jitter/loss"},
+    "mmtc":  {"sst": 3, "label": "mMTC",  "desc": "SST=3 — IoT-style small UDP"},
+    "v2x":   {"sst": 4, "label": "V2X",   "desc": "SST=4 — streaming-like HLS + UDP"},
+}
+
+
+@app.route("/api/real-slice/<profile>", methods=["POST"])
+def api_real_slice(profile):
+    if profile not in REAL_SLICE_PROFILES:
+        return jsonify({"ok": False, "error": f"Unknown slice profile: {profile}. Use: {list(REAL_SLICE_PROFILES)}"}), 400
+    info = REAL_SLICE_PROFILES[profile]
+    return save_run(
+        f"real-slice-{profile}",
+        f"scripts/slicing/run-real-slice-traffic.sh {profile}",
+        timeout=600,
+    )
+
+
 register_multi_ue_routes(app, run_cmd, BASE_DIR)
 
 
