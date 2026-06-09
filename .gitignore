@@ -41,3 +41,6 @@ scripts/ue/*.bak.*
 backups/
 allow-ue1-du-switch-all-scenarios.patch
 allow-ue1-du-switch-all-scenarios.patch
+web-dashboard/radio-profile-results.json
+web-dashboard/real-frequency-results.json
+web-dashboard/freq-kpi-results.json
