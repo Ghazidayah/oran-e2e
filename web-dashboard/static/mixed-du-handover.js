@@ -120,7 +120,7 @@
     body.innerHTML = rows.map(r => `
       <tr>
         <td>${r.profile || "—"}</td>
-        <td>${r.rf_values || "—"}</td>
+        <td>${r.modulation || "—"}</td>
         <td>${r.ping_avg_ms || "—"}</td>
         <td>${r.image_mbps || "—"}</td>
         <td>${r.tcp_mbps || "—"}</td>

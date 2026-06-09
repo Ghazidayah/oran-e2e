@@ -13,22 +13,13 @@ REPO = Path(os.environ.get("ORAN_REPO", Path.home() / "oran-e2e-freeze"))
 RESULTS_FILE = REPO / "web-dashboard" / "radio-profile-results.json"
 LOG_ROOT = Path.home() / "oran-proof"
 
-PROFILE_RF = {
-    "scheduler-auto": "enB0 20/-4, ue0 20/-2",
-    "qpsk-robust": "enB0 40/10, ue0 40/12",
-    "qam16-balanced": "enB0 26/0, ue0 26/2",
-    "qam64-throughput": "enB0 18/-6, ue0 18/-4",
-    "qam256-max": "enB0 12/-10, ue0 12/-8",
-    "qpsk-stress": "enB0 60/25, ue0 60/28",
-}
-
-NETEM = {
-    "scheduler-auto": "clear / no shaping",
-    "qpsk-robust": "rate 18mbit delay 8ms 2ms loss 0%",
-    "qam16-balanced": "rate 32mbit delay 2ms 1ms loss 0%",
-    "qam64-throughput": "rate 45mbit delay 1ms 0ms loss 0%",
-    "qam256-max": "clear / no shaping / native ceiling",
-    "qpsk-stress": "rate 8mbit delay 50ms 15ms loss 2%",
+PROFILE_MCS = {
+    "scheduler-auto":   {"max_mcs": "none", "qm": "adaptive", "mod": "adaptive AMC (reaches 64QAM under load)"},
+    "qpsk-robust":      {"max_mcs": "4",    "qm": "2",        "mod": "QPSK (forced)"},
+    "qam16-balanced":   {"max_mcs": "13",   "qm": "4",        "mod": "16QAM (forced)"},
+    "qam64-throughput": {"max_mcs": "28",   "qm": "6",        "mod": "64QAM (forced)"},
+    "qam256-max":       {"max_mcs": "28",   "qm": "6",        "mod": "256QAM requested; UE-cap-limited to 64QAM"},
+    "qpsk-stress":      {"max_mcs": "2",    "qm": "2",        "mod": "QPSK low (calibration)"},
 }
 
 
@@ -65,14 +56,10 @@ def _keyvals(text):
 
 
 def _detect_profile(kv):
-    current = (
-        f"enB0 {kv.get('enB0_ploss_dB')}/{kv.get('enB0_noise_power_dB')}, "
-        f"ue0 {kv.get('ue0_ploss_dB')}/{kv.get('ue0_noise_power_dB')}"
-    )
-    for profile, rf in PROFILE_RF.items():
-        if rf == current:
-            return profile
-    return current if "None" not in current else "unknown"
+    cap = kv.get("dl_max_mcs", "").strip()
+    mapping = {"none(adaptive)": "scheduler-auto", "4": "qpsk-robust",
+               "13": "qam16-balanced", "28": "qam64-throughput", "2": "qpsk-stress"}
+    return mapping.get(cap, f"max_mcs={cap}" if cap else "unknown")
 
 
 def _load_rows():
@@ -96,8 +83,8 @@ def _save_row(row):
 def _parse_kpis(text, profile):
     row = {
         "profile": profile,
-        "netem_params": NETEM.get(profile, "unknown"),
-        "rf_values": PROFILE_RF.get(profile, "unknown"),
+        "max_mcs": PROFILE_MCS.get(profile, {}).get("max_mcs", "unknown"),
+        "modulation": PROFILE_MCS.get(profile, {}).get("mod", "unknown"),
         "tcp_mbps": "—",
         "retransmits": "—",
         "ping_avg_ms": "—",
@@ -130,7 +117,7 @@ def _parse_kpis(text, profile):
 
 @radio_bp.get("/status")
 def radio_status():
-    r = _run("scripts/radio/switch-ue-radio-profile-du-aware.sh ue1 status", timeout=90)
+    r = _run("scripts/radio/switch-ue-modulation-profile-du-aware.sh ue1 status", timeout=90)
     kv = _keyvals(r["output"])
 
     tunnel = _run(
@@ -158,8 +145,8 @@ fi
         "slice": f"{kv.get('nssai_sst', 'unknown')} / {kv.get('nssai_sd', 'unknown')}",
         "tunnel_ready": tv.get("TUNNEL_READY", "unknown"),
         "ue_pod": tv.get("UE_POD", "unknown"),
-        "rf_values": PROFILE_RF.get(profile, "unknown"),
-        "netem_params": NETEM.get(profile, "unknown"),
+        "modulation": PROFILE_MCS.get(profile, {}).get("mod", "unknown"),
+        "max_mcs": PROFILE_MCS.get(profile, {}).get("max_mcs", "unknown"),
         "log": r["output"] + "\n" + tunnel["output"],
     })
 
@@ -170,13 +157,13 @@ def radio_apply():
     profile = body.get("profile", "")
     ue = body.get("ue", "ue1")
 
-    if profile not in PROFILE_RF:
+    if profile not in PROFILE_MCS:
         return jsonify({"ok": False, "error": f"Unsupported profile: {profile}"}), 400
     if ue != "ue1":
         return jsonify({"ok": False, "error": f"Only ue1 is supported, got: {ue}"}), 400
 
     cmd = (
-        f"scripts/radio/switch-ue-radio-profile-du-aware.sh {ue} {profile} --apply && "
+        f"scripts/radio/switch-ue-modulation-profile-du-aware.sh {ue} {profile} --apply && "
         "scripts/validate-e2e.sh"
     )
     r = _run(cmd, timeout=420)
@@ -193,13 +180,13 @@ def radio_kpi_test():
     profile = body.get("profile", "")
     ue = body.get("ue", "ue1")
 
-    if profile not in PROFILE_RF:
+    if profile not in PROFILE_MCS:
         return jsonify({"ok": False, "error": f"Unsupported profile: {profile}"}), 400
     if ue != "ue1":
         return jsonify({"ok": False, "error": f"Only ue1 is supported, got: {ue}"}), 400
 
     cmd = (
-        f"scripts/radio/switch-ue-radio-profile-du-aware.sh {ue} {profile} --apply && "
+        f"scripts/radio/switch-ue-modulation-profile-du-aware.sh {ue} {profile} --apply && "
         "scripts/validate-e2e.sh && "
         "scripts/traffic/run-image-download.sh && "
         "scripts/traffic/run-iperf-tcp.sh"
@@ -214,7 +201,7 @@ def radio_kpi_test():
 
 @radio_bp.post("/restore")
 def radio_restore():
-    cmd = "scripts/radio/switch-ue-radio-profile-du-aware.sh ue1 scheduler-auto --apply && scripts/validate-e2e.sh"
+    cmd = "scripts/radio/switch-ue-modulation-profile-du-aware.sh ue1 scheduler-auto --apply && scripts/validate-e2e.sh"
     r = _run(cmd, timeout=420)
     row = _parse_kpis(r["output"], "scheduler-auto")
     row["verdict"] = "PASS" if r["ok"] else "FAIL"
@@ -244,7 +231,6 @@ def radio_results():
     return jsonify({
         "ok": True,
         "rows": _load_rows(),
-        "profile_rf": PROFILE_RF,
-        "netem": NETEM,
-        "note": "RFsim-only MCS forcing was not proven. Final KPI separation uses tc netem shaping on oaitun_ue1.",
+        "profile_mcs": PROFILE_MCS,
+        "note": "Real forced MCS per profile via --MACRLCs.[0].dl/ul_max_mcs on the active DU, verified by Qm in DU logs. 256QAM is UE-capability-limited (UE does not advertise pdsch-256QAM-FR1) so qam256-max effectively reaches 64QAM.",
     })
