@@ -163,19 +163,31 @@ def latest_ownership_details():
 
     text = ownership_logs[0].read_text(errors="ignore")
 
+    # New F1-split format: "Active serving DU : oai-du0" / "oai-du1"
+    du_match = re.search(r"Active serving DU\s*:\s*(oai-du[01]|unknown)", text)
+    if du_match:
+        du_name = du_match.group(1)
+        serving = "DU0" if du_name == "oai-du0" else "DU1" if du_name == "oai-du1" else "unknown"
+        tunnel_up = ">>> SERVING UE1 <<<" in text
+        details.update({
+            "serving": serving,
+            "active_ues": 1 if tunnel_up else 0,
+            "du_id": du_name,
+            "source": str(ownership_logs[0]),
+        })
+        return details
+
+    # Legacy format fallback (gNB-A / gNB-B)
     sections = {
         "gNB-A": re.search(r"===== gnb-a ownership check =====(.*?)(===== gnb-b ownership check =====|===== UE tunnel =====)", text, re.S),
         "gNB-B": re.search(r"===== gnb-b ownership check =====(.*?)(===== UE tunnel =====|$)", text, re.S),
     }
-
     for name, match in sections.items():
         if not match:
             continue
-
         block = match.group(1)
         rnti = re.search(r"single UE RNTI\s+([0-9a-fA-F]+)", block)
         du = re.search(r"gNB_DU_id\s+([0-9]+)\s+is connected to ue_id\s+([0-9]+)", block)
-
         if rnti and du:
             details.update({
                 "serving": name,
@@ -190,29 +202,36 @@ def latest_ownership_details():
 
 
 def guess_serving_from_logs(pods):
-    a_hit = ""
-    b_hit = ""
+    # Prefer reading UE1 serveraddr (fast, no log scrape needed)
+    serveraddr = run_cmd(
+        "kubectl -n oran-ran get cm oai-nrue-config "
+        "-o jsonpath='{.data.nr-ue\\.conf}' 2>/dev/null "
+        "| sed -n 's/.*serveraddr[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -1 || true",
+        timeout=8,
+    )["output"].strip()
+    if "du0" in serveraddr or serveraddr == "server":
+        return "DU0"
+    if "du1" in serveraddr:
+        return "DU1"
 
-    if pods.get("gnb_a"):
-        a_hit = run_cmd(
-            f"kubectl -n oran-ran logs {pods['gnb_a']} --since=3m 2>/dev/null | "
-            "grep -i 'UE RNTI' | tail -n1 || true",
-            timeout=8,
-        )["output"]
+    # Fallback: check DU logs for recent RNTI activity
+    du0_hit = run_cmd(
+        "kubectl -n oran-ran logs -l app=oai-du0 --since=3m 2>/dev/null "
+        "| grep -i 'RNTI' | tail -n1 || true",
+        timeout=8,
+    )["output"]
+    du1_hit = run_cmd(
+        "kubectl -n oran-ran logs -l app=oai-du1 --since=3m 2>/dev/null "
+        "| grep -i 'RNTI' | tail -n1 || true",
+        timeout=8,
+    )["output"]
 
-    if pods.get("gnb_b"):
-        b_hit = run_cmd(
-            f"kubectl -n oran-ran logs {pods['gnb_b']} --since=3m 2>/dev/null | "
-            "grep -i 'UE RNTI' | tail -n1 || true",
-            timeout=8,
-        )["output"]
-
-    if a_hit and not b_hit:
-        return "gNB-A"
-    if b_hit and not a_hit:
-        return "gNB-B"
-    if a_hit and b_hit:
-        return "mixed"
+    if du0_hit and not du1_hit:
+        return "DU0"
+    if du1_hit and not du0_hit:
+        return "DU1"
+    if du0_hit and du1_hit:
+        return "DU0+DU1"
     return "unknown"
 
 
@@ -377,51 +396,94 @@ echo "$ip $rx $tx"
 def action_ownership():
     cmd = r'''
 set -u
+RAN_NS="oran-ran"
 
-UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-GNB_A_POD=$(kubectl -n oran-ran get pod -o name 2>/dev/null | grep '^pod/oai-gnb-' | grep -v '^pod/oai-gnb-b-' | head -n1 | cut -d/ -f2)
-GNB_B_POD=$(kubectl -n oran-ran get pod -o name 2>/dev/null | grep '^pod/oai-gnb-b-' | head -n1 | cut -d/ -f2)
+# Determine UE1 active DU from serveraddr in ConfigMap
+SERVERADDR=$(kubectl -n "$RAN_NS" get cm oai-nrue-config \
+  -o jsonpath='{.data.nr-ue\.conf}' 2>/dev/null \
+  | sed -n 's/.*serveraddr[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
-echo "UE_POD=$UE_POD"
-echo "GNB_A_POD=$GNB_A_POD"
-echo "GNB_B_POD=$GNB_B_POD"
-echo
+if [ -z "$SERVERADDR" ]; then
+  SERVERADDR=$(kubectl -n "$RAN_NS" get deploy oai-nr-ue -o json 2>/dev/null \
+    | python3 -c '
+import json,sys
+a=json.load(sys.stdin)["spec"]["template"]["spec"]["containers"][0]["args"]
+print(a[a.index("--rfsimulator.serveraddr")+1] if "--rfsimulator.serveraddr" in a else "")
+' 2>/dev/null || true)
+fi
 
-check_gnb() {
-  name="$1"
-  pod="$2"
-  port="$3"
+case "$SERVERADDR" in
+  oai-du0-rfsim|server) ACTIVE_DU="oai-du0" ;;
+  oai-du1-rfsim)        ACTIVE_DU="oai-du1" ;;
+  *) ACTIVE_DU="unknown" ;;
+esac
 
-  echo "===== $name ownership check ====="
+echo "UE1 serveraddr    : ${SERVERADDR:-not found}"
+echo "Active serving DU : $ACTIVE_DU"
+echo ""
 
-  if [ -z "$pod" ]; then
-    echo "$name pod not found"
-    return 0
+# UE1 pod and tunnel
+UE_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-nr-ue \
+  --field-selector=status.phase=Running \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+echo "UE1 pod           : ${UE_POD:-NOT FOUND}"
+if [ -n "$UE_POD" ]; then
+  TUNNEL=$(kubectl -n "$RAN_NS" exec "$UE_POD" -- \
+    sh -c 'ip -br addr show oaitun_ue1 2>/dev/null || echo NONE' 2>/dev/null || echo NONE)
+  echo "UE1 oaitun_ue1    : $TUNNEL"
+fi
+echo ""
+
+# DU0
+echo "===== DU0 (oai-du0) ====="
+DU0_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-du0 \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+DU0_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-du0 \
+  -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
+echo "Pod    : ${DU0_POD:-NOT FOUND}  Phase: $DU0_PHASE"
+if [ "$ACTIVE_DU" = "oai-du0" ]; then
+  echo "Status : >>> SERVING UE1 <<<"
+  if [ -n "$DU0_POD" ]; then
+    echo "--- UE activity (DU0 last 60s) ---"
+    kubectl -n "$RAN_NS" logs "$DU0_POD" --since=60s 2>/dev/null \
+      | grep -E "RNTI|UE.*connect|RRC.*Reconfig|Qm [0-9]|dlsch_rounds" \
+      | tail -12 || echo "(no recent UE activity)"
   fi
+else
+  echo "Status : not serving UE1"
+fi
+echo ""
 
-  kubectl -n oran-ran port-forward pod/"$pod" "$port":9090 >/tmp/oran-${name}-pf.log 2>&1 &
-  PF=$!
-  sleep 3
+# DU1
+echo "===== DU1 (oai-du1) ====="
+DU1_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-du1 \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+DU1_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-du1 \
+  -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
+echo "Pod    : ${DU1_POD:-NOT FOUND}  Phase: $DU1_PHASE"
+if [ "$ACTIVE_DU" = "oai-du1" ]; then
+  echo "Status : >>> SERVING UE1 <<<"
+  if [ -n "$DU1_POD" ]; then
+    echo "--- UE activity (DU1 last 60s) ---"
+    kubectl -n "$RAN_NS" logs "$DU1_POD" --since=60s 2>/dev/null \
+      | grep -E "RNTI|UE.*connect|RRC.*Reconfig|Qm [0-9]|dlsch_rounds" \
+      | tail -12 || echo "(no recent UE activity)"
+  fi
+else
+  echo "Status : not serving UE1"
+fi
+echo ""
 
-  echo "----- ci get_single_rnti -----"
-  timeout 5 bash -lc "printf 'ci get_single_rnti\r\n' | nc 127.0.0.1 $port" || true
+# CU
+echo "===== CU (oai-cu) ====="
+CU_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+CU_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu \
+  -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
+echo "Pod    : ${CU_POD:-NOT FOUND}  Phase: $CU_PHASE"
+echo ""
 
-  echo
-  echo "----- ci fetch_du_by_ue_id 1 -----"
-  timeout 5 bash -lc "printf 'ci fetch_du_by_ue_id 1\r\n' | nc 127.0.0.1 $port" || true
-
-  kill "$PF" >/dev/null 2>&1 || true
-  wait "$PF" >/dev/null 2>&1 || true
-  echo
-}
-
-check_gnb "gnb-a" "$GNB_A_POD" 19090
-check_gnb "gnb-b" "$GNB_B_POD" 19092
-
-echo "===== UE tunnel ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip -br addr show oaitun_ue1 || true' 2>/dev/null || true
-
-exit 0
+echo "VERDICT=SERVING_DU_CHECK_DONE"
 '''
     return save_run("ownership", cmd, timeout=90)
 
