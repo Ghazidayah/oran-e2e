@@ -66,22 +66,30 @@ PROFILES = {
 # Representative tc netem profiles per band — EMULATED, not measured from RFsim
 BAND_NETEM = {
     "n78-3500": {
-        "delay": "2ms", "jitter": "1ms", "loss": "0.5%", "rate": "44mbit",
+        "delay": "2ms", "jitter": "1ms", "loss": "0%", "rate": "12mbit",
         "label": "C-band 3500 MHz (TDD)",
     },
     "n78-cband-3780": {
-        "delay": "2ms", "jitter": "1ms", "loss": "0.8%", "rate": "40mbit",
+        "delay": "3ms", "jitter": "1ms", "loss": "0.1%", "rate": "10mbit",
         "label": "C-band 3780 MHz (TDD)",
     },
     "n41-2600": {
-        "delay": "6ms", "jitter": "1ms", "loss": "0.2%", "rate": "28mbit",
+        "delay": "8ms", "jitter": "2ms", "loss": "0.1%", "rate": "7mbit",
         "label": "Mid-band 2600 MHz (TDD)",
     },
     "n28-700": {
-        "delay": "20ms", "jitter": "3ms", "loss": "0.1%", "rate": "15mbit",
+        "delay": "25ms", "jitter": "5ms", "loss": "0.3%", "rate": "3mbit",
         "label": "Low-band 700 MHz FDD",
     },
 }
+
+# KPI measurement target: UPF DN gateway (in 5G data path, ~11.6ms RFsim base RTT).
+# Never use an internet target: ~60-90ms internet RTT swamps the emulated deltas.
+# Rate caps sit below the measured uncapped RFsim UL TCP floor (~17 Mbps,
+# baseline 2026-06-10: 17.08-17.54 Mbps x3) so the netem cap is the binding
+# constraint and band ordering is monotonic. Throughput is UPLINK (UE=iperf3
+# client to host node); netem root qdisc shapes UE egress only.
+KPI_PING_TARGET = "10.45.0.1"
 
 
 def _default_results():
@@ -333,7 +341,7 @@ def _run_kpi_test(profile):
 
         p = subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--",
-             "ping", "-I", "oaitun_ue1", "-c", "20", "8.8.8.8"],
+             "ping", "-I", "oaitun_ue1", "-c", "20", "-i", "0.3", KPI_PING_TARGET],
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60,
         )
         ping_out = p.stdout

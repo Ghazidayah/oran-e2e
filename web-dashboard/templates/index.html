@@ -114,8 +114,8 @@
   </h3>
   <p class="muted">
     Applies representative <code>tc netem</code> profiles on <code>oaitun_ue1</code> per band scenario and
-    measures real ping latency, packet loss, and TCP throughput. DU stays on the n78 baseline —
-    differences come entirely from the emulation profile, not RFsim physics.
+    measures ping latency to the UPF gateway (10.45.0.1) and uplink TCP throughput. DU stays on the n78 baseline —
+    differences come entirely from the emulation profile, not RFsim physics. Rate caps sit below the ~17 Mbps RFsim UL floor so they bind; throughput is UPLINK, not the platform's DL capability.
   </p>
 
   <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
@@ -141,7 +141,7 @@
           <th style="text-align:left; padding:8px;">Netem Profile (EMULATED)</th>
           <th style="text-align:left; padding:8px;">Ping avg</th>
           <th style="text-align:left; padding:8px;">Loss</th>
-          <th style="text-align:left; padding:8px;">TCP Mbps</th>
+          <th style="text-align:left; padding:8px;">UL TCP Mbps</th>
           <th style="text-align:left; padding:8px;">Retrans</th>
           <th style="text-align:left; padding:8px;">Time</th>
         </tr>
