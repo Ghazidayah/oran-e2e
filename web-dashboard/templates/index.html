@@ -263,6 +263,36 @@
   </div>
 
   <pre id="phase3RealSliceOutput" class="multi-ue-output">Ready. Select a slice profile and click Run.</pre>
+
+  <h3 style="margin-top:22px">Slice Run Results</h3>
+  <p style="font-size:13px;opacity:.85;margin-bottom:12px">
+    <strong>Slice admission (Granted S-NSSAI) is real</strong> — verified from the AMF log
+    (<code>S_NSSAI[SST:x]</code>, parsed at run time, never assumed from the request).
+    Throughput and latency differences per slice come from <code>tc tbf</code> resource profiles
+    applied on <code>oaitun_ue1</code> and are <strong>EMULATED</strong> —
+    the RFsim gNB scheduler does not enforce 5QI or GBR radio resources.
+  </p>
+  <div class="radio-table-wrap">
+    <table class="radio-results" id="sliceResultsTable">
+      <thead>
+        <tr>
+          <th>Slice</th>
+          <th>Granted S-NSSAI</th>
+          <th>Tunnel IP</th>
+          <th>Ping avg ms</th>
+          <th>Loss %</th>
+          <th>TCP Mbps</th>
+          <th>tc Profile (EMULATED)</th>
+          <th>Verdict</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody id="sliceResultsBody">
+        <tr><td colspan="9">No runs yet. Click a slice button above to start.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <button onclick="loadSliceResults()" style="margin-top:10px;background:#334155;color:white;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:13px">↺ Refresh Results</button>
 </section>
 <!-- PHASE3_REAL_SLICE_PANEL_END -->
 

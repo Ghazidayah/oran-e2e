@@ -884,17 +884,151 @@ REAL_SLICE_PROFILES = {
     "v2x":   {"sst": 4, "label": "V2X",   "desc": "SST=4 — streaming-like HLS + UDP"},
 }
 
+SLICE_TC_PROFILE = {
+    "embb":  "50mbit / 256kb / 50ms",
+    "urllc": "20mbit / 64kb / 5ms",
+    "mmtc":  "2mbit / 32kb / 100ms",
+    "v2x":   "10mbit / 128kb / 20ms",
+}
+
+REAL_SLICE_RESULTS_FILE = BASE_DIR / "web-dashboard" / "real-slice-results.json"
+
+
+def _load_slice_rows():
+    if REAL_SLICE_RESULTS_FILE.exists():
+        try:
+            return json.loads(REAL_SLICE_RESULTS_FILE.read_text())
+        except Exception:
+            return []
+    return []
+
+
+def _save_slice_row(row):
+    rows = _load_slice_rows()
+    rows = [r for r in rows if r.get("profile") != row.get("profile")]
+    rows.insert(0, row)
+    rows = rows[:20]
+    REAL_SLICE_RESULTS_FILE.write_text(json.dumps(rows, indent=2))
+    return rows
+
+
+def _parse_slice_output(text, profile):
+    info = REAL_SLICE_PROFILES.get(profile, {})
+    row = {
+        "profile":      profile,
+        "label":        info.get("label", profile),
+        "sst":          info.get("sst", "?"),
+        "sd":           "0xffffff",
+        "granted_sst":  "—",
+        "tunnel_ip":    "—",
+        "ping_avg_ms":  "—",
+        "loss_pct":     "—",
+        "tcp_mbps":     "—",
+        "retransmits":  "—",
+        "udp_loss_pct": "—",
+        "udp_jitter_ms":"—",
+        "tc_profile":   SLICE_TC_PROFILE.get(profile, "—"),
+        "verdict":      "UNKNOWN",
+        "time":         datetime.now().isoformat(timespec="seconds"),
+    }
+
+    # Split at RESTORE DEFAULT so the SST=1 restore step doesn't pollute parsing
+    pre_restore = text.split("===== RESTORE DEFAULT")[0]
+
+    # Granted SST (first occurrence = target switch, not restore)
+    m = re.search(r"AMF granted: SST=(\d+)", pre_restore)
+    if m:
+        row["granted_sst"] = m.group(1)
+
+    # Tunnel IP (first occurrence = target switch)
+    m = re.search(r"Tunnel ready: pod=\S+ tunnel=(\S+)", pre_restore)
+    if m:
+        row["tunnel_ip"] = m.group(1).split("/")[0]
+
+    # Ping avg and loss from validate-current-slice.sh (it runs ping -c 4)
+    m = re.search(r"rtt min/avg/max/mdev = [0-9.]+/([0-9.]+)/", pre_restore)
+    if m:
+        row["ping_avg_ms"] = m.group(1)
+    m = re.search(r"(\d+)% packet loss", pre_restore)
+    if m:
+        row["loss_pct"] = m.group(1) + "%"
+
+    # TCP KPIs (eMBB only)
+    m = re.search(r"Throughput Mbps: ([0-9.]+)", pre_restore)
+    if m:
+        row["tcp_mbps"] = m.group(1)
+    m = re.search(r"TCP retransmits: (\d+)", pre_restore)
+    if m:
+        row["retransmits"] = m.group(1)
+
+    # UDP KPIs (URLLC/mMTC/V2X)
+    m = re.search(r"Packet loss percent: ([0-9.]+)", pre_restore)
+    if m:
+        row["udp_loss_pct"] = m.group(1) + "%"
+    m = re.search(r"Estimated jitter ms: ([0-9.]+)", pre_restore)
+    if m:
+        row["udp_jitter_ms"] = m.group(1)
+
+    # Verdict: switch outcome takes precedence over overall run outcome
+    switch_ok = "VERDICT=REAL_SLICE_SWITCH_OK" in pre_restore
+    switch_mismatch = "VERDICT=GRANTED_SLICE_MISMATCH" in pre_restore
+    overall_ok = "VERDICT=OK\n" in pre_restore or pre_restore.rstrip().endswith("VERDICT=OK")
+    overall_fail = "VERDICT=FAIL\n" in pre_restore or pre_restore.rstrip().endswith("VERDICT=FAIL")
+
+    if switch_mismatch:
+        row["verdict"] = "GRANTED_SLICE_MISMATCH"
+    elif switch_ok and overall_ok:
+        row["verdict"] = "PASS"
+    elif switch_ok and overall_fail:
+        row["verdict"] = "TRAFFIC_FAIL"
+    elif switch_ok:
+        row["verdict"] = "REAL_SLICE_SWITCH_OK"
+    else:
+        # Extract first non-trivial VERDICT line from pre-restore section
+        verdicts = re.findall(r"VERDICT=([A-Z_]+)", pre_restore)
+        if verdicts:
+            row["verdict"] = verdicts[0]
+
+    return row
+
+
+@app.route("/api/real-slice/results", methods=["GET"])
+def api_real_slice_results():
+    return jsonify({"ok": True, "rows": _load_slice_rows()})
+
 
 @app.route("/api/real-slice/<profile>", methods=["POST"])
 def api_real_slice(profile):
     if profile not in REAL_SLICE_PROFILES:
         return jsonify({"ok": False, "error": f"Unknown slice profile: {profile}. Use: {list(REAL_SLICE_PROFILES)}"}), 400
-    info = REAL_SLICE_PROFILES[profile]
-    return save_run(
-        f"real-slice-{profile}",
-        f"scripts/slicing/run-real-slice-traffic.sh {profile}",
-        timeout=600,
-    )
+
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_dir = RUNS_DIR / f"{ts}-real-slice-{profile}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    result = run_cmd(f"scripts/slicing/run-real-slice-traffic.sh {profile}", timeout=600)
+    (run_dir / "output.log").write_text(result["output"] + "\n")
+
+    row = _parse_slice_output(result["output"], profile)
+    _save_slice_row(row)
+
+    summary = {
+        "time": datetime.now().isoformat(timespec="seconds"),
+        "action": f"real-slice-{profile}",
+        "ok": result["ok"],
+        "exit": result["exit"],
+        "run_dir": str(run_dir),
+    }
+    (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
+
+    return jsonify({
+        "ok": result["ok"],
+        "exit": result["exit"],
+        "action": f"real-slice-{profile}",
+        "summary": summary,
+        "output": result["output"],
+        "row": row,
+    })
 
 
 register_multi_ue_routes(app, run_cmd, BASE_DIR)
