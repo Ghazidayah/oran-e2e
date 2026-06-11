@@ -1,3 +1,11 @@
+function fmtLiveBytes(n) {
+  n = Number(n) || 0;
+  if (n >= 1073741824) return (n / 1073741824).toFixed(2) + " GB";
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
+  if (n >= 1024) return (n / 1024).toFixed(1) + " KB";
+  return n + " B";
+}
+
 // Extracted from index.html script block 1
 let rxHistory = [];
 
@@ -124,7 +132,7 @@ async function loadMetrics() {
     document.getElementById("rxMbps").textContent = `${totalRxMbps.toFixed(3)} Mbps`;
     document.getElementById("txMbps").textContent = `${totalTxMbps.toFixed(3)} Mbps`;
     document.getElementById("ueIpBox").textContent = `${m.active_count || 0}/${m.requested_count || count} UEs`;
-    document.getElementById("bytesBox").textContent = `${m.total_rx_bytes || 0} / ${m.total_tx_bytes || 0}`;
+    document.getElementById("bytesBox").textContent = `${fmtLiveBytes(m.total_rx_bytes)} / ${fmtLiveBytes(m.total_tx_bytes)}`;
 
     const tableBody = document.getElementById("liveMetricsTableBody");
     if (tableBody) {

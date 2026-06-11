@@ -291,7 +291,7 @@ def active_multi_ue_tunnel_count():
 @app.route("/api/status")
 def api_status():
     try:
-        ran = pod_list("oran-ran", r"^(oai-gnb|oai-gnb-b|oai-nr-ue)")
+        ran = pod_list("oran-ran", r"^(oai-cu|oai-du|oai-gnb|oai-gnb-b|oai-nr-ue)")  # F1 split: CU/DUs were missing
         core = pod_list("oran-core", r"open5gs-(amf|smf|upf)")
         monitoring = pod_list("monitoring", r"(grafana|prometheus|alertmanager|kube-state|node-exporter|operator)")
 

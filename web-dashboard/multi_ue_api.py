@@ -720,10 +720,12 @@ exit 0
         if count > MAX_UES:
             count = MAX_UES
 
-        ues = [
-            live_metrics_one(name)
-            for name in sorted(UE_POOL, key=lambda n: UE_POOL[n]["index"])
-        ]
+        # Polled continuously by the live chart — sequential kubectl execs made
+        # each poll ~5s, so short traffic bursts sampled as zero. Parallelize.
+        from concurrent.futures import ThreadPoolExecutor
+        _names = sorted(UE_POOL, key=lambda n: UE_POOL[n]["index"])
+        with ThreadPoolExecutor(max_workers=len(_names)) as _pool:
+            ues = list(_pool.map(live_metrics_one, _names))
         ues = [u for u in ues if u.get("index", 99) <= count]
         active_ues = [u for u in ues if u.get("attached") and u.get("pod")]
 
