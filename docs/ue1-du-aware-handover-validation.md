@@ -1,79 +1,46 @@
-# UE1 DU-Aware Handover Validation
+# UE DU-Aware Handover Validation
 
-Date: 2026-05-30
+Refreshed: 2026-06-11 (supersedes 2026-05-30 version; design unchanged, evidence re-validated)
 
-## Goal
+## Design (unchanged, re-proven today)
 
-Allow `ue1` to switch between DU0 and DU1 without breaking Phase 3, Phase 4, or End-to-End validation.
-
-## Final design
-
-DU switching and slice switching are separated:
+DU switching and slice switching are independent by construction:
 
 ```text
-DU switch:
-  changes only RFsim serveraddr
+DU switch    (scripts/handover/switch-ue-du-target.sh <ue1..5> <du0|du1>):
+  changes ONLY rfsimulator serveraddr (ConfigMap + deployment args, rule 10)
+  takes a backup, restarts the UE deployment, asserts reattach
 
-Slice switch:
-  changes only nssai_sst / nssai_sd
-  preserves serveraddr
+Slice switch (scripts/slicing/switch-ue-slice.sh, v2, UE1 only):
+  changes ONLY dnn/nssai_sst/nssai_sd (legacy keys — pdu_sessions is ignored
+  by the 2025.w45 nr-ue) PLUS the MongoDB default_indicator (v2 addition);
+  preserves serveraddr; success = AMF-granted S_NSSAI
 ```
 
-## Final dashboard behavior
+All five UEs (ue1-ue5) are DU-switchable; ue1 is the reference UE with
+baseline home DU0. `scripts/handover/recover-mixed-du-state.sh` restores
+ue1 to DU0.
 
-```text
-allowed_ues:
-  ue1
-  ue2
-  ue3
-  ue4
-  ue5
+## What changed since 2026-05-30
 
-blocked_ues:
-  none
-```
+- Slice switching is now v2: flips the Mongo default together with the UE
+  config and asserts the AMF grant (docs/slicing-real-snssai-validation.md).
+- UE2-UE5 configs converted to legacy nssai keys, all-SST1-at-rest policy
+  (docs/ue-slice-alignment-validation.md, tag ue-slice-alignment-validated-20260611).
+- Known risk: the CU segfaults intermittently (CLAUDE.md "Known risks");
+  recovery = scripts/recover-ue-sessions.sh --fix (diagnose-first).
 
-`ue1` remains the Phase 3 / Phase 4 reference UE, but it is no longer blocked from DU switching.
+## Re-validation evidence (2026-06-11, UE1 round trip DU0 -> DU1 -> DU0)
 
-## Final validation
+| Stage | Result |
+|---|---|
+| Baseline | ue1 on DU0, serveraddr=oai-du0-rfsim |
+| Switch to DU1 | VERDICT=UE_DU_SWITCH_OK, tunnel 10.45.0.73/24 |
+| On DU1 | recover-ue-sessions: HEALTHY; serveraddr=oai-du1-rfsim; nssai_sst=1 / nssai_sd=0xffffff UNTOUCHED |
+| Switch back to DU0 | VERDICT=UE_DU_SWITCH_OK, tunnel 10.45.0.74/24 |
+| Final | ALL 5 UEs HEALTHY (IPs match SMF, DN-gw ping 0% loss); serveraddr=oai-du0-rfsim |
+| AMF grants | S_NSSAI[SST:1 SD:0xffffff] to imsi-...001 at 08:59:45 (DU1 attach) and 09:00:28 (DU0 return) |
 
-```text
-Switch ue1 -> DU1:
-  VERDICT=UE_DU_SWITCH_OK
-
-After DU1 switch:
-  serveraddr=oai-du1-rfsim
-  slice=nssai_sst=1 nssai_sd=0xffffff
-
-Phase 3 validation on DU1:
-  VERDICT=PROTECTED_UE1_CURRENT_SLICE_VALIDATED
-
-E2E validation on DU1:
-  VERDICT=E2E_UE1_VALIDATION_OK
-
-Phase 4 profile on DU1:
-  VERDICT=UE1_RESOURCE_PROFILE_APPLIED
-  VERDICT=UE1_RESOURCE_PROFILE_CLEARED
-
-Real traffic on DU1:
-  image_download verdict=OK
-
-Restore ue1 -> DU0:
-  VERDICT=UE_DU_SWITCH_OK
-
-Final result:
-  VERDICT=UE1_DU1_PHASE3_PHASE4_SAFE_OK
-```
-
-## Final architecture
-
-```text
-ue1:
-  Phase 3 / Phase 4 / E2E reference UE
-  DU switchable: DU0 <-> DU1
-  slice-safe: yes
-
-ue2-ue5:
-  Multi-UE continuity UEs
-  DU switchable: DU0 <-> DU1
-```
+The round trip ran after the slice-v2 work and the UE2-5 legacy-key
+conversion, proving DU switching is unaffected by both. UE2-UE5 remained
+attached and undisturbed throughout.
