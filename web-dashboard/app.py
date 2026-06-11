@@ -559,7 +559,7 @@ kubectl -n oran-core get pods -o wide | egrep 'open5gs-(amf|smf|upf)|NAME' || fa
 
 echo
 echo "===== RAN pods ====="
-kubectl -n oran-ran get pods -o wide | egrep 'oai-gnb|oai-nr-ue|NAME' || fail=1
+kubectl -n oran-ran get pods -o wide | egrep 'oai-cu|oai-du|oai-gnb|oai-nr-ue|NAME' || fail=1
 
 UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 echo

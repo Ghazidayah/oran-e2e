@@ -439,4 +439,11 @@ def install_mixed_du_handover_api(app):
         if path in ["/api/handover/f1/run", "/api/handover/mixed-du/run"] and method == "POST":
             return _run_handover_validation()
 
+        if path == "/api/handover/mixed-du/recover" and method == "POST":
+            # _run takes an argv list (no shell); returns ok/rc/stdout/stderr
+            script = REPO / "scripts" / "handover" / "recover-mixed-du-state.sh"
+            r = _run(["bash", str(script)], timeout=600)
+            out = (r.get("stdout") or "") + ("\n" + r.get("stderr") if r.get("stderr") else "")
+            return jsonify({"ok": bool(r.get("ok")), "rc": r.get("rc"), "output": out[-4000:]})
+
         return None
