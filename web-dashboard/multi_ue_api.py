@@ -238,10 +238,12 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
         }
 
     def all_status():
-        return [
-            status_one(name)
-            for name in sorted(UE_POOL, key=lambda n: UE_POOL[n]["index"])
-        ]
+        # Each status_one does ~3 kubectl calls; run the 5 UEs in parallel
+        # (was sequential -> ~12s per /api/ues; now ~the slowest single UE).
+        from concurrent.futures import ThreadPoolExecutor
+        names = sorted(UE_POOL, key=lambda n: UE_POOL[n]["index"])
+        with ThreadPoolExecutor(max_workers=len(names)) as pool:
+            return list(pool.map(status_one, names))
 
     def remove_lifecycle(deployment):
         patch = "'[{\"op\":\"remove\",\"path\":\"/spec/template/spec/containers/0/lifecycle\"}]'"

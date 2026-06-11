@@ -198,7 +198,14 @@ ${escapeHtml(result.output || '')}
     panel.hidden = false;
   }
 
-  async function refreshMultiUes() {
+  function fmtBytes(n) {
+    n = Number(n) || 0;
+    if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+    if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+    return n + ' B';
+  }
+
+  async function refreshMultiUes(isRetry = false) {
     try {
       const response = await fetch('/api/ues');
       const data = await response.json();
@@ -212,9 +219,10 @@ ${escapeHtml(result.output || '')}
         return;
       }
 
+      const updatedAt = new Date().toLocaleTimeString();
       summary.textContent = f1ModeActiveForMultiUe
-        ? `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running - Multi-UE disabled in F1 mode`
-        : `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running`;
+        ? `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running - Multi-UE disabled in F1 mode — updated ${updatedAt}`
+        : `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running — updated ${updatedAt}`;
 
       const desiredSelect = document.getElementById('desiredUeCount');
       if (
@@ -229,7 +237,7 @@ ${escapeHtml(result.output || '')}
       tbody.innerHTML = data.ues.map((ue) => {
         const pod = ue.pod || '-';
         const tunnelIp = ue.tunnel_ip || '-';
-        const bytes = `${ue.rx_bytes || 0} / ${ue.tx_bytes || 0}`;
+        const bytes = `${fmtBytes(ue.rx_bytes)} / ${fmtBytes(ue.tx_bytes)}`;
 
         const startDisabled = ue.ready ? 'disabled' : '';
         const stopDisabled = ue.name === 'ue1' ? 'disabled' : (!ue.ready ? 'disabled' : '');
@@ -256,8 +264,19 @@ ${escapeHtml(result.output || '')}
       }).join('');
 
       setMultiUeBusy(false);
+
+      // A previous transient failure may have left an error in the output box — clear it.
+      const outEl = document.getElementById('multiUeOutput');
+      if (outEl && outEl.textContent.startsWith('Failed to refresh UEs')) {
+        setMultiUeOutput('Ready.');
+      }
     } catch (error) {
-      setMultiUeOutput(`Failed to refresh UEs: ${error}`);
+      // Transient failures happen during dashboard restarts — retry once before alarming.
+      if (!isRetry) {
+        await new Promise((r) => setTimeout(r, 2000));
+        return refreshMultiUes(true);
+      }
+      setMultiUeOutput(`Failed to refresh UEs: ${error} — retried once; is the dashboard up?`);
     }
   }
 
