@@ -673,6 +673,7 @@ async function runPhase2Traffic(scenario, button) {
         if (button) {
           button.textContent = status === "ok" ? "Done ✓" : "Failed ✗";
         }
+        loadE2eKpiResults();
         break;
       }
     }
@@ -781,3 +782,42 @@ function renderSliceResults(rows) {
 document.addEventListener("DOMContentLoaded", function() { loadSliceResults(); });
 // PHASE3_REAL_SLICE_JS_END
 
+
+
+// ===== E2E Scenario KPI Results table (PHASE2_KPI_RESULTS) =====
+async function loadE2eKpiResults() {
+  try {
+    const res = await fetch(PHASE2_TRAFFIC_API + "/api/traffic/results");
+    const data = await res.json();
+    renderE2eKpiResults(data.rows || []);
+  } catch (e) {
+    // traffic API may be down — table stays at "No runs yet"
+  }
+}
+
+function renderE2eKpiResults(rows) {
+  const body = document.getElementById("e2eKpiBody");
+  if (!body) return;
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="7">No runs yet. Run a scenario above to populate this table.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(function(r) {
+    const v = (r.verdict || r.status || "?").toUpperCase();
+    const ok = (v === "OK" && r.status === "ok");
+    const vStyle = ok ? "color:#4caf50;font-weight:bold" : "color:#f44336;font-weight:bold";
+    const tput = (r.throughput_mbps === null || r.throughput_mbps === undefined) ? "\u2014" : r.throughput_mbps.toFixed(2);
+    const t = (r.time_s === null || r.time_s === undefined) ? "\u2014" : r.time_s.toFixed(2);
+    const b = (r.bytes === null || r.bytes === undefined) ? "\u2014" : r.bytes.toLocaleString();
+    return "<tr>" +
+      "<td>" + (r.label || r.scenario) + "</td>" +
+      "<td style=\"" + vStyle + "\">" + v + "</td>" +
+      "<td>" + tput + "</td>" +
+      "<td>" + (r.integrity || "\u2014") + "</td>" +
+      "<td>" + t + "</td>" +
+      "<td>" + b + "</td>" +
+      "<td>" + (r.finished_at || "\u2014") + "</td>" +
+      "</tr>";
+  }).join("");
+}
+document.addEventListener("DOMContentLoaded", function() { loadE2eKpiResults(); });

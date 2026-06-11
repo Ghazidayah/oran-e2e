@@ -227,6 +227,32 @@
   </div>
 
   <pre id="actionOutput" class="multi-ue-output">Ready.</pre>
+
+  <h3 style="margin-top:22px">Scenario KPI Results</h3>
+  <p class="small">
+    Latest result per scenario. <strong>Real traffic over the real 5G user plane</strong>
+    (UE tunnel &rarr; RFsim PHY/MAC &rarr; F1 &rarr; CU &rarr; GTP-U &rarr; UPF) &mdash;
+    no netem/tc shaping applied; RFsim radio channel.
+  </p>
+  <div class="radio-table-wrap">
+    <table class="radio-results" id="e2eKpiTable">
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Verdict</th>
+          <th>Throughput Mbps</th>
+          <th>Integrity / Loss</th>
+          <th>Time s</th>
+          <th>Bytes</th>
+          <th>Run time</th>
+        </tr>
+      </thead>
+      <tbody id="e2eKpiBody">
+        <tr><td colspan="7">No runs yet. Run a scenario above to populate this table.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <button onclick="loadE2eKpiResults()" style="margin-top:10px;background:#334155;color:white;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:13px">&#8634; Refresh Results</button>
 </section>
 
 <!-- PHASE3_REAL_SLICE_PANEL_START -->

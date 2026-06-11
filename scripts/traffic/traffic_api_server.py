@@ -6,6 +6,7 @@ import uuid
 import subprocess
 import threading
 from pathlib import Path
+import pathlib
 from flask import Flask, jsonify, request
 
 REPO = Path.home() / "oran-e2e-freeze"
@@ -230,6 +231,94 @@ def get_job(job_id):
         "output": output,
     })
 
+
+
+# PHASE2_KPI_RESULTS_START
+import re as _re
+
+
+def _parse_job_kpis(text):
+    """Extract unified KPIs from a scenario output.log (real measurements, no shaping)."""
+    def last(pattern, cast=str):
+        m = _re.findall(pattern, text)
+        if not m:
+            return None
+        try:
+            return cast(m[-1])
+        except Exception:
+            return None
+
+    k = {}
+    k["verdict"] = last(r"(?:Verdict|\"verdict\"):\s*\"?([A-Za-z_]+)\"?")
+    k["throughput_mbps"] = last(r"(?:Average throughput|Throughput) Mbps:\s*([0-9.]+)", float)
+    k["loss_pct"] = last(r"Packet loss percent:\s*([0-9.]+)", float)
+    k["retransmits"] = last(r"TCP retransmits:\s*([0-9]+)", int)
+    k["jitter_ms"] = last(r"Estimated jitter ms:\s*([0-9.]+)", float)
+    checksum = last(r"(?:Checksum OK|\"checksum_ok\"):\s*(True|true|False|false)")
+    seg_ok = last(r"Segments OK:\s*([0-9]+)", int)
+    seg_req = last(r"Segments requested:\s*([0-9]+)", int)
+    res_ok = last(r"Resources OK:\s*([0-9]+)", int)
+    res_req = last(r"Resources requested:\s*([0-9]+)", int)
+    if seg_ok is not None and seg_req is not None:
+        k["integrity"] = "{}/{} segments".format(seg_ok, seg_req)
+    elif res_ok is not None and res_req is not None:
+        k["integrity"] = "{}/{} resources".format(res_ok, res_req)
+    elif checksum is not None:
+        k["integrity"] = "checksum " + ("OK" if checksum.lower() == "true" else "FAIL")
+    elif k["loss_pct"] is not None:
+        k["integrity"] = "{}% loss".format(k["loss_pct"])
+    elif k["retransmits"] is not None:
+        k["integrity"] = "{} retrans".format(k["retransmits"])
+    else:
+        k["integrity"] = "-"
+    k["time_s"] = last(
+        r"(?:Duration seconds|Transfer time seconds|Page load time seconds|Total time seconds):\s*([0-9.]+)",
+        float,
+    )
+    k["bytes"] = last(
+        r"(?:Bytes received|Downloaded bytes|Total bytes|Total segment bytes|Expected size):\s*([0-9]+)",
+        int,
+    )
+    return k
+
+
+@app.route("/api/traffic/results", methods=["GET"])
+def traffic_results():
+    """Latest result per scenario, parsed from persisted job logs (survives restarts)."""
+    latest = {}
+    try:
+        for d in sorted(PROOF.iterdir()):
+            sf = d / "summary.json"
+            if not sf.is_file():
+                continue
+            try:
+                job = json.loads(sf.read_text())
+            except Exception:
+                continue
+            scen = job.get("scenario", "")
+            if not scen:
+                continue
+            # dirs sort by timestamped job_id, so later iteration = newer run
+            latest[scen] = job
+    except Exception:
+        pass
+
+    rows = []
+    for scen, job in latest.items():
+        log_file = pathlib.Path(job.get("log_file", ""))
+        output = log_file.read_text(errors="ignore")[-30000:] if log_file.is_file() else ""
+        kpis = _parse_job_kpis(output)
+        rows.append({
+            "scenario": scen,
+            "label": SCENARIOS.get(scen, {}).get("label", scen),
+            "status": job.get("status", "?"),
+            "exit": job.get("exit"),
+            "finished_at": job.get("finished_at", ""),
+            **kpis,
+        })
+    rows.sort(key=lambda r: r.get("scenario", ""))
+    return jsonify({"ok": True, "rows": rows})
+# PHASE2_KPI_RESULTS_END
 
 
 # PHASE3_REAL_SLICE_API_START
