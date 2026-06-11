@@ -4,7 +4,7 @@ data:
     ;\n  opc = \"E8ED289DEBA952E4283B54E88E6183CA\";\n  dnn = \"oai\";\n  nssai_sst\
     \ = 1;\n  nssai_sd = 0xffffff;\n}\n\nposition0 = {\n    x = 0.0;\n    y = 0.0;\n\
     \    z = 6377900.0;\n}\n\nthread-pool = \"-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1\"\
-    \n\nrfsimulator = (\n  {\n    serveraddr = \"server\";\n  }\n);\n\nchannelmod\
+    \n\nrfsimulator = (\n  {\n    serveraddr = \"oai-du1-rfsim\";\n  }\n);\n\nchannelmod\
     \ = {\n  max_chan = 10;\n  modellist = \"modellist_rfsimu_1\";\n  modellist_rfsimu_1\
     \ = (\n    {\n      model_name     = \"rfsimu_channel_enB0\"\n      type     \
     \      = \"AWGN\";\n      ploss_dB       = 20;\n      noise_power_dB = -4;\n \
