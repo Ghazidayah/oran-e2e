@@ -76,6 +76,7 @@
         <button id="rp-baseline" class="secondary">Restore Scheduler Auto</button>
         <button id="rp-refresh" class="secondary">Refresh Status</button>
         <button id="rp-logs" class="secondary">Show Logs</button>
+        <button id="rp-clear-logs" class="secondary">Clear Logs</button>
       </div>
 
       <h3>Modulation Profile KPI Results</h3>
@@ -228,6 +229,7 @@
     bindClick("rp-kpi",      () => runKpi(selectedProfile()).catch(e => log(String(e))));
     bindClick("rp-baseline", () => applyProfile("scheduler-auto").catch(e => log(String(e))));
     bindClick("rp-logs",     () => latestLogs().catch(e => log(String(e))));
+    bindClick("rp-clear-logs", () => log("Ready."));
 
     try {
       await refreshStatus();
