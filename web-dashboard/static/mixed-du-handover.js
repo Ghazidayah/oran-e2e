@@ -11,7 +11,7 @@
   const style = document.createElement("style");
   style.textContent = `
     .radio-profile-section { margin-top: 18px; }
-    .radio-profile-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .radio-profile-title { font-size: 17px; font-weight: 700; margin: 0 0 6px; }
     .radio-profile-subtitle { opacity: .88; margin-bottom: 18px; }
     .radio-card-grid { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 12px; margin-bottom: 14px; }
     .radio-card { border: 1px solid rgba(148,163,184,.25); border-radius: 10px; padding: 12px 14px; background: rgba(15,23,42,.55); }
@@ -45,11 +45,9 @@
 
     root.classList.add("radio-profile-section");
     root.innerHTML = `
-      <div class="radio-profile-title">Radio / Modulation Profile Control</div>
+      <h2 class="radio-profile-title">Radio / Modulation Profile</h2>
       <div class="radio-profile-subtitle">
-        Real forced-MCS profiles for UE1. Each profile caps the gNB scheduler's MCS via
-        <code>--MACRLCs.[0].dl/ul_max_mcs</code> on the active DU (auto-detected from UE1 serveraddr —
-        no ConfigMap surgery). Modulation order genuinely changes on air; verified in DU logs as Qm 2/4/6.
+        Real forced-MCS profiles via <code>--MACRLCs.[0].dl/ul_max_mcs</code> on the active DU (auto-detected from UE1 serveraddr). Verified in DU logs as Qm 2/4/6.
       </div>
 
       <div class="radio-card-grid">

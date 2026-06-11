@@ -1,3 +1,9 @@
+function sanitizeTunnelState(text) {
+  if (!text) return text;
+  return text.replace(/(\boaitun_\w+\s+)UNKNOWN\b/g, "$1UP (tun)");
+}
+window.sanitizeTunnelState = sanitizeTunnelState;
+
 function fmtLiveBytes(n) {
   n = Number(n) || 0;
   if (n >= 1073741824) return (n / 1073741824).toFixed(2) + " GB";
@@ -64,6 +70,11 @@ async function reloadStatus() {
       document.getElementById("prometheusLink").href = data.links.prometheus;
     }
 
+    const out = document.getElementById("actionOutput");
+    if (out && typeof out.textContent === "string" && out.textContent.startsWith("Status reload failed:")) {
+      out.textContent = "Ready.";
+    }
+
     const runsTable = document.getElementById("runsTable");
     if (data.recent_runs && runsTable) {
       runsTable.innerHTML = data.recent_runs.map(r => `
@@ -76,7 +87,7 @@ async function reloadStatus() {
       `).join("");
     }
   } catch (err) {
-    document.getElementById("actionOutput").textContent = "Status reload failed: " + err;
+    console.warn("Status reload failed:", err);
   }
 }
 

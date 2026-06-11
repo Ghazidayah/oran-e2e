@@ -11,20 +11,29 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-inline.css') }}">
 </head>
 <body>
-<header>
-  <div>
-    <h1>O-RAN Dashboard</h1>
-    <div class="subtitle">Live status and controls for Open5GS, OAI RAN, Multi-UE traffic, and F1 handover.</div>
+<nav class="topnav">
+  <span class="topnav-brand">O-RAN Dashboard</span>
+  <div class="topnav-links">
+    <a href="#section-status">Status</a>
+    <a href="#radioProfileRoot">Radio/Mod</a>
+    <a href="#realFrequencyRoot">Carrier Retune</a>
+    <a href="#freqKpiRoot">Freq KPI</a>
+    <a href="#section-e2e">E2E Scenarios</a>
+    <a href="#phase3RealSlicePanel">Slices</a>
+    <a href="#section-pods">Pods</a>
+    <a href="#section-live">Live Transfer</a>
+    <a href="#mixedDuLowerHandoverSection">DU Handover</a>
+    <a href="#section-multi-ue">Multi-UE</a>
   </div>
-  <div class="buttons">
+  <div class="topnav-actions">
     <button onclick="reloadStatus()">Reload Status</button>
     <a id="grafanaLink" class="button secondary" target="_blank">Open Grafana</a>
     <a id="prometheusLink" class="button secondary" target="_blank">Open Prometheus</a>
   </div>
-</header>
+</nav>
 
 <main>
-  <section class="grid cards">
+  <section class="grid cards" id="section-status">
     <div class="card">
       <h3>5G Core</h3>
       <div id="coreMetric" class="metric">-</div>
@@ -59,13 +68,8 @@
 </section>
 
 <section class="panel" id="realFrequencyRoot">
-  <h3>Real Carrier Retune Control</h3>
-  <p class="muted">
-    Actual OAI NR carrier retune for ue1 — patches the DU ConfigMap (absoluteFrequencySSB,
-    dl_absoluteFrequencyPointA, band, bandwidth) and the UE deployment args (-C, --band, --ssb),
-    then restarts both pods. DU is auto-detected from the UE current serveraddr.
-    <strong>This causes a full pod restart and takes several minutes.</strong>
-  </p>
+  <h2>Carrier Retune</h2>
+  <p class="section-sub">Patches DU ConfigMap carrier keys and UE args, then restarts both pods. <strong>Takes several minutes.</strong> DU auto-detected from UE1 serveraddr.</p>
 
   <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
     <label for="realFreqSelect">Carrier profile:</label>
@@ -104,22 +108,15 @@
     </table>
   </div>
 
-  <h4>Retune Logs
-    <button onclick="document.getElementById('realFreqLog').textContent='Ready.'"
-            style="margin-left:10px;background:#334155;color:white;border:0;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:600;vertical-align:middle">Clear Logs</button>
+  <h4 style="display:flex;align-items:center;gap:10px;">Retune Logs
+    <button onclick="document.getElementById('realFreqLog').textContent='Ready.'" class="btn-sec" style="margin:0;padding:4px 10px;font-size:12px;">Clear Logs</button>
   </h4>
   <pre id="realFreqLog">Ready.</pre>
 </section>
 
 <section class="panel" id="freqKpiRoot">
-  <h3>Frequency Band KPI Comparison
-    <span class="muted" style="font-size:0.75em; font-weight:normal; margin-left:8px;">EMULATED — tc netem on oaitun_ue1</span>
-  </h3>
-  <p class="muted">
-    Applies representative <code>tc netem</code> profiles on <code>oaitun_ue1</code> per band scenario and
-    measures ping latency to the UPF gateway (10.45.0.1) and uplink TCP throughput. DU stays on the n78 baseline —
-    differences come entirely from the emulation profile, not RFsim physics. Rate caps sit below the ~17 Mbps RFsim UL floor so they bind; throughput is UPLINK, not the platform's DL capability.
-  </p>
+  <h2>Frequency Band KPI Comparison <span class="muted" style="font-size:0.72em;font-weight:normal;margin-left:8px;">EMULATED — tc netem on oaitun_ue1</span></h2>
+  <p class="section-sub">Applies <code>tc netem</code> profiles per band and measures ping + uplink TCP through the UPF gateway. DU stays on n78 baseline — differences are from the emulation profile, not RFsim physics.</p>
 
   <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
     <label for="kpiProfileSelect">Scenario:</label>
@@ -161,11 +158,8 @@
 
 
 
-<section class="card section">
-  <h3>End-to-End UE Validation Scenarios</h3>
-  <p class="muted scenario-note">
-    Baseline validation is kept, while old ping-like traffic scenarios are replaced by realistic Phase 2 service traffic.
-  </p>
+<section class="card section" id="section-e2e">
+  <h2>End-to-End UE Validation Scenarios</h2>
 
   <div class="grid cards">
     <div>
@@ -255,15 +249,13 @@
       </tbody>
     </table>
   </div>
-  <button onclick="loadE2eKpiResults()" style="margin-top:10px;background:#334155;color:white;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:13px">&#8634; Refresh Results</button>
+  <button onclick="loadE2eKpiResults()" class="btn-sec">&#8634; Refresh Results</button>
 </section>
 
 <!-- PHASE3_REAL_SLICE_PANEL_START -->
 <section class="card section" id="phase3RealSlicePanel">
-  <h3>Real S-NSSAI Slice Traffic - Phase 3</h3>
-  <p class="muted scenario-note">
-    These buttons switch the OAI NR-UE requested S-NSSAI, validate oaitun_ue1, run realistic traffic, then restore the UE to default eMBB SST=1.
-  </p>
+  <h2>Real S-NSSAI Slice Traffic</h2>
+  <p class="section-sub">Switches UE1 S-NSSAI, validates tunnel, runs traffic, then restores SST=1. Slice admission is <strong>REAL</strong> (AMF-granted); per-slice throughput/latency is <strong>EMULATED</strong> via <code>tc tbf</code>.</p>
 
   <div class="grid cards">
     <div>
@@ -321,13 +313,13 @@
       </tbody>
     </table>
   </div>
-  <button onclick="loadSliceResults()" style="margin-top:10px;background:#334155;color:white;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:13px">↺ Refresh Results</button>
+  <button onclick="loadSliceResults()" class="btn-sec">↺ Refresh Results</button>
 </section>
 <!-- PHASE3_REAL_SLICE_PANEL_END -->
 
 
 
-  <section class="grid two section">
+  <section class="grid two section" id="section-pods">
     <div class="card">
       <h3>RAN Pods</h3>
       <table>
@@ -348,8 +340,8 @@
       </table>
     </div>
   </section>
-  <section class="card section">
-    <h3>Real-Time Multi-UE Data Transfer</h3>
+  <section class="card section" id="section-live">
+    <h2>Real-Time Multi-UE Data Transfer</h2>
     <p class="small">Live RX/TX totals from attached UEs included in the selected active UE count.</p>
     <canvas id="trafficCanvas" width="1000" height="260"></canvas>
     <div class="grid cards section">
@@ -387,10 +379,7 @@
 
 
 <section class="card section" id="mixedDuLowerHandoverSection">
-  <h3>Multi-UE DU Continuity / Handover</h3>
-  <p class="muted">
-    DU switching table for the Multi-UE RFsim topology. This section keeps the full handover controls separate from the Radio / Modulation Profile section.
-  </p>
+  <h2>DU Continuity / Handover</h2>
 
   <div class="buttons" style="margin: 12px 0;">
     <button type="button" id="mixedDuRefreshBtn">Refresh DU Status</button>
@@ -421,7 +410,7 @@
 </section>
 
 
-<section class="multi-ue-card">
+<section class="multi-ue-card" id="section-multi-ue">
   <div class="multi-ue-header">
     <div>
       <h2>Multi-UE Control — eMBB Parallel Realistic Scenarios</h2>
@@ -443,7 +432,7 @@
     </div>
   </div>
   <div class="per-ue-scenario-note">
-    Choose a realistic eMBB scenario per UE, then run the selected scenarios in parallel. This section keeps all active UEs on SST=1 / eMBB to avoid slice-switch conflicts.
+    Realistic eMBB scenarios run in parallel across up to 5 UEs. All UEs stay on SST=1 to avoid slice-switch conflicts.
   </div>
 
   <table class="multi-ue-table">

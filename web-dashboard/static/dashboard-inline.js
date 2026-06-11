@@ -11,7 +11,8 @@ async function runAction(action) {
     }
 
     const data = await res.json();
-    out.textContent = data.output || JSON.stringify(data, null, 2);
+    const sanitize = typeof sanitizeTunnelState === "function" ? sanitizeTunnelState : function(t) { return t; };
+    out.textContent = sanitize(data.output || JSON.stringify(data, null, 2));
     reloadStatus();
   } catch (err) {
     out.textContent = "Action failed: " + err;
@@ -218,8 +219,8 @@ setInterval(loadMetrics, 2000);
   function setLatestOutput(text) {
     const output = findOutputElement();
     if (!output) return;
-
-    output.textContent = text || "(no output returned)";
+    const sanitize = typeof sanitizeTunnelState === "function" ? sanitizeTunnelState : function(t) { return t; };
+    output.textContent = sanitize(text) || "(no output returned)";
     output.scrollTop = output.scrollHeight;
   }
 
@@ -604,7 +605,8 @@ const PHASE2_TRAFFIC_API = "http://192.168.1.142:5055";
 function setPhase2TrafficOutput(text) {
   const el = document.getElementById("actionOutput");
   if (el) {
-    el.textContent = text || "";
+    const sanitize = typeof sanitizeTunnelState === "function" ? sanitizeTunnelState : function(t) { return t; };
+    el.textContent = sanitize(text) || "";
   }
 }
 
@@ -699,7 +701,8 @@ async function runPhase2Traffic(scenario, button) {
 
 function setPhase3RealSliceOutput(text) {
   const el = document.getElementById("phase3RealSliceOutput");
-  if (el) el.textContent = text || "";
+  const sanitize = typeof sanitizeTunnelState === "function" ? sanitizeTunnelState : function(t) { return t; };
+  if (el) el.textContent = sanitize(text) || "";
 }
 
 function setPhase3RealSliceButtons(disabled, activeButton) {

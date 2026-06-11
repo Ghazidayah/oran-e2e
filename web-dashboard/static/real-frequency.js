@@ -37,7 +37,8 @@
     }
     body.innerHTML = rows.map(function (r) {
       var isExp = r.profile === "n28-700";
-      var ok = (r.verdict || "").indexOf("PASS") !== -1;
+      var verdict = r.verdict || "";
+      var ok = verdict.indexOf("PASS") !== -1 || verdict.indexOf("OK") !== -1;
       var verdictColor = isExp ? "#ff9800" : (ok ? "#4caf50" : "#f44336");
       var profileLabel = isExp ? "⚠ " + (r.profile || "-") : (r.profile || "-");
       return (
