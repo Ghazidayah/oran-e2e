@@ -3,7 +3,7 @@
 ## Order
 1. ./scripts/prepare-network.sh
 2. ./scripts/deploy-core.sh
-3. ./scripts/deploy-ran.sh
+3. ./scripts/deploy-f1-ran.sh
 4. ./scripts/validate-e2e.sh
 
 ## Expected result
