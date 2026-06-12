@@ -7,8 +7,7 @@
 <!-- dashboard-action-feedback-style:start -->
 <!-- dashboard-action-feedback-style:end -->
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='handover.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-inline.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <nav class="topnav">
@@ -109,7 +108,7 @@
   </div>
 
   <h4 style="display:flex;align-items:center;gap:10px;">Retune Logs
-    <button onclick="document.getElementById('realFreqLog').textContent='Ready.'" class="btn-sec" style="margin:0;padding:4px 10px;font-size:12px;">Clear Logs</button>
+    <button onclick="document.getElementById('realFreqLog').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
   </h4>
   <pre id="realFreqLog">Ready.</pre>
 </section>
