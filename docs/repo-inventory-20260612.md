@@ -3,6 +3,21 @@
 Generated before cleanup pass. Every tracked directory and file is listed with
 its purpose, verdict, and (for LEGACY-candidates) what references it.
 
+---
+
+## Step 4 Health Sweep Results (2026-06-12)
+
+All checks pass. No broken files.
+
+| Check | Count | Result |
+|-------|-------|--------|
+| `bash -n` (shell scripts, excl. attic) | 64 scripts | ALL PASS |
+| `python3 -m py_compile` | 8 Python files | ALL PASS |
+| Executable bits (`+x`) | 64 scripts | ALL ALREADY SET |
+
+BROKEN files: **none**.
+KEEP-flagged items needing human decision: see Summary section at bottom.
+
 **Verdicts:**
 - **ACTIVE** — in use by live scripts or APIs; do not move
 - **LEGACY-candidate** — superseded; scheduled for `attic/` in Step 2
