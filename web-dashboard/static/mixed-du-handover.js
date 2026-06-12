@@ -59,10 +59,8 @@
       </div>
 
       <div class="radio-note-ok">
-        ✅ Real MCS forcing verified (2026-06-09): QPSK ~6.7 Mbps · 16QAM ~17.7 Mbps · 64QAM ~30 Mbps.
-        Throughput scales with modulation order as theory predicts (Qm 2/4/6).
-        256QAM is UE-capability-limited — OAI nr-ue (2025.w45) does not advertise pdsch-256QAM-FR1;
-        qam256-max reaches 64QAM. See <code>docs/modulation-scenarios-validation.md</code>.
+        ✅ Real forced MCS (verified): QPSK ~6.7 · 16QAM ~17.7 · 64QAM ~30 Mbps.
+        256QAM is UE-capability-limited (reaches 64QAM).
       </div>
 
       <div class="radio-controls">

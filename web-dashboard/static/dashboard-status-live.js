@@ -67,7 +67,6 @@ async function reloadStatus() {
 
     if (data.links) {
       document.getElementById("grafanaLink").href = data.links.grafana;
-      document.getElementById("prometheusLink").href = data.links.prometheus;
     }
 
     const out = document.getElementById("actionOutput");
