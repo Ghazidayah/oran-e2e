@@ -84,7 +84,7 @@
     },
     {
       "id": 2,
-      "title": "gNB Ready: A / B",
+      "title": "RAN Infra Ready: CU / DU0 / DU1",
       "type": "gauge",
       "gridPos": {
         "x": 4,
@@ -98,7 +98,7 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"oran-ran\",deployment=~\"oai-gnb|oai-gnb-b\"})",
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"oran-ran\",deployment=~\"oai-cu|oai-du0|oai-du1\"})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -137,7 +137,7 @@
               }
             ]
           },
-          "max": 2
+          "max": 3
         },
         "overrides": []
       }
@@ -204,7 +204,7 @@
     },
     {
       "id": 4,
-      "title": "RAN Ready Total: gNBs + UEs",
+      "title": "RAN Ready Total: CU+DUs + UEs",
       "type": "gauge",
       "gridPos": {
         "x": 12,
@@ -218,7 +218,7 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"oran-ran\",deployment=~\"oai-gnb|oai-gnb-b|oai-nr-ue(-[2-5])?\"})",
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"oran-ran\",deployment=~\"oai-cu|oai-du0|oai-du1|oai-nr-ue(-[2-5])?\"})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -257,7 +257,7 @@
               }
             ]
           },
-          "max": 7
+          "max": 8
         },
         "overrides": []
       }
@@ -309,7 +309,7 @@
     },
     {
       "id": 6,
-      "title": "Handover Status",
+      "title": "Platform Status",
       "type": "text",
       "gridPos": {
         "x": 20,
@@ -324,75 +324,7 @@
       "targets": [],
       "options": {
         "mode": "markdown",
-        "content": "### Stable\n- Open5GS core\n- gNB-A / gNB-B\n- UE1-UE5 baseline\n- Per-UE scenarios\n\n### Experimental\n- CI ownership\n- RFsim/N2 handover"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
-    },
-    {
-      "id": 7,
-      "title": "UE1-UE5 Pod Readiness",
-      "type": "table",
-      "gridPos": {
-        "x": 0,
-        "y": 5,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "max by (pod) (kube_pod_status_ready{namespace=\"oran-ran\",condition=\"true\",pod=~\"oai-nr-ue.*\"})",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "instant": true,
-          "range": false
-        }
-      ],
-      "options": {
-        "showHeader": true
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
-    },
-    {
-      "id": 8,
-      "title": "Core Pod Readiness",
-      "type": "table",
-      "gridPos": {
-        "x": 12,
-        "y": 5,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "max by (pod) (kube_pod_status_ready{namespace=\"oran-core\",condition=\"true\",pod=~\"open5gs-(amf|smf|upf).*\"})",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "instant": true,
-          "range": false
-        }
-      ],
-      "options": {
-        "showHeader": true
+        "content": "### Stable\n- Open5GS core\n- F1 split: CU + DU0 + DU1\n- UE1-UE5 baseline\n- Per-UE scenarios, slicing, modulation\n\n### Known risk\n- CU intermittent segfault (mitigated)"
       },
       "fieldConfig": {
         "defaults": {},
@@ -405,7 +337,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 13,
+        "y": 5,
         "w": 12,
         "h": 8
       },
@@ -446,58 +378,12 @@
       }
     },
     {
-      "id": 10,
-      "title": "Per-UE Pod Network RX/TX",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 12,
-        "y": 13,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "sum by (pod) (rate(container_network_receive_bytes_total{namespace=\"oran-ran\",pod=~\"oai-nr-ue.*\"}[1m]))",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "instant": false,
-          "range": true,
-          "legendFormat": "{{pod}} RX"
-        },
-        {
-          "expr": "sum by (pod) (rate(container_network_transmit_bytes_total{namespace=\"oran-ran\",pod=~\"oai-nr-ue.*\"}[1m]))",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "instant": false,
-          "range": true,
-          "legendFormat": "{{pod}} TX"
-        }
-      ],
-      "options": {},
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps"
-        },
-        "overrides": []
-      }
-    },
-    {
       "id": 11,
       "title": "RAN Pod CPU Usage",
       "type": "timeseries",
       "gridPos": {
-        "x": 0,
-        "y": 21,
+        "x": 12,
+        "y": 5,
         "w": 12,
         "h": 8
       },
@@ -507,7 +393,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"oran-ran\",pod=~\"oai-gnb.*|oai-nr-ue.*\",container!=\"\",container!=\"POD\"}[1m]))",
+          "expr": "sum by (app) (label_replace(rate(container_cpu_usage_seconds_total{namespace=\"oran-ran\",pod=~\"oai-cu.*|oai-du.*|oai-nr-ue.*\",container!=\"\",container!=\"POD\"}[1m]), \"app\", \"$1\", \"pod\", \"(oai-[a-z0-9]+(?:-[0-9])?)-[a-f0-9]+-[a-z0-9]+\"))",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -515,7 +401,7 @@
           },
           "instant": false,
           "range": true,
-          "legendFormat": "{{pod}}"
+          "legendFormat": "{{app}}"
         }
       ],
       "options": {},
@@ -531,8 +417,8 @@
       "title": "RAN Pod Memory Usage",
       "type": "timeseries",
       "gridPos": {
-        "x": 12,
-        "y": 21,
+        "x": 0,
+        "y": 13,
         "w": 12,
         "h": 8
       },
@@ -542,7 +428,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"oran-ran\",pod=~\"oai-gnb.*|oai-nr-ue.*\",container!=\"\",container!=\"POD\"})",
+          "expr": "sum by (app) (label_replace(container_memory_working_set_bytes{namespace=\"oran-ran\",pod=~\"oai-cu.*|oai-du.*|oai-nr-ue.*\",container!=\"\",container!=\"POD\"}, \"app\", \"$1\", \"pod\", \"(oai-[a-z0-9]+(?:-[0-9])?)-[a-f0-9]+-[a-z0-9]+\"))",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -550,7 +436,7 @@
           },
           "instant": false,
           "range": true,
-          "legendFormat": "{{pod}}"
+          "legendFormat": "{{app}}"
         }
       ],
       "options": {},
@@ -566,10 +452,10 @@
       "title": "UE Pod Restarts Last 30m",
       "type": "table",
       "gridPos": {
-        "x": 0,
-        "y": 29,
-        "w": 8,
-        "h": 7
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -597,13 +483,13 @@
     },
     {
       "id": 14,
-      "title": "gNB Restarts Last 30m",
+      "title": "RAN Infra Restarts Last 30m (CU/DUs)",
       "type": "table",
       "gridPos": {
-        "x": 8,
+        "x": 0,
         "y": 29,
-        "w": 8,
-        "h": 7
+        "w": 12,
+        "h": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -611,7 +497,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"oran-ran\",pod=~\"oai-gnb.*\"}[30m]))",
+          "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"oran-ran\",pod=~\"oai-cu.*|oai-du.*\"}[30m]))",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -634,10 +520,10 @@
       "title": "Core Restarts Last 30m",
       "type": "table",
       "gridPos": {
-        "x": 16,
+        "x": 12,
         "y": 29,
-        "w": 8,
-        "h": 7
+        "w": 12,
+        "h": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -668,8 +554,8 @@
       "title": "Node CPU Usage",
       "type": "timeseries",
       "gridPos": {
-        "x": 0,
-        "y": 36,
+        "x": 12,
+        "y": 13,
         "w": 12,
         "h": 8
       },
@@ -705,8 +591,8 @@
       "title": "Node Memory Usage",
       "type": "timeseries",
       "gridPos": {
-        "x": 12,
-        "y": 36,
+        "x": 0,
+        "y": 21,
         "w": 12,
         "h": 8
       },
