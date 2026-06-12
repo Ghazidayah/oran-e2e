@@ -94,23 +94,31 @@ def _parse_kpis(text, profile):
         "max_mcs": PROFILE_MCS.get(profile, {}).get("max_mcs", "unknown"),
         "modulation": PROFILE_MCS.get(profile, {}).get("mod", "unknown"),
         "tcp_mbps": "—",
+        "ul_tcp_mbps": "—",
         "retransmits": "—",
         "ping_avg_ms": "—",
         "image_mbps": "—",
         "verdict": "UNKNOWN",
     }
 
-    rtts = re.findall(r"rtt min/avg/max/mdev = [0-9.]+/([0-9.]+)/", text)
+    # Prefer the clean in-network KPI ping (10.45.0.1) between our markers;
+    # fall back to any rtt line only if the marked block is absent.
+    kpi_block = re.search(r"===KPIPING===(.*?)===KPIPINGEND===", text, re.S)
+    rtt_src = kpi_block.group(1) if kpi_block else text
+    rtts = re.findall(r"rtt min/avg/max/mdev = [0-9.]+/([0-9.]+)/", rtt_src)
     if rtts:
         row["ping_avg_ms"] = rtts[-1]
 
     image = re.search(r'"throughput_mbps"\s*:\s*([0-9.]+)', text)
     if image:
         row["image_mbps"] = image.group(1)
+        # DOWNLINK image throughput is the headline (forced-MCS effect is on DL).
+        row["tcp_mbps"] = image.group(1)
 
+    # iperf3 is uplink (~17 regardless of profile); keep it as a secondary column.
     tcp = re.search(r"Throughput Mbps:\s*([0-9.]+)", text)
     if tcp:
-        row["tcp_mbps"] = tcp.group(1)
+        row["ul_tcp_mbps"] = tcp.group(1)
 
     retrans = re.search(r"TCP retransmits:\s*([0-9]+)", text)
     if retrans:
@@ -193,9 +201,18 @@ def radio_kpi_test():
     if ue != "ue1":
         return jsonify({"ok": False, "error": f"Only ue1 is supported, got: {ue}"}), 400
 
+    # Clean in-network KPI ping to the UPF DN gateway (validate-e2e.sh pings
+    # 8.8.8.8 over the internet, ~70-300ms noise — useless for comparing
+    # profiles). The headline throughput is the DOWNLINK image transfer, since
+    # the forced-MCS effect is on DL (the validated 7/17.7/30 ladder is DL);
+    # iperf UL stays ~17 regardless of profile and is kept as a secondary col.
+    ue_pod_cmd = "kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}'"
     cmd = (
         f"scripts/radio/switch-ue-modulation-profile-du-aware.sh {ue} {profile} --apply && "
         "scripts/validate-e2e.sh && "
+        f"echo '===KPIPING===' && UE_POD=$({ue_pod_cmd}) && "
+        "kubectl -n oran-ran exec \"$UE_POD\" -- ping -I oaitun_ue1 -c 20 -i 0.3 10.45.0.1 && "
+        "echo '===KPIPINGEND===' && "
         "scripts/traffic/run-image-download.sh && "
         "scripts/traffic/run-iperf-tcp.sh"
     )
