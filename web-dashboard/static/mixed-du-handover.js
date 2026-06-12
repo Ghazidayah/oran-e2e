@@ -86,7 +86,7 @@
         <table class="radio-results">
           <thead>
             <tr>
-              <th>Profile</th><th>Max MCS</th><th>Modulation</th><th>Ping avg ms</th><th>DL Mbps</th><th>Retransmits</th><th>Verdict</th>
+              <th>Profile</th><th>Max MCS</th><th>Modulation</th><th>Ping avg ms</th><th>TCP Mbps</th><th>Retransmits</th><th>Verdict</th>
             </tr>
           </thead>
           <tbody id="rp-results-body"><tr><td colspan="7">Loading results...</td></tr></tbody>

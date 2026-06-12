@@ -94,7 +94,6 @@ def _parse_kpis(text, profile):
         "max_mcs": PROFILE_MCS.get(profile, {}).get("max_mcs", "unknown"),
         "modulation": PROFILE_MCS.get(profile, {}).get("mod", "unknown"),
         "tcp_mbps": "—",
-        "ul_tcp_mbps": "—",
         "retransmits": "—",
         "ping_avg_ms": "—",
         "image_mbps": "—",
@@ -109,16 +108,18 @@ def _parse_kpis(text, profile):
     if rtts:
         row["ping_avg_ms"] = rtts[-1]
 
+    # Image download is a short HTTP transfer; noisy and not MCS-bound here.
     image = re.search(r'"throughput_mbps"\s*:\s*([0-9.]+)', text)
     if image:
         row["image_mbps"] = image.group(1)
-        # DOWNLINK image throughput is the headline (forced-MCS effect is on DL).
-        row["tcp_mbps"] = image.group(1)
 
-    # iperf3 is uplink (~17 regardless of profile); keep it as a secondary column.
+    # iperf3 sustained transfer is the headline throughput. The validated MCS
+    # ladder (qpsk~7 / 16QAM~17.7 / 64QAM~30, modulation-scenarios-validation.md)
+    # was measured this way: UE as iperf3 client = UPLINK. The forced DL/UL MCS
+    # caps are applied symmetrically, so this is the throughput that scales.
     tcp = re.search(r"Throughput Mbps:\s*([0-9.]+)", text)
     if tcp:
-        row["ul_tcp_mbps"] = tcp.group(1)
+        row["tcp_mbps"] = tcp.group(1)
 
     retrans = re.search(r"TCP retransmits:\s*([0-9]+)", text)
     if retrans:
