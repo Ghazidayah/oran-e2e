@@ -15,8 +15,7 @@
   <div class="topnav-links">
     <a href="#section-status">Status</a>
     <a href="#radioProfileRoot">Radio/Mod</a>
-    <a href="#realFrequencyRoot">Carrier Retune</a>
-    <a href="#freqKpiRoot">Freq KPI</a>
+    <a href="#realFrequencyRoot">Frequency</a>
     <a href="#section-e2e">E2E Scenarios</a>
     <a href="#phase3RealSlicePanel">Slices</a>
     <a href="#section-pods">Pods</a>
@@ -67,8 +66,11 @@
 </section>
 
 <section class="panel" id="realFrequencyRoot">
-  <h2>Carrier Retune</h2>
-  <p class="section-sub">Patches DU ConfigMap carrier keys and UE args, then restarts both pods. <strong>Takes several minutes.</strong> DU auto-detected from UE1 serveraddr.</p>
+  <h2>Frequency Scenarios</h2>
+  <p class="section-sub">One section, two layers: the carrier retune is <strong>REAL</strong> (DU carrier keys + pod restarts); the per-band KPI comparison is <strong>EMULATED</strong> (tc netem). DU auto-detected from UE1 serveraddr.</p>
+
+  <h3>Real Carrier Retune</h3>
+  <p class="section-sub">Patches DU ConfigMap carrier keys and UE args, then restarts both pods. <strong>Takes several minutes.</strong></p>
 
   <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
     <label for="realFreqSelect">Carrier profile:</label>
@@ -107,14 +109,8 @@
     </table>
   </div>
 
-  <h4 style="display:flex;align-items:center;gap:10px;">Retune Logs
-    <button onclick="document.getElementById('realFreqLog').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
-  </h4>
-  <pre id="realFreqLog">Ready.</pre>
-</section>
-
-<section class="panel" id="freqKpiRoot">
-  <h2>Frequency Band KPI Comparison <span class="muted" style="font-size:0.72em;font-weight:normal;margin-left:8px;">EMULATED — tc netem on oaitun_ue1</span></h2>
+  <div id="freqKpiRoot" style="margin-top:26px;">
+  <h3>Band KPI Comparison <span class="muted" style="font-size:0.78em;font-weight:normal;margin-left:8px;">EMULATED — tc netem on oaitun_ue1</span></h3>
   <p class="section-sub">Applies <code>tc netem</code> profiles per band and measures ping + uplink TCP through the UPF gateway. DU stays on n78 baseline — differences are from the emulation profile, not RFsim physics.</p>
 
   <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
@@ -151,7 +147,12 @@
     </table>
   </div>
 
-  <pre id="kpiLog">Ready.</pre>
+  </div>
+
+  <h4 style="display:flex;align-items:center;gap:10px;">Logs
+    <button onclick="document.getElementById('realFreqLog').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
+  </h4>
+  <pre id="realFreqLog">Ready.</pre>
 </section>
 
 

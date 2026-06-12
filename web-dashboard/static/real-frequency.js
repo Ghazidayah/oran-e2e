@@ -187,17 +187,17 @@
 
   async function runKpiTest(profile) {
     setKpiBusy(true);
-    setText("kpiLog", "Running KPI test: " + profile + "\napplying tc netem → ping 20× → iperf3 15 s → clear netem...");
+    setText("realFreqLog", "Running KPI test: " + profile + "\napplying tc netem → ping 20× → iperf3 15 s → clear netem...");
     try {
       var data = await api("/api/real-frequency/kpi-test", {
         method: "POST",
         body: JSON.stringify({profile: profile}),
       });
-      setText("kpiLog", (data.ok ? "[DONE] " : "[FAILED] ") + profile + "\n\n" + (data.log || data.error || ""));
+      setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + profile + "\n\n" + (data.log || data.error || ""));
       var res = await api("/api/real-frequency/kpi-results");
       renderKpiTable(res.rows || []);
     } catch (e) {
-      setText("kpiLog", "ERROR: " + String(e));
+      setText("realFreqLog", "ERROR: " + String(e));
     } finally {
       setKpiBusy(false);
     }
@@ -207,7 +207,7 @@
     setKpiBusy(true);
     var profiles = KPI_PROFILES.map(function (p) { return p.value; });
     for (var i = 0; i < profiles.length; i++) {
-      setText("kpiLog", "Running KPI " + (i + 1) + " / " + profiles.length + ": " + profiles[i] + "...");
+      setText("realFreqLog", "Running KPI " + (i + 1) + " / " + profiles.length + ": " + profiles[i] + "...");
       try {
         var data = await api("/api/real-frequency/kpi-test", {
           method: "POST",
@@ -215,9 +215,9 @@
         });
         var res = await api("/api/real-frequency/kpi-results");
         renderKpiTable(res.rows || []);
-        setText("kpiLog", (data.ok ? "[DONE] " : "[FAILED] ") + profiles[i] + "\n\n" + (data.log || data.error || ""));
+        setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + profiles[i] + "\n\n" + (data.log || data.error || ""));
       } catch (e) {
-        setText("kpiLog", "ERROR on " + profiles[i] + ": " + String(e));
+        setText("realFreqLog", "ERROR on " + profiles[i] + ": " + String(e));
       }
     }
     setKpiBusy(false);
