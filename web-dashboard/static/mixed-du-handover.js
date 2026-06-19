@@ -4,8 +4,6 @@
     ["qpsk-robust",      "QPSK Robust — forced MCS 4 (Qm 2)"],
     ["qam16-balanced",   "16QAM Balanced — forced MCS 13 (Qm 4)"],
     ["qam64-throughput", "64QAM Throughput — forced MCS 28 (Qm 6)"],
-    ["qam256-max",       "256QAM Max — forced MCS 28 (UE-cap: 64QAM)"],
-    ["qpsk-stress",      "QPSK Stress / Calibration — forced MCS 2"],
   ];
 
   const style = document.createElement("style");

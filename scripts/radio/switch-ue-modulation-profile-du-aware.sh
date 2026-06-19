@@ -12,9 +12,6 @@
 #   qpsk-robust       : 4   (Qm 2, QPSK)
 #   qam16-balanced    : 13  (Qm 4, 16QAM)
 #   qam64-throughput  : 28  (Qm 6, 64QAM)
-#   qam256-max        : 28  (256QAM requested but UE does not advertise pdsch-256QAM-FR1,
-#                            so the cell stays on the 64QAM table -> effectively 64QAM)
-#   qpsk-stress       : 2   (Qm 2, lowest QPSK, calibration)
 set -Eeuo pipefail
 
 RAN_NS="${RAN_NS:-oran-ran}"
@@ -37,8 +34,6 @@ profile_mcs(){
     qpsk-robust)      MAXMCS="4";  QM="2 (QPSK)";        DESC="forced QPSK" ;;
     qam16-balanced)   MAXMCS="13"; QM="4 (16QAM)";       DESC="forced 16QAM" ;;
     qam64-throughput) MAXMCS="28"; QM="6 (64QAM)";       DESC="forced 64QAM" ;;
-    qam256-max)       MAXMCS="28"; QM="6 (64QAM; 256QAM UE-cap-limited)"; DESC="256QAM requested; UE lacks pdsch-256QAM-FR1 so caps at 64QAM" ;;
-    qpsk-stress)      MAXMCS="2";  QM="2 (QPSK low)";    DESC="QPSK stress / calibration" ;;
     status) return 1 ;;
     *) die "Unsupported profile: $PROFILE" ;;
   esac

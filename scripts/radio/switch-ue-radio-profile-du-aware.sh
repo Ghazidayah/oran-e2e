@@ -33,8 +33,6 @@ Profiles:
   qpsk-robust
   qam16-balanced
   qam64-throughput
-  qam256-max
-  qpsk-stress
 
 This script:
   1. Preserves serveraddr / DU target
@@ -86,18 +84,6 @@ profile_values() {
       TC_MODE="netem"; TC_RATE="45mbit"; TC_DELAY="1ms"; TC_JITTER="0ms"; TC_LOSS="0%"
       TC_DESC="rate 45mbit delay 1ms 0ms loss 0%"
       PROFILE_DESC="high-throughput profile using RFsim metadata + light calibrated netem"
-      ;;
-    qam256-max)
-      ENB_PLOSS="12"; ENB_NOISE="-10"; UE_PLOSS="12"; UE_NOISE="-8"
-      TC_MODE="clear"
-      TC_DESC="clear / no shaping / native ceiling"
-      PROFILE_DESC="max-throughput profile using RFsim metadata + native ceiling"
-      ;;
-    qpsk-stress)
-      ENB_PLOSS="60"; ENB_NOISE="25"; UE_PLOSS="60"; UE_NOISE="28"
-      TC_MODE="netem"; TC_RATE="8mbit"; TC_DELAY="50ms"; TC_JITTER="15ms"; TC_LOSS="2%"
-      TC_DESC="rate 8mbit delay 50ms 15ms loss 2%"
-      PROFILE_DESC="stress profile for calibration only"
       ;;
     status)
       return 1

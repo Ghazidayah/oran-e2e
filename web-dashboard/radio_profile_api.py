@@ -18,8 +18,6 @@ PROFILE_MCS = {
     "qpsk-robust":      {"max_mcs": "4",    "qm": "2",        "mod": "QPSK (forced)"},
     "qam16-balanced":   {"max_mcs": "13",   "qm": "4",        "mod": "16QAM (forced)"},
     "qam64-throughput": {"max_mcs": "28",   "qm": "6",        "mod": "64QAM (forced)"},
-    "qam256-max":       {"max_mcs": "28",   "qm": "6",        "mod": "256QAM requested; UE-cap-limited to 64QAM"},
-    "qpsk-stress":      {"max_mcs": "2",    "qm": "2",        "mod": "QPSK low (calibration)"},
 }
 
 REFERENCE_ROWS = [
@@ -27,7 +25,6 @@ REFERENCE_ROWS = [
     {"profile": "qpsk-robust",      "max_mcs": "4",    "modulation": "QPSK (Qm 2, forced)",      "tcp_mbps": "~6.7", "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
     {"profile": "qam16-balanced",   "max_mcs": "13",   "modulation": "16QAM (Qm 4, forced)",     "tcp_mbps": "~17.7","ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
     {"profile": "qam64-throughput", "max_mcs": "28",   "modulation": "64QAM (Qm 6, forced)",     "tcp_mbps": "~30",  "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
-    {"profile": "qam256-max",       "max_mcs": "28",   "modulation": "64QAM (UE-cap, no 256QAM)","tcp_mbps": "~30",  "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED ⚠ 256QAM UE-cap", "source": "modulation-scenarios-validation.md"},
 ]
 
 
@@ -66,7 +63,7 @@ def _keyvals(text):
 def _detect_profile(kv):
     cap = kv.get("dl_max_mcs", "").strip()
     mapping = {"none(adaptive)": "scheduler-auto", "4": "qpsk-robust",
-               "13": "qam16-balanced", "28": "qam64-throughput", "2": "qpsk-stress"}
+               "13": "qam16-balanced", "28": "qam64-throughput"}
     return mapping.get(cap, f"max_mcs={cap}" if cap else "unknown")
 
 
@@ -262,5 +259,5 @@ def radio_results():
         "rows": live,
         "reference_rows": ref,
         "profile_mcs": PROFILE_MCS,
-        "note": "Real forced MCS per profile via --MACRLCs.[0].dl/ul_max_mcs on the active DU, verified by Qm in DU logs. 256QAM is UE-capability-limited (UE does not advertise pdsch-256QAM-FR1) so qam256-max effectively reaches 64QAM.",
+        "note": "Real forced MCS per profile via --MACRLCs.[0].dl/ul_max_mcs on the active DU, verified by Qm in DU logs.",
     })

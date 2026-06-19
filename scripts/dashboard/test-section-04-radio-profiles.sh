@@ -147,7 +147,7 @@ section "2. PROFILE APPLY + KPI TESTS"
 RESULTS_CSV="$OUT/results.csv"
 echo "profile,api_ok,active_after,tunnel_after,rf_values,netem_params,tcp_mbps,image_mbps,ping_avg_ms,verdict" > "$RESULTS_CSV"
 
-PROFILES="qpsk-robust qam16-balanced qam64-throughput qam256-max"
+PROFILES="qpsk-robust qam16-balanced qam64-throughput"
 
 for profile in $PROFILES; do
   section "2.$profile RADIO PROFILE TEST"
@@ -348,10 +348,9 @@ for p,v in vals.items():
 failures=0
 warnings=0
 
-# We expect qpsk-robust to be clearly lower than high-throughput profiles.
+# We expect qpsk-robust to be clearly lower than the top-throughput profile.
 qpsk=vals.get("qpsk-robust",{}).get("tcp")
 q64=vals.get("qam64-throughput",{}).get("tcp")
-q256=vals.get("qam256-max",{}).get("tcp")
 
 if qpsk is not None and q64 is not None:
     if qpsk < q64:
@@ -360,17 +359,7 @@ if qpsk is not None and q64 is not None:
         print("[WARN] TCP ladder not separated: qpsk-robust >= qam64-throughput")
         warnings += 1
 else:
-    print("[WARN] Not enough TCP data to compare qpsk and qam64")
-    warnings += 1
-
-if qpsk is not None and q256 is not None:
-    if qpsk < q256:
-        print("[PASS] TCP ladder: qpsk-robust < qam256-max")
-    else:
-        print("[WARN] TCP ladder not separated: qpsk-robust >= qam256-max")
-        warnings += 1
-else:
-    print("[WARN] Not enough TCP data to compare qpsk and qam256")
+    print("[WARN] Not enough TCP data to compare qpsk-robust and qam64-throughput")
     warnings += 1
 
 # Check at least some measurable TCP values.
