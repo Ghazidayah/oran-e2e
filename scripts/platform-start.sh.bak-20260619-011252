@@ -169,39 +169,6 @@ recover_mixed_du_if_available() {
   )
 }
 
-reconcile_ue_sessions() {
-  if [ "${ORAN_RECONCILE_UES:-1}" != "1" ]; then
-    echo "[SKIP] ORAN_RECONCILE_UES=${ORAN_RECONCILE_UES:-1}"
-    return 0
-  fi
-
-  local rec="$ROOT_DIR/scripts/recover-ue-sessions.sh"
-  if [ ! -x "$rec" ]; then
-    echo "[SKIP] recover-ue-sessions.sh not found"
-    return 0
-  fi
-
-  section "Reconciling UE PDU sessions"
-
-  # Pods can be Ready while their oaitun_ue1 tunnel has not formed yet.
-  # Let freshly-restored UEs self-attach before we judge them.
-  local settle="${ORAN_UE_SETTLE_SECONDS:-45}"
-  echo "Settling ${settle}s before first UE health check..."
-  sleep "$settle"
-
-  # Diagnose + restart ONLY the UEs that still have no working tunnel.
-  # recover-ue-sessions.sh waits up to 240s/UE for tunnels to re-form.
-  "$rec" --fix --yes || true
-
-  section "Final UE health confirmation"
-  if "$rec" | grep -q "VERDICT=ALL_HEALTHY"; then
-    echo "All UEs healthy."
-  else
-    echo "[WARN] UEs still not all healthy after reconcile."
-    echo "[WARN] Inspect DU1 + UE logs before demoing (UE2-5 home on DU1)."
-  fi
-}
-
 echo "===== O-RAN platform start ====="
 echo "Root dir: $ROOT_DIR"
 echo "State file: $STATE_FILE"
@@ -241,7 +208,6 @@ done
 
 start_dashboard
 recover_mixed_du_if_available
-reconcile_ue_sessions
 
 section "Final pod state"
 for ns in $TARGET_NAMESPACES; do

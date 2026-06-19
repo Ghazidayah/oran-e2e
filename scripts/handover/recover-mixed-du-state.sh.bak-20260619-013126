@@ -128,20 +128,16 @@ PY
 
 echo
 echo "3) Recover missing switchable UEs to DU1"
-switch_to_du1 ue2
-save_status "03-status-after-ue2-du1"
-run_one_traffic ue2 streaming
-
 switch_to_du1 ue3
-save_status "04-status-after-ue3-du1"
+save_status "03-status-after-ue3-du1"
 run_one_traffic ue3 streaming
 
 switch_to_du1 ue4
-save_status "05-status-after-ue4-du1"
+save_status "04-status-after-ue4-du1"
 run_one_traffic ue4 video_download
 
 switch_to_du1 ue5
-save_status "06-status-after-ue5-du1"
+save_status "05-status-after-ue5-du1"
 run_one_traffic ue5 tcp_download
 
 echo

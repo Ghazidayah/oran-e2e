@@ -91,7 +91,7 @@ spec:
         - --ssb
         - "516"
         - --rfsimulator.serveraddr
-        - oai-gnb-rfsim
+        - oai-du1-rfsim
         - --rfsimulator.serverport
         - "4043"
         - --log_config.global_log_options
