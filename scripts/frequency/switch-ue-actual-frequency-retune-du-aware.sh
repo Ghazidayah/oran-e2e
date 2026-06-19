@@ -53,8 +53,8 @@ Usage:
   $0 n78-current
   $0 n78-raster-high
   $0 n78-3500
-  $0 n78-cband-3780
   $0 n41-2600
+  $0 n77-4174
   $0 restore
 
 Validated real actual OAI carrier retune profiles for UE1.
@@ -102,17 +102,6 @@ profile_values(){
       TARGET_SSB_ARG="516"
       ;;
 
-    n78-cband-3780)
-      TARGET_NAME="n78-cband-3780"
-      TARGET_SSB="651936"
-      TARGET_POINTA="650664"
-      TARGET_BAND="78"
-      TARGET_BW="106"
-      TARGET_C_HZ="3779040000"
-      TARGET_UE_BAND="78"
-      TARGET_SSB_ARG="516"
-      ;;
-
     n41-2600)
       # VALIDATED 2026-06-04.
       # 2600 MHz-class Band 41 profile using OAI known 106PRB values.
@@ -125,6 +114,20 @@ profile_values(){
       TARGET_BW="106"
       TARGET_C_HZ="2593350000"
       TARGET_UE_BAND="41"
+      TARGET_SSB_ARG="516"
+      ;;
+
+    n77-4174)
+      # n77 4173.6 MHz TDD, 106 PRB, 30 kHz. SSB centered (GSCN 8314), carrier inside 3300-4200.
+      # n77 min channel BW = 10 MHz -> same CORESET#0 table as n78, so centered geometry is valid.
+      # Requires UE --band 77 + -C 4173600000 + --ssb 516.
+      TARGET_NAME="n77-4174"
+      TARGET_SSB="678240"
+      TARGET_POINTA="676968"
+      TARGET_BAND="77"
+      TARGET_BW="106"
+      TARGET_C_HZ="4173600000"
+      TARGET_UE_BAND="77"
       TARGET_SSB_ARG="516"
       ;;
 

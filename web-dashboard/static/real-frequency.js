@@ -36,11 +36,10 @@
       return;
     }
     body.innerHTML = rows.map(function (r) {
-      var isExp = r.profile === "n28-700";
       var verdict = r.verdict || "";
       var ok = verdict.indexOf("PASS") !== -1 || verdict.indexOf("OK") !== -1;
-      var verdictColor = isExp ? "#ff9800" : (ok ? "#4caf50" : "#f44336");
-      var profileLabel = isExp ? "⚠ " + (r.profile || "-") : (r.profile || "-");
+      var verdictColor = ok ? "#4caf50" : "#f44336";
+      var profileLabel = r.profile || "-";
       return (
         "<tr>" +
           "<td>" + profileLabel + "</td>" +
@@ -88,9 +87,6 @@
     var profile = selectedProfile();
     setBusy(true);
     var msg = "Applying real carrier retune: " + profile + "\n\nThis restarts DU + UE pods — may take several minutes...";
-    if (profile === "n28-700") {
-      msg += "\n\n⚠ EXPERIMENTAL: n28 700 MHz FDD — cell boot and UE sync expected up to RACH Msg2.\n   Msg3 is blocked by OAI RFsim FDD limitation — no data tunnel will form.\n   Use Restore n78-current to return to baseline.";
-    }
     setText("realFreqLog", msg);
     try {
       var data = await api("/api/real-frequency/apply", {
@@ -123,10 +119,9 @@
   // ── KPI comparison section ───────────────────────────────────────────────
 
   var KPI_PROFILES = [
-    {value: "n78-3500",       label: "n78-3500",       mhz: "3499.68", band: "n78", duplex: "TDD / 30 kHz"},
-    {value: "n78-cband-3780", label: "n78-cband-3780", mhz: "3779.04", band: "n78", duplex: "TDD / 30 kHz"},
-    {value: "n41-2600",       label: "n41-2600",       mhz: "2593.35", band: "n41", duplex: "TDD / 30 kHz"},
-    {value: "n28-700",        label: "n28-700",        mhz: "781.25",  band: "n28", duplex: "FDD / 15 kHz"},
+    {value: "n41-2600",  label: "n41-2600",  mhz: "2593.35", band: "n41", duplex: "TDD / 30 kHz"},
+    {value: "n78-3500",  label: "n78-3500",  mhz: "3499.68", band: "n78", duplex: "TDD / 30 kHz"},
+    {value: "n77-4174",  label: "n77-4174",  mhz: "4173.60", band: "n77", duplex: "TDD / 30 kHz"},
   ];
 
   function setKpiBusy(busy) {
@@ -144,8 +139,7 @@
 
     body.innerHTML = KPI_PROFILES.map(function (p) {
       var r = rowMap[p.value];
-      var isLow = (p.value === "n28-700");
-      var label = (isLow ? "⚠ " : "") + p.label;
+      var label = p.label;
 
       if (!r) {
         return (

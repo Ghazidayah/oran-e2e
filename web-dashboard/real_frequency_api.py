@@ -11,7 +11,6 @@ real_freq_bp = Blueprint("real_freq_bp", __name__)
 
 REPO = Path(os.environ.get("ORAN_REPO", Path(__file__).resolve().parents[1]))
 SCRIPT = REPO / "scripts" / "frequency" / "switch-ue-actual-frequency-retune-du-aware.sh"
-SCRIPT_N28 = REPO / "scripts" / "frequency" / "validate-n28-700-on-du0.sh"
 RESULTS_FILE = Path(__file__).resolve().with_name("real-frequency-results.json")
 KPI_RESULTS_FILE = Path(__file__).resolve().with_name("freq-kpi-results.json")
 
@@ -38,13 +37,6 @@ PROFILES = {
         "ssb": "633312",
         "pointa": "632040",
     },
-    "n78-cband-3780": {
-        "freq_mhz": 3779.04,
-        "band": "n78",
-        "description": "n78 C-band 3780 MHz — SSB 651936, PointA 650664",
-        "ssb": "651936",
-        "pointa": "650664",
-    },
     "n41-2600": {
         "freq_mhz": 2593.35,
         "band": "n41",
@@ -52,34 +44,29 @@ PROFILES = {
         "ssb": "518670",
         "pointa": "514854",
     },
-    "n28-700": {
-        "freq_mhz": 781.25,
-        "band": "n28 FDD",
-        "description": "[EXPERIMENTAL] n28 700 MHz FDD — cell+sync+RACH Msg2 OK; Msg3 blocked by OAI RFsim FDD (no data tunnel)",
-        "ssb": "156250",
-        "pointa": "N/A (full FDD conf swap)",
-        "experimental": True,
+    "n77-4174": {
+        "freq_mhz": 4173.60,
+        "band": "n77",
+        "description": "n77 4174 MHz — SSB 678240, PointA 676968 (validated 2026-06-19)",
+        "ssb": "678240",
+        "pointa": "676968",
     },
 }
 
 
 # Representative tc netem profiles per band — EMULATED, not measured from RFsim
 BAND_NETEM = {
-    "n78-3500": {
-        "delay": "2ms", "jitter": "1ms", "loss": "0%", "rate": "12mbit",
-        "label": "C-band 3500 MHz (TDD)",
-    },
-    "n78-cband-3780": {
-        "delay": "3ms", "jitter": "1ms", "loss": "0.1%", "rate": "10mbit",
-        "label": "C-band 3780 MHz (TDD)",
-    },
     "n41-2600": {
-        "delay": "8ms", "jitter": "2ms", "loss": "0.1%", "rate": "7mbit",
+        "delay": "6ms", "jitter": "1ms", "loss": "0%", "rate": "13mbit",
         "label": "Mid-band 2600 MHz (TDD)",
     },
-    "n28-700": {
-        "delay": "25ms", "jitter": "5ms", "loss": "0.3%", "rate": "3mbit",
-        "label": "Low-band 700 MHz FDD",
+    "n78-3500": {
+        "delay": "9ms", "jitter": "1ms", "loss": "0.1%", "rate": "11mbit",
+        "label": "C-band 3500 MHz (TDD)",
+    },
+    "n77-4174": {
+        "delay": "12ms", "jitter": "2ms", "loss": "0.1%", "rate": "9mbit",
+        "label": "Upper C-band 4174 MHz (TDD)",
     },
 }
 
@@ -123,16 +110,10 @@ def _save_results(data):
 
 
 def _run(profile, timeout=900):
-    if profile not in PROFILES and profile not in ("status", "restore", "n28-700-restore"):
+    if profile not in PROFILES and profile not in ("status", "restore"):
         return {"ok": False, "returncode": 2, "output": f"Unknown real-frequency profile: {profile}"}
 
-    # n28-700 uses a full FDD conf-file swap via a separate script
-    if profile == "n28-700":
-        cmd = ["bash", str(SCRIPT_N28), "apply"]
-    elif profile == "n28-700-restore":
-        cmd = ["bash", str(SCRIPT_N28), "restore"]
-    else:
-        cmd = ["bash", str(SCRIPT), profile]
+    cmd = ["bash", str(SCRIPT), profile]
 
     proc = subprocess.run(
         cmd,
@@ -238,12 +219,7 @@ def apply():
 @real_freq_bp.route("/restore", methods=["POST"])
 def restore():
     data = _load_results()
-    # If we're currently on n28-700 (FDD full conf swap), undo via the validate script
-    # so the original gnb.conf is properly restored from backup — not just key-patched.
-    if data.get("active_profile") == "n28-700":
-        res = _run("n28-700-restore", timeout=900)
-    else:
-        res = _run("restore", timeout=900)
+    res = _run("restore", timeout=900)
 
     parsed = _parse_carrier_keys(res.get("output", ""))
     ok = res["ok"]
