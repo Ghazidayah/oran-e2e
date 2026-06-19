@@ -442,6 +442,11 @@ ${escapeHtml(result.output || '')}
     });
   }
 
+  // Start every page load with clean output panels — no stale prior-run content.
+  const _initOut = document.getElementById('multiUeOutput');
+  if (_initOut) _initOut.textContent = '';
+  clearMultiUeScenarioSummary();
+
   refreshF1ModeForMultiUe().then(refreshMultiUes);
   setInterval(async () => {
     await refreshF1ModeForMultiUe();

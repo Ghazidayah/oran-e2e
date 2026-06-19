@@ -11,7 +11,7 @@
 </head>
 <body>
 <nav class="topnav">
-  <span class="topnav-brand">O-RAN Dashboard</span>
+  <span class="topnav-brand"><span class="topnav-logo">5G</span>O-RAN Dashboard</span>
   <div class="topnav-links">
     <a href="#section-status">Status</a>
     <a href="#radioProfileRoot">Radio/Mod</a>
@@ -59,17 +59,12 @@
   
 <section class="panel handover-panel" id="radioProfileRoot">
   <h3>Radio / Modulation Profile Control</h3>
-  <p class="muted">
-    Loading Radio Profile Results / Comparison and Radio Profile Logs...
-  </p>
 </section>
 
 <section class="panel" id="realFrequencyRoot">
-  <h2>Frequency Scenarios</h2>
-  <p class="section-sub">One section, two layers: the carrier retune is <strong>REAL</strong> (DU carrier keys + pod restarts); the per-band KPI comparison is <strong>EMULATED</strong> (tc netem). DU auto-detected from UE1 serveraddr.</p>
+  <h2>Frequency Scenarios <span class="badge real">REAL carrier</span> <span class="badge emulated">EMULATED KPI</span></h2>
 
   <h3>Real Carrier Retune</h3>
-  <p class="section-sub">Patches DU ConfigMap carrier keys and UE args, then restarts both pods. <strong>Takes several minutes.</strong></p>
 
   <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
     <label for="realFreqSelect">Carrier profile:</label>
@@ -109,8 +104,7 @@
   </div>
 
   <div id="freqKpiRoot" style="margin-top:26px;">
-  <h3>Band KPI Comparison <span class="muted" style="font-size:0.78em;font-weight:normal;margin-left:8px;">EMULATED — tc netem on oaitun_ue1</span></h3>
-  <p class="section-sub">Applies <code>tc netem</code> profiles per band and measures ping + uplink TCP through the UPF gateway. DU stays on n78 baseline — differences are from the emulation profile, not RFsim physics.</p>
+  <h3>Band KPI Comparison <span class="badge emulated" style="margin-left:6px;">EMULATED</span></h3>
 
   <div class="controls" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
     <label for="kpiProfileSelect">Scenario:</label>
@@ -163,73 +157,58 @@
   <div class="grid cards">
     <div>
       <h3>Serving DU Check</h3>
-      <p class="small">Shows which DU (DU0 or DU1) is currently serving UE1 in the F1-split topology.</p>
       <button onclick="runActionInteractive('ownership', this)">Check Serving DU</button>
     </div>
 
     <div>
       <h3>UE Attach + PDU Session</h3>
-      <p class="small">Checks attach, PDU session, and RAN-Core path.</p>
       <button onclick="runUeScenarioInteractive('attach_pdu', this)">Validate UE Session</button>
     </div>
 
     <div>
       <h3>UE Connectivity Test</h3>
-      <p class="small">Tests DN gateway reachability through selected UE tunnel(s).</p>
       <button onclick="runUeScenarioInteractive('connectivity', this)">Run Connectivity</button>
     </div>
 
     <div>
       <h3>Image Download</h3>
-      <p class="small">Downloads a real image payload through oaitun_ue1.</p>
       <button onclick="runPhase2Traffic('image', this)">Run Image</button>
     </div>
 
     <div>
       <h3>iperf3 TCP Throughput</h3>
-      <p class="small">Measures TCP throughput over the UE tunnel.</p>
       <button onclick="runPhase2Traffic('iperf-tcp', this)">Run TCP</button>
     </div>
 
     <div>
       <h3>UDP Jitter / Loss</h3>
-      <p class="small">Runs custom UDP traffic for jitter and packet-loss KPIs.</p>
       <button onclick="runPhase2Traffic('udp', this)">Run UDP</button>
     </div>
 
     <div>
       <h3>Video Download</h3>
-      <p class="small">Downloads a 10 MB video payload through the UE tunnel.</p>
       <button onclick="runPhase2Traffic('video', this)">Run Video</button>
     </div>
 
     <div>
       <h3>Web Browsing</h3>
-      <p class="small">Downloads HTML, CSS, JS and image resources.</p>
       <button onclick="runPhase2Traffic('web', this)">Run Web</button>
     </div>
 
     <div>
       <h3>Streaming-like HLS</h3>
-      <p class="small">Downloads a playlist and several media segments.</p>
       <button onclick="runPhase2Traffic('streaming', this)">Run Streaming</button>
     </div>
 
     <div>
       <h3>Run All Realistic Traffic</h3>
-      <p class="small">Runs all Phase 2 scenarios and creates a full evidence suite.</p>
       <button onclick="runPhase2Traffic('run-all', this)">Run All</button>
     </div>
   </div>
 
   <pre id="actionOutput" class="multi-ue-output">Ready.</pre>
 
-  <h3 style="margin-top:22px">Scenario KPI Results</h3>
-  <p class="small">
-    Latest result per scenario. <strong>Real traffic over the real 5G user plane</strong>
-    (UE tunnel &rarr; RFsim PHY/MAC &rarr; F1 &rarr; CU &rarr; GTP-U &rarr; UPF) &mdash;
-    no netem/tc shaping applied; RFsim radio channel.
-  </p>
+  <h3 style="margin-top:22px">Scenario KPI Results <span class="badge real">REAL</span></h3>
   <div class="radio-table-wrap">
     <table class="radio-results" id="e2eKpiTable">
       <thead>
@@ -253,45 +232,33 @@
 
 <!-- PHASE3_REAL_SLICE_PANEL_START -->
 <section class="card section" id="phase3RealSlicePanel">
-  <h2>Real S-NSSAI Slice Traffic</h2>
-  <p class="section-sub">Switches UE1 S-NSSAI, validates tunnel, runs traffic, then restores SST=1. Slice admission is <strong>REAL</strong> (AMF-granted); per-slice throughput/latency is <strong>EMULATED</strong> via <code>tc tbf</code>.</p>
+  <h2>Real S-NSSAI Slice Traffic <span class="badge real">REAL admission</span> <span class="badge emulated">EMULATED QoS</span></h2>
 
   <div class="grid cards">
     <div>
       <h3>eMBB Real Slice</h3>
-      <p class="small">SST=1, DNN=oai. Runs image, video, web, streaming and iperf TCP.</p>
       <button onclick="runRealSliceTraffic('embb', this)">Run eMBB Slice</button>
     </div>
 
     <div>
       <h3>URLLC Real Slice</h3>
-      <p class="small">SST=2, DNN=oai. Runs UDP jitter/loss traffic.</p>
       <button onclick="runRealSliceTraffic('urllc', this)">Run URLLC Slice</button>
     </div>
 
     <div>
       <h3>mMTC Real Slice</h3>
-      <p class="small">SST=3, DNN=oai. Runs IoT-style small UDP packets.</p>
       <button onclick="runRealSliceTraffic('mmtc', this)">Run mMTC Slice</button>
     </div>
 
     <div>
       <h3>V2X Real Slice</h3>
-      <p class="small">SST=4, DNN=oai. Runs streaming-like HLS plus UDP continuity traffic.</p>
       <button onclick="runRealSliceTraffic('v2x', this)">Run V2X Slice</button>
     </div>
   </div>
 
   <pre id="phase3RealSliceOutput" class="multi-ue-output">Ready. Select a slice profile and click Run.</pre>
 
-  <h3 style="margin-top:22px">Slice Run Results</h3>
-  <p style="font-size:13px;opacity:.85;margin-bottom:12px">
-    <strong>Slice admission (Granted S-NSSAI) is real</strong> — verified from the AMF log
-    (<code>S_NSSAI[SST:x]</code>, parsed at run time, never assumed from the request).
-    Throughput and latency differences per slice come from <code>tc tbf</code> resource profiles
-    applied on <code>oaitun_ue1</code> and are <strong>EMULATED</strong> —
-    the RFsim gNB scheduler does not enforce 5QI or GBR radio resources.
-  </p>
+  <h3 style="margin-top:22px">Slice Run Results <span class="badge real">REAL</span> <span class="badge emulated">EMULATED QoS</span></h3>
   <div class="radio-table-wrap">
     <table class="radio-results" id="sliceResultsTable">
       <thead>
@@ -341,8 +308,7 @@
   </section>
   <section class="card section" id="section-live">
     <h2>Real-Time Multi-UE Data Transfer</h2>
-    <p class="small">Live RX/TX totals from attached UEs included in the selected active UE count.</p>
-    <canvas id="trafficCanvas" width="1000" height="260"></canvas>
+    <canvas id="trafficCanvas" width="1000" height="380"></canvas>
     <div class="grid cards section">
       <div class="card">
         <h3>Total Download RX</h3>

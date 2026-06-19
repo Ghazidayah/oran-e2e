@@ -12,23 +12,18 @@
   style.textContent = `
     .radio-profile-section { margin-top: 18px; }
     .radio-profile-title { font-size: 17px; font-weight: 700; margin: 0 0 6px; }
-    .radio-profile-subtitle { opacity: .88; margin-bottom: 18px; }
-    .radio-card-grid { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 12px; margin-bottom: 14px; }
-    .radio-card { border: 1px solid rgba(148,163,184,.25); border-radius: 10px; padding: 12px 14px; background: rgba(15,23,42,.55); }
-    .radio-card .label { font-size: 12px; opacity: .75; margin-bottom: 6px; }
-    .radio-card .value { font-size: 16px; font-weight: 700; word-break: break-word; }
     .radio-controls { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 18px; align-items: center; }
-    .radio-controls select { background: #0f172a; color: #e5e7eb; border: 1px solid rgba(148,163,184,.35); border-radius: 8px; padding: 9px 10px; }
-    .radio-controls button { background: #2563eb; color: white; border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 700; cursor: pointer; }
-    .radio-controls button.secondary { background: #334155; }
-    .radio-note-ok { border: 1px solid rgba(34,197,94,.35); color: #bbf7d0; border-radius: 10px; padding: 10px 12px; margin: 12px 0; background: rgba(6,78,59,.22); }
-    .radio-table-wrap { overflow-x: auto; border: 1px solid rgba(148,163,184,.20); border-radius: 10px; margin-top: 14px; }
+    .radio-controls select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 10px; font-family: inherit; }
+    .radio-controls button { background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius); padding: 7px 11px; font-weight: 600; font-size: 12px; cursor: pointer; font-family: inherit; transition: background 0.1s, color 0.1s; }
+    .radio-controls button:hover:not(:disabled) { background: var(--accent); color: var(--bg); }
+    .radio-controls button.secondary { color: var(--muted); border-color: var(--line); }
+    .radio-controls button.secondary:hover:not(:disabled) { background: var(--panel-2); color: var(--text); border-color: var(--line); }
+    .radio-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); margin-top: 14px; }
     .radio-results { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .radio-results th, .radio-results td { border-bottom: 1px solid rgba(148,163,184,.16); padding: 10px; text-align: left; white-space: nowrap; }
-    .radio-results th { color: #cbd5e1; background: rgba(15,23,42,.75); }
+    .radio-results th, .radio-results td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; white-space: nowrap; }
+    .radio-results th { color: var(--muted); background: var(--panel-2); }
     .radio-results tr.ref-row { opacity: .72; font-style: italic; }
-    .radio-log { margin-top: 14px; min-height: 150px; max-height: 360px; overflow: auto; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; border: 1px solid rgba(148,163,184,.25); border-radius: 10px; padding: 14px; background: rgba(2,6,23,.72); }
-    @media (max-width: 900px) { .radio-card-grid { grid-template-columns: repeat(2, minmax(130px, 1fr)); } }
+    .radio-log { margin-top: 14px; min-height: 150px; max-height: 360px; overflow: auto; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: var(--log-bg); color: var(--text); }
   `;
   document.head.appendChild(style);
 
@@ -46,22 +41,6 @@
     root.classList.add("radio-profile-section");
     root.innerHTML = `
       <h2 class="radio-profile-title">Radio / Modulation Profile</h2>
-      <div class="radio-profile-subtitle">
-        Real forced-MCS profiles via <code>--MACRLCs.[0].dl/ul_max_mcs</code> on the active DU (auto-detected from UE1 serveraddr). Verified in DU logs as Qm 2/4/6.
-      </div>
-
-      <div class="radio-card-grid">
-        <div class="radio-card"><div class="label">Active Profile</div><div class="value" id="rp-active-profile">—</div></div>
-        <div class="radio-card"><div class="label">Max MCS</div><div class="value" id="rp-max-mcs">—</div></div>
-        <div class="radio-card"><div class="label">Modulation</div><div class="value" id="rp-modulation">—</div></div>
-        <div class="radio-card"><div class="label">Active DU</div><div class="value" id="rp-active-du">—</div></div>
-        <div class="radio-card"><div class="label">UE Tunnel</div><div class="value" id="rp-tunnel">—</div></div>
-      </div>
-
-      <div class="radio-note-ok">
-        ✅ Real forced MCS (verified): QPSK ~6.7 · 16QAM ~17.7 · 64QAM ~30 Mbps.
-        256QAM is UE-capability-limited (reaches 64QAM).
-      </div>
 
       <div class="radio-controls">
         <select id="rp-profile-select">
@@ -150,8 +129,8 @@
     }).join("");
   }
 
-  async function refreshStatus() {
-    log("Refreshing modulation profile status...");
+  async function refreshStatus(writeLog = true) {
+    if (writeLog) log("Refreshing modulation profile status...");
     try {
       const s = await api("/api/radio/status");
       setText("rp-active-profile", s.active_profile);
@@ -161,9 +140,9 @@
       setText("rp-tunnel", s.tunnel_ready === "yes" ? "✅ READY" : "❌ NOT READY");
       const select = document.getElementById("rp-profile-select");
       if (select && PROFILES.some(([v]) => v === s.active_profile)) select.value = s.active_profile;
-      log(s.log || "");
+      if (writeLog) log(s.log || "");
     } catch (e) {
-      log("Status error: " + String(e));
+      if (writeLog) log("Status error: " + String(e));
     }
   }
 
@@ -185,7 +164,7 @@
         body: JSON.stringify({ profile })
       });
       log(r.log);
-      await refreshStatus();
+      await refreshStatus(false);
       await refreshResults();
     } catch (e) {
       log("Error: " + String(e));
@@ -200,7 +179,7 @@
         body: JSON.stringify({ profile })
       });
       log(r.log);
-      await refreshStatus();
+      await refreshStatus(false);
       await refreshResults();
     } catch (e) {
       log("Error: " + String(e));
@@ -228,7 +207,7 @@
     bindClick("rp-clear-logs", () => log("Ready."));
 
     try {
-      await refreshStatus();
+      await refreshStatus(false);
       await refreshResults();
     } catch (e) {
       log(String(e));

@@ -55,9 +55,10 @@
     }).join("");
   }
 
-  async function refreshStatus() {
+  async function refreshStatus(writeLog) {
+    writeLog = (writeLog !== false);
     setBusy(true);
-    setText("realFreqLog", "Fetching real carrier retune status...");
+    if (writeLog) setText("realFreqLog", "Fetching real carrier retune status...");
     try {
       var data = await api("/api/real-frequency/status");
       var keys = data.carrier_keys || {};
@@ -72,12 +73,12 @@
       ];
       Object.keys(keys).forEach(function (k) { lines.push("  " + k + " = " + keys[k]); });
       setText("realFreqSummary", lines.join("\n"));
-      setText("realFreqLog", data.log || "Status OK.");
+      if (writeLog) setText("realFreqLog", data.log || "Status OK.");
 
       var results = await api("/api/real-frequency/results");
       renderResults(results);
     } catch (e) {
-      setText("realFreqLog", "ERROR: " + String(e));
+      if (writeLog) setText("realFreqLog", "ERROR: " + String(e));
     } finally {
       setBusy(false);
     }
@@ -97,7 +98,7 @@
         body: JSON.stringify({ profile: profile })
       });
       setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + "profile=" + profile + "\n\n" + (data.log || ""));
-      await refreshStatus();
+      await refreshStatus(false);
     } catch (e) {
       setText("realFreqLog", "ERROR: " + String(e));
     } finally {
@@ -111,7 +112,7 @@
     try {
       var data = await api("/api/real-frequency/restore", { method: "POST", body: JSON.stringify({}) });
       setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + "restore n78-current\n\n" + (data.log || ""));
-      await refreshStatus();
+      await refreshStatus(false);
     } catch (e) {
       setText("realFreqLog", "ERROR: " + String(e));
     } finally {
@@ -235,7 +236,8 @@
     if (applyBtn)   applyBtn.addEventListener("click", applyRetune);
     if (restoreBtn) restoreBtn.addEventListener("click", restoreBaseline);
 
-    refreshStatus();
+    setText("realFreqLog", "Ready.");
+    refreshStatus(false);
 
     var kpiOneBtn = byId("kpiRunOneBtn");
     var kpiAllBtn = byId("kpiRunAllBtn");

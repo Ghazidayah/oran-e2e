@@ -170,5 +170,5 @@ async function runF1Handover() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  refreshHandoverStatus(true);
+  refreshHandoverStatus(false);
 });
