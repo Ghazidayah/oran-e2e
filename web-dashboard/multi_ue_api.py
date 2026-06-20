@@ -1,7 +1,11 @@
 import json
 import shlex
 import time
+from pathlib import Path
+
 from flask import jsonify, request
+
+MULTI_UE_RESULTS_FILE = Path(__file__).resolve().with_name("multi-ue-results.json")
 
 UE_NAMESPACE = "oran-ran"
 UE_TUNNEL = "oaitun_ue1"
@@ -1187,7 +1191,7 @@ sys.exit(0 if ok else 1)
                 "results": results,
             }, indent=2))
 
-            return jsonify({
+            payload = {
                 "ok": ok,
                 "mode": "phase4_multi_ue_embb",
                 "slice": "eMBB",
@@ -1200,7 +1204,17 @@ sys.exit(0 if ok else 1)
                 "base_url": base_url,
                 "skipped": skipped,
                 "results": results,
-            })
+            }
+            try:
+                MULTI_UE_RESULTS_FILE.write_text(
+                    json.dumps(
+                        {**payload, "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")},
+                        indent=2,
+                    )
+                )
+            except Exception:
+                pass
+            return jsonify(payload)
 
         finally:
             if server_proc is not None:
@@ -1214,6 +1228,14 @@ sys.exit(0 if ok else 1)
                         pass
     # PHASE4_MULTI_UE_EMBB_REALISTIC_END
 
+    @app.route("/api/ues/embb-scenarios/last", methods=["GET"])
+    def api_ues_embb_last_multi():
+        try:
+            if MULTI_UE_RESULTS_FILE.exists():
+                return jsonify(json.loads(MULTI_UE_RESULTS_FILE.read_text()))
+        except Exception:
+            pass
+        return jsonify({"ok": True, "results": [], "empty": True})
 
     @app.route("/api/ues/scenarios", methods=["POST"])
     def api_ues_independent_scenarios_multi():

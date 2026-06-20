@@ -12,7 +12,6 @@ let desiredUeCountUserEdited = false;
     ["web", "Web Browsing eMBB"],
     ["streaming", "Streaming-like HLS eMBB"],
     ["tcp_download", "TCP Download KPI eMBB"],
-    ["stop", "Stop traffic"]
   ];
 
   function setPerUeScenario(ueName, scenario) {
@@ -76,22 +75,9 @@ let desiredUeCountUserEdited = false;
     return true;
   }
 
-  function setMultiUeOutput(text, keepScenarioSummary = false) {
-    if (!keepScenarioSummary) {
-      clearMultiUeScenarioSummary();
-    }
-
+  function setMultiUeOutput(text) {
     const output = document.getElementById('multiUeOutput');
-    if (output) {
-      output.textContent = text || '';
-    }
-  }
-
-  function clearMultiUeScenarioSummary() {
-    const panel = document.getElementById('multiUeScenarioSummary');
-    if (!panel) return;
-    panel.hidden = true;
-    panel.innerHTML = '';
+    if (output) output.textContent = text || '';
   }
 
   function escapeHtml(value) {
@@ -109,8 +95,11 @@ let desiredUeCountUserEdited = false;
   }
 
   function scenarioPacketLoss(output) {
-    const matches = String(output || '').match(/\d+(?:\.\d+)?% packet loss/g) || [];
-    return matches.length ? matches.join(' / ') : '-';
+    const str = String(output || '');
+    const scenario = str.match(/packet_loss=([0-9.]+)%/);
+    if (scenario) return scenario[1] + '%';
+    const ping = str.match(/\d+(?:\.\d+)?% packet loss/g) || [];
+    return ping.length ? ping.join(' / ') : '-';
   }
 
   function scenarioNameForRow(data, result) {
@@ -132,37 +121,38 @@ let desiredUeCountUserEdited = false;
       ? 'Per-UE Independent Scenario Results'
       : `Multi-UE Scenario Results: ${data.label || data.scenario || 'scenario'}`;
 
-    const rows = results.map((result) => {
-      const output = result.output || '';
-      const duration = scenarioMetric(output, /duration_sec=([0-9]+)/);
-      const rx = scenarioMetric(output, /rx_delta_bytes=([0-9]+)/);
-      const tx = scenarioMetric(output, /tx_delta_bytes=([0-9]+)/);
-      const mbps = scenarioMetric(output, /approx_total_mbps=([0-9.]+)/);
-      return `
-        <tr>
-          <td><strong>${escapeHtml(result.ue || '-')}</strong></td>
-          <td>${escapeHtml(scenarioNameForRow(data, result))}<br><small>${escapeHtml(scenarioLabelForRow(data, result))}</small></td>
-          <td>${result.ok ? '<span class="multi-ue-badge multi-ue-attached">OK</span>' : '<span class="multi-ue-badge multi-ue-stopped">FAILED</span>'}</td>
-          <td><code>${escapeHtml(result.tunnel_ip || '-')}</code></td>
-          <td>${escapeHtml(fallbackValue(result.exit, '-'))}</td>
-          <td>${escapeHtml(scenarioPacketLoss(output))}</td>
-          <td>${duration ? `${escapeHtml(duration)}s` : '-'}</td>
-          <td>${rx || tx ? `${escapeHtml(rx || '-')} / ${escapeHtml(tx || '-')} B` : '-'}</td>
-          <td>${mbps ? `${escapeHtml(mbps)} Mbps` : '-'}</td>
-        </tr>
-      `;
-    }).join('');
+    const rows = results.length
+      ? results.map((result) => {
+          const output = result.output || '';
+          const duration = scenarioMetric(output, /duration_sec=([0-9]+)/);
+          const rx = scenarioMetric(output, /rx_delta_bytes=([0-9]+)/);
+          const tx = scenarioMetric(output, /tx_delta_bytes=([0-9]+)/);
+          const mbps = scenarioMetric(output, /approx_total_mbps=([0-9.]+)/);
+          return `
+            <tr>
+              <td><strong>${escapeHtml(result.ue || '-')}</strong></td>
+              <td>${escapeHtml(scenarioNameForRow(data, result))}<br><small>${escapeHtml(scenarioLabelForRow(data, result))}</small></td>
+              <td>${result.ok ? '<span class="multi-ue-badge multi-ue-attached">OK</span>' : '<span class="multi-ue-badge multi-ue-stopped">FAILED</span>'}</td>
+              <td><code>${escapeHtml(result.tunnel_ip || '-')}</code></td>
+              <td>${escapeHtml(fallbackValue(result.exit, '-'))}</td>
+              <td>${escapeHtml(scenarioPacketLoss(output))}</td>
+              <td>${duration ? `${escapeHtml(duration)}s` : '-'}</td>
+              <td>${rx || tx ? `${escapeHtml(rx || '-')} / ${escapeHtml(tx || '-')} B` : '-'}</td>
+              <td>${mbps ? `${escapeHtml(mbps)} Mbps` : '-'}</td>
+            </tr>
+          `;
+        }).join('')
+      : '<tr><td colspan="9">No scenario runs yet — run scenarios to populate.</td></tr>';
 
-    const rawBlocks = results.map((result) => `
-===== ${escapeHtml(result.ue || '-')} | ${escapeHtml(scenarioNameForRow(data, result))} | ${result.ok ? 'OK' : 'FAILED'} =====
-${escapeHtml(result.output || '')}
-`).join('\\n');
+    const rawBlocks = results.map((result) =>
+      `===== ${result.ue || '-'} | ${scenarioNameForRow(data, result)} | ${result.ok ? 'OK' : 'FAILED'} =====\n${result.output || ''}`
+    ).join('\n\n');
 
     const skipped = Array.isArray(data.skipped) && data.skipped.length
       ? `<span>Skipped: ${escapeHtml(data.skipped.length)}</span>`
       : '';
 
-    panel.innerHTML = `
+    const headerMeta = results.length ? `
       <div class="scenario-result-title">
         <h3>${escapeHtml(scenarioTitle)}</h3>
         <span class="scenario-status ${statusClass}">${statusText}</span>
@@ -173,7 +163,10 @@ ${escapeHtml(result.output || '')}
         <span>Selected UEs: ${escapeHtml((data.selected_ues || []).join(', ') || '-')}</span>
         <span>Selected count: ${escapeHtml(fallbackValue(data.selected_count, results.length))}</span>
         ${skipped}
-      </div>
+      </div>` : '';
+
+    panel.innerHTML = `
+      ${headerMeta}
       <table class="scenario-result-table">
         <thead>
           <tr>
@@ -188,14 +181,11 @@ ${escapeHtml(result.output || '')}
             <th>Approx Mbps</th>
           </tr>
         </thead>
-        <tbody>${rows || '<tr><td colspan="9">No per-UE results returned.</td></tr>'}</tbody>
+        <tbody>${rows}</tbody>
       </table>
-      <details class="scenario-raw-details">
-        <summary>Show raw per-UE logs</summary>
-        <pre class="scenario-raw-block">${rawBlocks || 'No raw logs available.'}</pre>
-      </details>
     `;
-    panel.hidden = false;
+
+    setMultiUeOutput(rawBlocks || 'No logs yet — run scenarios to populate.');
   }
 
   function fmtBytes(n) {
@@ -327,55 +317,6 @@ ${escapeHtml(result.output || '')}
     return match ? match[1] : '';
   }
 
-  function formatPerUeScenarioSummary(data) {
-    const lines = [];
-    lines.push('Per-UE independent scenario matrix');
-    lines.push(`Status: ${data.ok ? 'SUCCESS' : 'FAILED'}`);
-    lines.push(`Parallel execution: ${data.parallel ? 'yes' : 'no'}`);
-    lines.push(`Selected jobs: ${fallbackValue(data.selected_count, 0)}`);
-    lines.push(`Selected UEs: ${(data.selected_ues || []).join(', ') || '-'}`);
-
-    if (Array.isArray(data.skipped) && data.skipped.length > 0) {
-      lines.push('');
-      lines.push('Skipped:');
-      data.skipped.forEach((item) => lines.push(`- ${item.ue || '-'}: ${item.reason || 'skipped'}`));
-    }
-
-    if (Array.isArray(data.errors) && data.errors.length > 0) {
-      lines.push('');
-      lines.push('Errors:');
-      data.errors.forEach((err) => lines.push(`- ${err}`));
-    }
-
-    if (Array.isArray(data.results)) {
-      lines.push('');
-      lines.push('Per-UE results:');
-      data.results.forEach((result) => {
-        const output = result.output || '';
-        const lossLines = output.match(/\d+(?:\.\d+)?% packet loss/g) || [];
-        const mbps = extractScenarioValue(output, /approx_total_mbps=([0-9.]+)/);
-        const rx = extractScenarioValue(output, /rx_delta_bytes=([0-9]+)/);
-        const tx = extractScenarioValue(output, /tx_delta_bytes=([0-9]+)/);
-        const duration = extractScenarioValue(output, /duration_sec=([0-9]+)/);
-
-        lines.push(`- ${result.ue}: ${result.label || result.scenario || '-'} | ${result.ok ? 'OK' : 'FAILED'} | tunnel=${result.tunnel_ip || '-'} | exit=${result.exit}`);
-        if (lossLines.length > 0) {
-          lines.push(`  packet_loss: ${lossLines.join(' / ')}`);
-        }
-        if (duration || rx || tx || mbps) {
-          lines.push(`  kpi: duration=${duration || '-'}s rx=${rx || '-'}B tx=${tx || '-'}B approx=${mbps || '-'} Mbps`);
-        }
-      });
-    }
-
-    if (!data.ok && data.error) {
-      lines.push('');
-      lines.push(`Error: ${data.error}`);
-    }
-
-    return lines.join('\n');
-  }
-
   async function runSelectedUeScenarios() {
     if (multiUeBusy) return;
     await refreshF1ModeForMultiUe();
@@ -398,7 +339,6 @@ ${escapeHtml(result.output || '')}
       });
       const data = await response.json();
       renderMultiUeScenarioResult(data);
-      setMultiUeOutput(formatPerUeScenarioSummary(data), true);
       await refreshMultiUes();
     } catch (error) {
       setMultiUeOutput(`Per-UE scenarios failed: ${error}`);
@@ -442,16 +382,20 @@ ${escapeHtml(result.output || '')}
     });
   }
 
-  // Start every page load with clean output panels — no stale prior-run content.
-  const _initOut = document.getElementById('multiUeOutput');
-  if (_initOut) _initOut.textContent = '';
-  clearMultiUeScenarioSummary();
+  // Render empty-state table immediately so it is always visible, then load
+  // the persisted last run so table + logs survive a hard page refresh.
+  renderMultiUeScenarioResult({ results: [], ok: true });
 
   refreshF1ModeForMultiUe().then(refreshMultiUes);
   setInterval(async () => {
     await refreshF1ModeForMultiUe();
     await refreshMultiUes();
   }, 10000);
+
+  fetch('/api/ues/embb-scenarios/last')
+    .then((r) => r.json())
+    .then((data) => { if (!data.empty) renderMultiUeScenarioResult(data); })
+    .catch(() => {});
 
 
 // Extracted from index.html script block 4
