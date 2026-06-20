@@ -242,6 +242,58 @@ def results():
     return jsonify(data)
 
 
+@real_freq_bp.route("/run-band", methods=["POST"])
+def run_band():
+    payload = request.get_json(silent=True) or {}
+    profile = payload.get("profile", "")
+    if profile not in PROFILES:
+        return jsonify({"ok": False, "error": f"Unknown profile: {profile}"}), 400
+
+    # Step 1 — REAL carrier retune
+    res = _run(profile, timeout=900)
+    parsed = _parse_carrier_keys(res.get("output", ""))
+    retune_log = res.get("output", "")
+
+    if not res["ok"]:
+        return jsonify({
+            "ok": False,
+            "profile": profile,
+            "row": None,
+            "retune_verdict": "FAIL",
+            "log": retune_log,
+        })
+
+    # Step 2 — EMULATED netem KPI (only runs if retune succeeded)
+    kpi = _run_kpi_test(profile)
+    kpi_log = kpi.get("log", "")
+
+    row = {
+        "profile":        profile,
+        "band":           PROFILES[profile]["band"],
+        "freq_mhz":       PROFILES[profile]["freq_mhz"],
+        "ssb":            PROFILES[profile]["ssb"],
+        "pointa":         PROFILES[profile]["pointa"],
+        "du_deploy":      parsed["du_deploy"],
+        "retune_verdict": parsed["verdict"] or "PASS",
+        "tunnel_ready":   parsed["tunnel_ready"],
+        "netem":          kpi.get("netem", ""),
+        "ping_avg":       kpi.get("ping_avg", "?"),
+        "ping_loss":      kpi.get("ping_loss", "?"),
+        "tcp_mbps":       kpi.get("tcp_mbps", "?"),
+        "retransmits":    kpi.get("retransmits", "?"),
+        "timestamp":      time.strftime("%Y-%m-%d %H:%M:%S"),
+        "verdict":        "PASS" if res["ok"] and kpi.get("ok") else "FAIL",
+    }
+    _save_kpi_result(row)
+
+    return jsonify({
+        "ok":      row["verdict"] == "PASS",
+        "profile": profile,
+        "row":     row,
+        "log":     retune_log + "\n\n--- EMULATED KPI ---\n" + kpi_log,
+    })
+
+
 # ── KPI comparison helpers ──────────────────────────────────────────────────
 
 def _get_ue_pod():

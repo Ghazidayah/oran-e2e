@@ -286,12 +286,57 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
         )
         outputs.append(r.get("output", ""))
 
+        # Tunnel-readiness gate: pod-Ready is not enough — the UE must have formed
+        # oaitun_ue1 (attached to the gNB/DU). Poll status_one() which already
+        # checks the tunnel IP, so we reuse the same detection logic without
+        # inventing a new check.
+        def wait_for_tunnel(max_wait=120, interval=5):
+            deadline = time.time() + max_wait
+            while time.time() < deadline:
+                if status_one(ue_name).get("attached"):
+                    return True
+                time.sleep(interval)
+            return False
+
+        attached = wait_for_tunnel()
+        if not attached:
+            outputs.append(
+                "Tunnel not up after initial 120 s; issuing rollout restart and waiting again..."
+            )
+            run_cmd(
+                "kubectl -n {} rollout restart deploy/{}".format(
+                    UE_NAMESPACE, shlex.quote(cfg["deployment"])
+                ),
+                timeout=60,
+            )
+            run_cmd(
+                "kubectl -n {} rollout status deploy/{} --timeout=240s".format(
+                    UE_NAMESPACE, shlex.quote(cfg["deployment"])
+                ),
+                timeout=260,
+            )
+            attached = wait_for_tunnel()
+
+        today = status_one(ue_name)
+        if not attached:
+            return {
+                "ok": False,
+                "ue": ue_name,
+                "deployment": cfg["deployment"],
+                "output": "\n".join(x for x in outputs if x),
+                "error": (
+                    "{} started but tunnel did not form (DU1 attach race)"
+                    " — run recover-ue-sessions.sh --fix".format(ue_name)
+                ),
+                "status": today,
+            }
+
         return {
-            "ok": r.get("ok", False),
+            "ok": True,
             "ue": ue_name,
             "deployment": cfg["deployment"],
             "output": "\n".join(x for x in outputs if x),
-            "status": status_one(ue_name),
+            "status": today,
         }
 
     def stop_ue(ue_name):

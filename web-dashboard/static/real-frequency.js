@@ -6,9 +6,12 @@
   }
 
   function setBusy(busy) {
-    ["realFreqRefreshBtn", "realFreqApplyBtn", "realFreqRestoreBtn"].forEach(function (id) {
+    ["realFreqRefreshBtn", "realFreqRestoreBtn"].forEach(function (id) {
       var el = byId(id);
       if (el) el.disabled = !!busy;
+    });
+    document.querySelectorAll("[data-freq-band-btn]").forEach(function (btn) {
+      btn.disabled = !!busy;
     });
   }
 
@@ -22,33 +25,31 @@
     return data;
   }
 
-  function selectedProfile() {
-    var el = byId("realFreqSelect");
-    return el ? el.value : "n78-current";
-  }
-
-  function renderResults(data) {
-    var body = byId("realFreqResultsBody");
+  function renderBandResults(rows) {
+    var body = byId("freqBandResultsBody");
     if (!body) return;
-    var rows = (data && data.rows) || [];
-    if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="7">No retune history yet.</td></tr>';
+    if (!rows || !rows.length) {
+      body.innerHTML = '<tr><td colspan="9">No runs yet — click a band button above to start.</td></tr>';
       return;
     }
     body.innerHTML = rows.map(function (r) {
-      var verdict = r.verdict || "";
-      var ok = verdict.indexOf("PASS") !== -1 || verdict.indexOf("OK") !== -1;
-      var verdictColor = ok ? "#4caf50" : "#f44336";
-      var profileLabel = r.profile || "-";
+      var attachOk = (r.retune_verdict || r.verdict || "").indexOf("PASS") !== -1 ||
+                     (r.retune_verdict || r.verdict || "").indexOf("OK") !== -1;
+      var attachColor = attachOk ? "var(--ok)" : "var(--err)";
+      var mbps = parseFloat(r.tcp_mbps) || 0;
+      var mbpsColor = mbps > 10 ? "var(--ok)" : mbps > 5 ? "var(--warn)" : "var(--err)";
+      var mbpsDisplay = (r.tcp_mbps && r.tcp_mbps !== "?") ? r.tcp_mbps + " Mbps" : "—";
       return (
         "<tr>" +
-          "<td>" + profileLabel + "</td>" +
-          "<td>" + (r.freq_mhz || "-") + "</td>" +
-          "<td>" + (r.band || "-") + "</td>" +
-          "<td>" + (r.ssb || "-") + "</td>" +
-          "<td>" + (r.du_deploy || "-") + "</td>" +
-          "<td style='color:" + verdictColor + ";font-weight:bold'>" + (r.verdict || "-") + "</td>" +
-          "<td>" + (r.timestamp || "-") + "</td>" +
+        "<td><strong>" + (r.band || r.profile || "-") + "</strong></td>" +
+        "<td>" + (r.freq_mhz || "-") + "</td>" +
+        "<td style='font-size:0.85em;font-family:monospace'>" + (r.ssb ? r.ssb + " / " + (r.pointa || "-") : "-") + "</td>" +
+        "<td style='color:" + attachColor + ";font-weight:bold'>" + (r.retune_verdict || r.verdict || "-") + "</td>" +
+        "<td style='font-size:0.85em'>" + (r.netem || "—") + "</td>" +
+        "<td>" + (r.ping_avg || "—") + "</td>" +
+        "<td>" + (r.ping_loss || "—") + "</td>" +
+        "<td style='font-weight:bold;color:" + mbpsColor + "'>" + mbpsDisplay + "</td>" +
+        "<td style='font-size:0.85em'>" + (r.timestamp || "-") + "</td>" +
         "</tr>"
       );
     }).join("");
@@ -73,30 +74,8 @@
       Object.keys(keys).forEach(function (k) { lines.push("  " + k + " = " + keys[k]); });
       setText("realFreqSummary", lines.join("\n"));
       if (writeLog) setText("realFreqLog", data.log || "Status OK.");
-
-      var results = await api("/api/real-frequency/results");
-      renderResults(results);
     } catch (e) {
       if (writeLog) setText("realFreqLog", "ERROR: " + String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function applyRetune() {
-    var profile = selectedProfile();
-    setBusy(true);
-    var msg = "Applying real carrier retune: " + profile + "\n\nThis restarts DU + UE pods — may take several minutes...";
-    setText("realFreqLog", msg);
-    try {
-      var data = await api("/api/real-frequency/apply", {
-        method: "POST",
-        body: JSON.stringify({ profile: profile })
-      });
-      setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + "profile=" + profile + "\n\n" + (data.log || ""));
-      await refreshStatus(false);
-    } catch (e) {
-      setText("realFreqLog", "ERROR: " + String(e));
     } finally {
       setBusy(false);
     }
@@ -116,133 +95,43 @@
     }
   }
 
-  // ── KPI comparison section ───────────────────────────────────────────────
-
-  var KPI_PROFILES = [
-    {value: "n41-2600",  label: "n41-2600",  mhz: "2593.35", band: "n41", duplex: "TDD / 30 kHz"},
-    {value: "n78-3500",  label: "n78-3500",  mhz: "3499.68", band: "n78", duplex: "TDD / 30 kHz"},
-    {value: "n77-4174",  label: "n77-4174",  mhz: "4173.60", band: "n77", duplex: "TDD / 30 kHz"},
-  ];
-
-  function setKpiBusy(busy) {
-    ["kpiRunOneBtn", "kpiRunAllBtn"].forEach(function (id) {
-      var el = byId(id);
-      if (el) el.disabled = !!busy;
-    });
-  }
-
-  function renderKpiTable(rows) {
-    var body = byId("kpiTableBody");
-    if (!body) return;
-    var rowMap = {};
-    (rows || []).forEach(function (r) { rowMap[r.profile] = r; });
-
-    body.innerHTML = KPI_PROFILES.map(function (p) {
-      var r = rowMap[p.value];
-      var label = p.label;
-
-      if (!r) {
-        return (
-          "<tr>" +
-          "<td style='padding:8px;font-weight:bold'>" + label + "</td>" +
-          "<td style='padding:8px'>" + p.band + "</td>" +
-          "<td style='padding:8px'>" + p.mhz + "</td>" +
-          "<td style='padding:8px'>" + p.duplex + "</td>" +
-          "<td style='padding:8px;color:#555'>—</td>" +
-          "<td style='padding:8px;color:#555'>—</td>" +
-          "<td style='padding:8px;color:#555'>—</td>" +
-          "<td style='padding:8px;color:#555'>—</td>" +
-          "<td style='padding:8px;color:#555'>—</td>" +
-          "<td style='padding:8px;color:#555'>—</td>" +
-          "</tr>"
-        );
-      }
-
-      var mbps = parseFloat(r.tcp_mbps) || 0;
-      var mbpsColor = mbps > 30 ? "#4caf50" : mbps > 15 ? "#ff9800" : "#f44336";
-
-      return (
-        "<tr>" +
-        "<td style='padding:8px;font-weight:bold'>" + label + "</td>" +
-        "<td style='padding:8px'>" + p.band + "</td>" +
-        "<td style='padding:8px'>" + p.mhz + "</td>" +
-        "<td style='padding:8px'>" + p.duplex + "</td>" +
-        "<td style='padding:8px;font-family:monospace;font-size:0.82em'>" + (r.netem || "—") + "</td>" +
-        "<td style='padding:8px'>" + (r.ping_avg || "—") + "</td>" +
-        "<td style='padding:8px'>" + (r.ping_loss || "—") + "</td>" +
-        "<td style='padding:8px;font-weight:bold;color:" + mbpsColor + "'>" +
-          (r.tcp_mbps && r.tcp_mbps !== "?" ? r.tcp_mbps + " Mbps" : "—") +
-        "</td>" +
-        "<td style='padding:8px'>" + (r.retransmits || "—") + "</td>" +
-        "<td style='padding:8px;font-size:0.85em'>" + (r.timestamp || "—") + "</td>" +
-        "</tr>"
-      );
-    }).join("");
-  }
-
-  async function runKpiTest(profile) {
-    setKpiBusy(true);
-    setText("realFreqLog", "Running KPI test: " + profile + "\napplying tc netem → ping 20× → iperf3 15 s → clear netem...");
+  async function runBandFreq(profile, btn) {
+    setBusy(true);
+    setText("realFreqLog",
+      "Running " + profile + ": REAL carrier retune (restarts DU0+UE1, ~2-3 min) then EMULATED netem KPI...");
     try {
-      var data = await api("/api/real-frequency/kpi-test", {
+      var data = await api("/api/real-frequency/run-band", {
         method: "POST",
-        body: JSON.stringify({profile: profile}),
+        body: JSON.stringify({ profile: profile }),
       });
-      setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + profile + "\n\n" + (data.log || data.error || ""));
+      setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + profile + "\n\n" + (data.log || ""));
       var res = await api("/api/real-frequency/kpi-results");
-      renderKpiTable(res.rows || []);
+      renderBandResults(res.rows || []);
+      await refreshStatus(false);
     } catch (e) {
       setText("realFreqLog", "ERROR: " + String(e));
     } finally {
-      setKpiBusy(false);
+      setBusy(false);
     }
   }
 
-  async function runAllKpis() {
-    setKpiBusy(true);
-    var profiles = KPI_PROFILES.map(function (p) { return p.value; });
-    for (var i = 0; i < profiles.length; i++) {
-      setText("realFreqLog", "Running KPI " + (i + 1) + " / " + profiles.length + ": " + profiles[i] + "...");
-      try {
-        var data = await api("/api/real-frequency/kpi-test", {
-          method: "POST",
-          body: JSON.stringify({profile: profiles[i]}),
-        });
-        var res = await api("/api/real-frequency/kpi-results");
-        renderKpiTable(res.rows || []);
-        setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + profiles[i] + "\n\n" + (data.log || data.error || ""));
-      } catch (e) {
-        setText("realFreqLog", "ERROR on " + profiles[i] + ": " + String(e));
-      }
-    }
-    setKpiBusy(false);
-  }
+  window.runBandFreq = runBandFreq;
 
   document.addEventListener("DOMContentLoaded", function () {
     var root = byId("realFrequencyRoot");
     if (!root) return;
 
     var refreshBtn = byId("realFreqRefreshBtn");
-    var applyBtn   = byId("realFreqApplyBtn");
     var restoreBtn = byId("realFreqRestoreBtn");
 
     if (refreshBtn) refreshBtn.addEventListener("click", refreshStatus);
-    if (applyBtn)   applyBtn.addEventListener("click", applyRetune);
     if (restoreBtn) restoreBtn.addEventListener("click", restoreBaseline);
 
     setText("realFreqLog", "Ready.");
     refreshStatus(false);
 
-    var kpiOneBtn = byId("kpiRunOneBtn");
-    var kpiAllBtn = byId("kpiRunAllBtn");
-    if (kpiOneBtn) kpiOneBtn.addEventListener("click", function () {
-      var sel = byId("kpiProfileSelect");
-      if (sel) runKpiTest(sel.value);
-    });
-    if (kpiAllBtn) kpiAllBtn.addEventListener("click", runAllKpis);
-
     api("/api/real-frequency/kpi-results").then(function (r) {
-      renderKpiTable(r.rows || []);
+      renderBandResults(r.rows || []);
     }).catch(function () {});
   });
 })();
