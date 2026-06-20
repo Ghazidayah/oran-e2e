@@ -99,7 +99,7 @@ const slices = [
     sd: "FFFFFF",
     default_indicator: false,
     session: [
-      session("oai", 50, 2, 50, 2, 79, 2)     // V2X: priority profile, continuity traffic
+      session("oai", 50, 2, 50, 2, 79, 2)
     ]
   }
 ];
@@ -219,7 +219,7 @@ Control-plane subscriber profiles:
 - eMBB SST=1: high AMBR, 5QI/index 9, ARP priority 8
 - URLLC SST=2: 100 Mbps AMBR, 5QI/index 80, ARP priority 1
 - mMTC SST=3: 1 Mbps AMBR, 5QI/index 9, ARP priority 15
-- V2X SST=4: 50 Mbps AMBR, 5QI/index 79, ARP priority 2
+
 
 Safety tag:
 $TAG

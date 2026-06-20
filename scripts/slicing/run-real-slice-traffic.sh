@@ -25,13 +25,8 @@ case "$PROFILE" in
     LABEL="mMTC"
     SCENARIOS=("mmtc-udp")
     ;;
-  v2x)
-    SST="4"
-    LABEL="V2X"
-    SCENARIOS=("streaming" "udp")
-    ;;
   *)
-    echo "Usage: $0 embb|urllc|mmtc|v2x"
+    echo "Usage: $0 embb|urllc|mmtc"
     exit 1
     ;;
 esac

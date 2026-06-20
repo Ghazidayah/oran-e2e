@@ -11,7 +11,7 @@ source "$REPO/scripts/ue/ue-common.sh"
 
 case "$PROFILE" in
   embb|eMBB)
-    RATE="${RATE:-50mbit}"
+    RATE="${RATE:-15mbit}"
     BURST="${BURST:-256kb}"
     LATENCY="${LATENCY:-50ms}"
     ;;
@@ -24,11 +24,6 @@ case "$PROFILE" in
     RATE="${RATE:-2mbit}"
     BURST="${BURST:-32kb}"
     LATENCY="${LATENCY:-100ms}"
-    ;;
-  v2x|V2X)
-    RATE="${RATE:-10mbit}"
-    BURST="${BURST:-128kb}"
-    LATENCY="${LATENCY:-20ms}"
     ;;
   clear)
     RATE=""

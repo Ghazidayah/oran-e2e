@@ -881,14 +881,12 @@ REAL_SLICE_PROFILES = {
     "embb":  {"sst": 1, "label": "eMBB",  "desc": "SST=1 — image, video, web, streaming, iperf TCP"},
     "urllc": {"sst": 2, "label": "URLLC", "desc": "SST=2 — UDP jitter/loss"},
     "mmtc":  {"sst": 3, "label": "mMTC",  "desc": "SST=3 — IoT-style small UDP"},
-    "v2x":   {"sst": 4, "label": "V2X",   "desc": "SST=4 — streaming-like HLS + UDP"},
 }
 
 SLICE_TC_PROFILE = {
-    "embb":  "50mbit / 256kb / 50ms",
+    "embb":  "15mbit / 256kb / 50ms",
     "urllc": "20mbit / 64kb / 5ms",
     "mmtc":  "2mbit / 32kb / 100ms",
-    "v2x":   "10mbit / 128kb / 20ms",
 }
 
 REAL_SLICE_RESULTS_FILE = BASE_DIR / "web-dashboard" / "real-slice-results.json"
@@ -961,7 +959,7 @@ def _parse_slice_output(text, profile):
     if m:
         row["retransmits"] = m.group(1)
 
-    # UDP KPIs (URLLC/mMTC/V2X)
+    # UDP KPIs (URLLC/mMTC)
     m = re.search(r"Packet loss percent: ([0-9.]+)", pre_restore)
     if m:
         row["udp_loss_pct"] = m.group(1) + "%"

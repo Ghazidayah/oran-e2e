@@ -59,11 +59,6 @@ panel = f'''
       <button onclick="runRealSliceTraffic('mmtc', this)">Run mMTC Slice</button>
     </div>
 
-    <div>
-      <h3>V2X Real Slice</h3>
-      <p class="small">SST=4, DNN=oai. Runs streaming-like HLS plus UDP continuity traffic.</p>
-      <button onclick="runRealSliceTraffic('v2x', this)">Run V2X Slice</button>
-    </div>
   </div>
 
   <pre id="phase3RealSliceOutput" class="multi-ue-output">Real Slice API ready: {api_base}</pre>
