@@ -64,22 +64,14 @@
 <section class="panel" id="realFrequencyRoot">
   <h2>Frequency Scenarios <span class="badge real">REAL carrier</span> <span class="badge emulated">EMULATED KPI</span></h2>
 
-  <div class="grid cards">
-    <div>
-      <h3>n78 3500 MHz</h3>
-      <button type="button" data-freq-band-btn onclick="runBandFreq('n78-3500', this)">Run n78-3500</button>
-    </div>
-    <div>
-      <h3>n41 2600 MHz</h3>
-      <button type="button" data-freq-band-btn onclick="runBandFreq('n41-2600', this)">Run n41-2600</button>
-    </div>
-    <div>
-      <h3>n77 4174 MHz</h3>
-      <button type="button" data-freq-band-btn onclick="runBandFreq('n77-4174', this)">Run n77-4174</button>
-    </div>
-  </div>
-
-  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <label for="realFreqSelect">Band profile:</label>
+    <select id="realFreqSelect" style="background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:var(--radius);padding:9px 10px;font-family:inherit;font-size:inherit;">
+      <option value="n78-3500">n78 3500 MHz</option>
+      <option value="n41-2600">n41 2600 MHz</option>
+      <option value="n77-4174">n77 4174 MHz</option>
+    </select>
+    <button type="button" id="realFreqRunBtn">Run</button>
     <button type="button" id="realFreqRefreshBtn">Refresh Status</button>
     <button type="button" id="realFreqRestoreBtn">Restore n78-current</button>
   </div>
@@ -173,6 +165,9 @@
     </div>
   </div>
 
+  <h4 style="display:flex;align-items:center;gap:10px;">Logs
+    <button onclick="document.getElementById('actionOutput').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
+  </h4>
   <pre id="actionOutput" class="multi-ue-output">Ready.</pre>
 
   <h3 style="margin-top:22px">Scenario KPI Results <span class="badge real">REAL</span></h3>
@@ -219,7 +214,10 @@
 
   </div>
 
-  <pre id="phase3RealSliceOutput" class="multi-ue-output">Ready. Select a slice profile and click Run.</pre>
+  <h4 style="display:flex;align-items:center;gap:10px;">Logs
+    <button onclick="document.getElementById('phase3RealSliceOutput').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
+  </h4>
+  <pre id="phase3RealSliceOutput" class="multi-ue-output">Ready.</pre>
 
   <h3 style="margin-top:22px">Slice Run Results <span class="badge real">REAL</span> <span class="badge emulated">EMULATED QoS</span></h3>
   <div class="radio-table-wrap">
@@ -334,7 +332,10 @@
     </table>
   </div>
 
-  <pre id="mixedDuActionLog" class="handover-output" style="margin-top: 14px;">Ready.</pre>
+  <h4 style="display:flex;align-items:center;gap:10px;margin-top:14px;">Logs
+    <button onclick="document.getElementById('mixedDuActionLog').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
+  </h4>
+  <pre id="mixedDuActionLog" class="handover-output">Ready.</pre>
 </section>
 
 
@@ -384,7 +385,9 @@
   </table>
 
   <div id="multiUeScenarioSummary" class="multi-ue-scenario-summary"></div>
-  <h4 style="margin-top:18px;margin-bottom:6px;">Per-UE Logs</h4>
+  <h4 style="display:flex;align-items:center;gap:10px;margin-top:18px;">Per-UE Logs
+    <button onclick="document.getElementById('multiUeOutput').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
+  </h4>
   <pre id="multiUeOutput" class="multi-ue-output">Ready.</pre>
 </section>
 <!-- MULTI_UE_UI_BLOCK_END -->
@@ -411,7 +414,6 @@
   <script src="{{ url_for('static', filename='dashboard-status-live.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-multi-ue.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-inline.js') }}"></script>
-  <script src="{{ url_for('static', filename='handover.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-ui-feedback.js') }}"></script>
   <script src="{{ url_for('static', filename='mixed-du-handover.js') }}"></script>
   <script src="{{ url_for('static', filename='mixed-du-table.js') }}"></script>

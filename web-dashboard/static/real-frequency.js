@@ -6,12 +6,9 @@
   }
 
   function setBusy(busy) {
-    ["realFreqRefreshBtn", "realFreqRestoreBtn"].forEach(function (id) {
+    ["realFreqRunBtn", "realFreqRefreshBtn", "realFreqRestoreBtn"].forEach(function (id) {
       var el = byId(id);
       if (el) el.disabled = !!busy;
-    });
-    document.querySelectorAll("[data-freq-band-btn]").forEach(function (btn) {
-      btn.disabled = !!busy;
     });
   }
 
@@ -121,9 +118,14 @@
     var root = byId("realFrequencyRoot");
     if (!root) return;
 
+    var runBtn     = byId("realFreqRunBtn");
     var refreshBtn = byId("realFreqRefreshBtn");
     var restoreBtn = byId("realFreqRestoreBtn");
 
+    if (runBtn) runBtn.addEventListener("click", function () {
+      var sel = byId("realFreqSelect");
+      if (sel) runBandFreq(sel.value, runBtn);
+    });
     if (refreshBtn) refreshBtn.addEventListener("click", refreshStatus);
     if (restoreBtn) restoreBtn.addEventListener("click", restoreBaseline);
 

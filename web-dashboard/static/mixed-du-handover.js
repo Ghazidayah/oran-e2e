@@ -44,18 +44,15 @@
         <select id="rp-profile-select">
           ${PROFILES.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}
         </select>
-        <button id="rp-apply">Apply + Validate</button>
-        <button id="rp-kpi">Run KPI Test</button>
+        <button id="rp-apply-kpi">Apply + KPI Test</button>
         <button id="rp-baseline" class="secondary">Restore Scheduler Auto</button>
         <button id="rp-refresh" class="secondary">Refresh Status</button>
-        <button id="rp-logs" class="secondary">Show Logs</button>
-        <button id="rp-clear-logs" class="secondary">Clear Logs</button>
       </div>
 
       <h3>Modulation Profile KPI Results</h3>
       <p style="font-size:13px;opacity:.8">
         Italic rows = reference values from <code>docs/modulation-scenarios-validation.md</code>.
-        Live runs (Apply / KPI Test) appear as regular rows.
+        Live runs appear as regular rows.
       </p>
       <div class="radio-table-wrap">
         <table class="radio-results">
@@ -68,7 +65,9 @@
         </table>
       </div>
 
-      <h3>Logs</h3>
+      <h3 style="display:flex;align-items:center;gap:10px;">Logs
+        <button id="rp-clear-logs" class="btn-sec btn-sec-sm">Clear Logs</button>
+      </h3>
       <pre class="radio-log" id="rp-log">Ready.</pre>
     `;
   }
@@ -198,11 +197,16 @@
     }
 
     bindClick("rp-refresh",  () => refreshStatus().catch(e => log(String(e))));
-    bindClick("rp-apply",    () => applyProfile(selectedProfile()).catch(e => log(String(e))));
-    bindClick("rp-kpi",      () => runKpi(selectedProfile()).catch(e => log(String(e))));
     bindClick("rp-baseline", () => applyProfile("scheduler-auto").catch(e => log(String(e))));
-    bindClick("rp-logs",     () => latestLogs().catch(e => log(String(e))));
     bindClick("rp-clear-logs", () => log("Ready."));
+    bindClick("rp-apply-kpi", async () => {
+      const profile = selectedProfile();
+      await applyProfile(profile).catch(e => log(String(e)));
+      // Only proceed to KPI if apply did not log an error.
+      const logEl = document.getElementById("rp-log");
+      if (logEl && String(logEl.textContent).startsWith("Error:")) return;
+      await runKpi(profile).catch(e => log(String(e)));
+    });
 
     try {
       await refreshStatus(false);

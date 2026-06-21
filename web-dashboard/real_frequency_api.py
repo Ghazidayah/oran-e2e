@@ -61,11 +61,11 @@ BAND_NETEM = {
         "label": "Mid-band 2600 MHz (TDD)",
     },
     "n78-3500": {
-        "delay": "9ms", "jitter": "1ms", "loss": "0.1%", "rate": "11mbit",
+        "delay": "10ms", "jitter": "1ms", "loss": "0.1%", "rate": "9mbit",
         "label": "C-band 3500 MHz (TDD)",
     },
     "n77-4174": {
-        "delay": "12ms", "jitter": "2ms", "loss": "0.1%", "rate": "9mbit",
+        "delay": "13ms", "jitter": "2ms", "loss": "0.1%", "rate": "6mbit",
         "label": "Upper C-band 4174 MHz (TDD)",
     },
 }
@@ -285,6 +285,11 @@ def run_band():
         "verdict":        "PASS" if res["ok"] and kpi.get("ok") else "FAIL",
     }
     _save_kpi_result(row)
+
+    # Keep active_profile in sync so the status header reflects the band just run.
+    data = _load_results()
+    data["active_profile"] = profile
+    _save_results(data)
 
     return jsonify({
         "ok":      row["verdict"] == "PASS",
