@@ -341,12 +341,6 @@ REAL_SLICE_PROFILES = {
         "description": "IoT-style small UDP packets on real SST=3.",
         "traffic": ["mmtc-udp"],
     },
-    "v2x": {
-        "label": "V2X Real Slice Traffic",
-        "sst": 4,
-        "description": "Streaming-like HLS plus UDP continuity traffic on real SST=4.",
-        "traffic": ["streaming", "udp"],
-    },
 }
 
 

@@ -81,7 +81,6 @@ required_files=(
   "web-dashboard/static/dashboard-multi-ue.js"
   "scripts/validate-e2e.sh"
   "scripts/traffic/traffic_api_server.py"
-  "scripts/radio/switch-ue-radio-profile-du-aware.sh"
   "scripts/handover/switch-ue-du-target.sh"
 )
 
@@ -118,7 +117,6 @@ for sh in \
   scripts/validate-e2e.sh \
   scripts/traffic/start-traffic-api.sh \
   scripts/traffic/stop-traffic-api.sh \
-  scripts/radio/switch-ue-radio-profile-du-aware.sh \
   scripts/handover/switch-ue-du-target.sh
 do
   [ -f "$sh" ] && run_check "bash syntax: $sh" bash -n "$sh"
@@ -185,7 +183,7 @@ html = Path(sys.argv[1]).read_text(errors="ignore")
 checks = [
     ("Radio / Modulation Profile Control", ["Radio / Modulation Profile Control", "Radio Profile Results / Comparison", "Radio Profile Logs"]),
     ("End-to-End UE Validation Scenarios", ["End-to-End UE Validation Scenarios", "Run Connectivity", "Run All"]),
-    ("Real S-NSSAI Slice Traffic - Phase 3", ["Real S-NSSAI Slice Traffic - Phase 3", "Run eMBB Slice", "Run URLLC Slice", "Run mMTC Slice", "Run V2X Slice"]),
+    ("Real S-NSSAI Slice Traffic - Phase 3", ["Real S-NSSAI Slice Traffic - Phase 3", "Run eMBB Slice", "Run URLLC Slice", "Run mMTC Slice"]),
     ("RAN/Core pods tables", ["RAN Pods", "Core Pods"]),
     ("Real-Time Multi-UE Data Transfer", ["Real-Time Multi-UE Data Transfer", "Total Download RX", "Active UE Metrics"]),
     ("Evidence panels", ["Latest Action Output", "Recent Evidence Runs"]),

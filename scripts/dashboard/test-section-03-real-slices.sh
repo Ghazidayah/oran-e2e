@@ -238,7 +238,7 @@ section "3. RUN REAL S-NSSAI SLICE TRAFFIC"
 RESULTS_CSV="$OUT/results.csv"
 echo "profile,expected_sst,job_id,result" > "$RESULTS_CSV"
 
-for item in "embb:1" "urllc:2" "mmtc:3" "v2x:4"; do
+for item in "embb:1" "urllc:2" "mmtc:3"; do
   profile="${item%%:*}"
   sst="${item##*:}"
 

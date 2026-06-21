@@ -127,12 +127,6 @@ do
   fi
 done
 
-if bash -n scripts/radio/switch-ue-radio-profile-du-aware.sh; then
-  pass "radio switch script syntax OK"
-else
-  fail "radio switch script syntax failed"
-fi
-
 if bash scripts/validate-e2e.sh > "$OUT/validate-before.log" 2>&1; then
   pass "baseline validate-e2e before radio tests passed"
 else
