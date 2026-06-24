@@ -141,6 +141,17 @@ start_dashboard() {
   tail -40 "$log" || true
 }
 
+check_ifb_module() {
+  section "Checking ifb kernel module (downlink slice QoS shaping)"
+  if lsmod 2>/dev/null | grep -q '^ifb'; then
+    echo "ifb module loaded."
+  else
+    echo "[WARN] ifb module NOT loaded — downlink (download) slice QoS will NOT cap."
+    echo "[WARN] Load now:     sudo modprobe ifb"
+    echo "[WARN] Persist boot: echo ifb | sudo tee /etc/modules-load.d/ifb.conf"
+  fi
+}
+
 start_traffic_api() {
   if [ "$START_TRAFFIC_API" != "1" ]; then echo "[SKIP] ORAN_START_TRAFFIC_API=$START_TRAFFIC_API"; return 0; fi
   section "Starting Traffic API on port ${TRAFFIC_API_PORT}"
@@ -290,6 +301,7 @@ cat "$STATE_FILE"
 
 section "Restoring saved replicas"
 restore_all
+check_ifb_module
 
 section "Waiting for key workloads"
 for dep in mongodb amf smf upf; do
