@@ -6,6 +6,8 @@ STATE_DIR="${HOME}/.oran-lab"
 STATE_FILE="${STATE_DIR}/platform-replicas.tsv"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 START_DASHBOARD="${ORAN_START_DASHBOARD:-1}"
+START_TRAFFIC_API="${ORAN_START_TRAFFIC_API:-1}"
+TRAFFIC_API_PORT="${TRAFFIC_API_PORT:-5055}"
 RECOVER_MIXED_DU="${ORAN_RECOVER_MIXED_DU:-1}"
 TARGET_NAMESPACES="${ORAN_PLATFORM_NAMESPACES:-oran-core oran-ran monitoring}"
 
@@ -137,6 +139,22 @@ start_dashboard() {
   sleep 5
   echo "Dashboard log: $log"
   tail -40 "$log" || true
+}
+
+start_traffic_api() {
+  if [ "$START_TRAFFIC_API" != "1" ]; then echo "[SKIP] ORAN_START_TRAFFIC_API=$START_TRAFFIC_API"; return 0; fi
+  section "Starting Traffic API on port ${TRAFFIC_API_PORT}"
+  if ss -ltn 2>/dev/null | grep -q ":${TRAFFIC_API_PORT} "; then
+    echo "Traffic API port already listening: ${TRAFFIC_API_PORT}"; return 0
+  fi
+  local starter="$ROOT_DIR/scripts/traffic/start-traffic-api.sh"
+  if [ ! -x "$starter" ]; then echo "[WARN] start-traffic-api.sh missing/not executable"; return 0; fi
+  bash "$starter" || true
+  if curl -fsS "http://127.0.0.1:${TRAFFIC_API_PORT}/api/traffic/health" >/dev/null 2>&1; then
+    echo "Traffic API healthy on ${TRAFFIC_API_PORT}."
+  else
+    echo "[WARN] Traffic API not responding on ${TRAFFIC_API_PORT} — see ~/oran-proof/phase2-traffic-api/server.log"
+  fi
 }
 
 show_namespace_pods() {
@@ -287,6 +305,7 @@ for dep in prometheus grafana; do
 done
 
 start_dashboard
+start_traffic_api
 ensure_cu_ngap_associated
 recover_mixed_du_if_available
 reconcile_ue_sessions
