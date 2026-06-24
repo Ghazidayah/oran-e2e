@@ -110,7 +110,7 @@ let desiredUeCountUserEdited = false;
     return result.label || data.label || ueScenarioSelections[result.ue] || scenarioNameForRow(data, result);
   }
 
-  function renderMultiUeScenarioResult(data) {
+  function renderMultiUeScenarioResult(data, writeLogs = true) {
     const panel = document.getElementById('multiUeScenarioSummary');
     if (!panel) return;
 
@@ -185,7 +185,7 @@ let desiredUeCountUserEdited = false;
       </table>
     `;
 
-    setMultiUeOutput(rawBlocks || 'No logs yet — run scenarios to populate.');
+    if (writeLogs) setMultiUeOutput(rawBlocks || 'No logs yet — run scenarios to populate.');
   }
 
   function fmtBytes(n) {
@@ -394,7 +394,7 @@ let desiredUeCountUserEdited = false;
 
   fetch('/api/ues/embb-scenarios/last')
     .then((r) => r.json())
-    .then((data) => { if (!data.empty) renderMultiUeScenarioResult(data); })
+    .then((data) => { if (!data.empty) renderMultiUeScenarioResult(data, false); })
     .catch(() => {});
 
 
