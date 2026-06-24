@@ -63,16 +63,38 @@ if [ $? -ne 0 ]; then
   exit 0
 fi
 
+# clear = tear down BOTH directions (egress tbf + ingress redirect + ifb device)
 if [ "$PROFILE" = "clear" ]; then
-  kubectl -n "$NS" exec "$UE" -- sh -lc 'tc qdisc del dev oaitun_ue1 root 2>/dev/null || true'
-  kubectl -n "$NS" exec "$UE" -- sh -lc 'tc qdisc show dev oaitun_ue1 || true'
+  kubectl -n "$NS" exec "$UE" -- sh -lc '
+    tc qdisc del dev oaitun_ue1 root 2>/dev/null || true
+    tc qdisc del dev oaitun_ue1 ingress 2>/dev/null || true
+    ip link del ifb_ue1 2>/dev/null || true
+    tc qdisc show dev oaitun_ue1 || true
+  '
   echo "VERDICT=UE1_RESOURCE_PROFILE_CLEARED"
   exit 0
 fi
 
+# Apply bidirectional shaping at $RATE so DOWNLINK (downloads) is capped too.
+# - egress tbf on oaitun_ue1 root  -> shapes uplink (what the UE sends)
+# - ingress redirect -> ifb_ue1 tbf -> shapes downlink (what the UE receives)
 kubectl -n "$NS" exec "$UE" -- sh -lc "
+  tc qdisc del dev oaitun_ue1 root 2>/dev/null || true
+  tc qdisc del dev oaitun_ue1 ingress 2>/dev/null || true
+  ip link del ifb_ue1 2>/dev/null || true
+
   tc qdisc replace dev oaitun_ue1 root handle 1: tbf rate $RATE burst $BURST latency $LATENCY
+
+  ip link add ifb_ue1 type ifb
+  ip link set ifb_ue1 up
+  tc qdisc add dev oaitun_ue1 handle ffff: ingress
+  tc filter add dev oaitun_ue1 parent ffff: protocol ip u32 match u32 0 0 action mirred egress redirect dev ifb_ue1
+  tc qdisc replace dev ifb_ue1 root tbf rate $RATE burst $BURST latency $LATENCY
+
+  echo '--- oaitun_ue1 root (egress/uplink) ---'
   tc qdisc show dev oaitun_ue1
+  echo '--- ifb_ue1 root (ingress/downlink) ---'
+  tc qdisc show dev ifb_ue1
 "
 
 echo "VERDICT=UE1_RESOURCE_PROFILE_APPLIED"
