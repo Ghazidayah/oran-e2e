@@ -169,6 +169,53 @@ recover_mixed_du_if_available() {
   )
 }
 
+# ---- CU<->AMF NGAP association gate -------------------------------------
+# A "Ready" CU pod is NOT a NGAP-associated CU. On cold start the CU can sit in
+# "[NGAP] No AMF is associated to the gNB" and never self-heal; then every UE
+# RRC-connects but is released and no oaitun tunnel forms. Reconciling UEs is
+# futile until the CU re-associates, so gate on it here.
+NGAP_GATE="${ORAN_NGAP_GATE:-1}"
+NGAP_MAX_TRIES="${ORAN_NGAP_MAX_TRIES:-3}"
+NGAP_SETTLE="${ORAN_NGAP_SETTLE_SECONDS:-25}"
+
+cu_ngap_down() {
+  # actively failing = "No AMF is associated" still being appended (2 samples)
+  kubectl -n oran-ran logs deploy/oai-cu --tail=10 2>/dev/null \
+    | grep -q "No AMF is associated" || return 1
+  sleep 5
+  kubectl -n oran-ran logs deploy/oai-cu --tail=5 2>/dev/null \
+    | grep -q "No AMF is associated"
+}
+
+amf_has_gnb() {
+  kubectl -n oran-core logs deploy/open5gs-amf --since=5m 2>/dev/null \
+    | grep -q "gNB-N2 accepted"
+}
+
+ensure_cu_ngap_associated() {
+  if [ "$NGAP_GATE" != "1" ]; then echo "[SKIP] ORAN_NGAP_GATE=$NGAP_GATE"; return 0; fi
+  section "Verifying CU<->AMF NGAP association"
+  local i
+  for i in $(seq 1 "$NGAP_MAX_TRIES"); do
+    echo "Settling ${NGAP_SETTLE}s before NGAP check (attempt $i/$NGAP_MAX_TRIES)..."
+    sleep "$NGAP_SETTLE"
+    if ! cu_ngap_down; then
+      echo "CU is NGAP-associated with the AMF."
+      amf_has_gnb && echo "AMF confirms: gNB-N2 accepted."
+      return 0
+    fi
+    echo "[WARN] CU has NO AMF association. Restarting CU + DUs (re-form F1)..."
+    kubectl -n oran-ran rollout restart deploy/oai-cu
+    kubectl -n oran-ran rollout status  deploy/oai-cu  --timeout=180s || true
+    kubectl -n oran-ran rollout restart deploy/oai-du0 deploy/oai-du1
+    kubectl -n oran-ran rollout status  deploy/oai-du0 --timeout=180s || true
+    kubectl -n oran-ran rollout status  deploy/oai-du1 --timeout=180s || true
+  done
+  echo "[WARN] CU still not NGAP-associated after $NGAP_MAX_TRIES attempts."
+  echo "[WARN] Inspect N2/Multus (br-n2) and AMF SCTP 38412 before demoing."
+  return 1
+}
+
 reconcile_ue_sessions() {
   if [ "${ORAN_RECONCILE_UES:-1}" != "1" ]; then
     echo "[SKIP] ORAN_RECONCILE_UES=${ORAN_RECONCILE_UES:-1}"
@@ -240,6 +287,7 @@ for dep in prometheus grafana; do
 done
 
 start_dashboard
+ensure_cu_ngap_associated
 recover_mixed_du_if_available
 reconcile_ue_sessions
 
