@@ -406,7 +406,7 @@ def _run_handover_validation():
             "post_ping_ok": all_ok,
             "status": status,
             "matrix": matrix,
-            "note": "Compatibility endpoint: /api/handover/f1/run now validates mixed-DU Multi-UE continuity.",
+            "note": "Validates mixed-DU Multi-UE continuity.",
         }), 200
 
     except Exception as exc:
@@ -436,7 +436,7 @@ def install_mixed_du_handover_api(app):
         if path in ["/api/handover/mixed-du/switch", "/api/handover/du-switch"] and method == "POST":
             return _switch_ue()
 
-        if path in ["/api/handover/f1/run", "/api/handover/mixed-du/run"] and method == "POST":
+        if path == "/api/handover/mixed-du/run" and method == "POST":
             return _run_handover_validation()
 
         if path == "/api/handover/mixed-du/recover" and method == "POST":

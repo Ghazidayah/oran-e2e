@@ -66,20 +66,3 @@ def handover_status():
 
     return jsonify(result)
 
-
-@handover_bp.route("/api/handover/f1/run", methods=["POST"])
-def run_f1_handover():
-    result = run_action("f1_handover.sh", timeout=180)
-
-    output = result.get("output", "")
-
-    result["mode"] = "f1-rfsim"
-    result["label"] = "F1 RFsim handover"
-    result["handover_success"] = "F1_HANDOVER_RESULT=SUCCESS" in output
-    result["trigger_ok"] = "TRIGGER_OK=true" in output
-    result["cu_complete"] = "CU_COMPLETE=true" in output
-    result["rrc_complete"] = "RRC_COMPLETE=true" in output
-    result["du_cfra"] = "DU_CFRA=true" in output
-    result["post_ping_ok"] = "POST_PING_OK=true" in output
-
-    return jsonify(result)

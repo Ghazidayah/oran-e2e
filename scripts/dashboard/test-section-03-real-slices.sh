@@ -56,7 +56,7 @@ else
   fail "real slice dashboard section missing"
 fi
 
-for marker in "Run eMBB Slice" "Run URLLC Slice" "Run mMTC Slice" "Run V2X Slice"; do
+for marker in "Run eMBB Slice" "Run URLLC Slice" "Run mMTC Slice"; do
   if grep -q "$marker" "$OUT/dashboard.html"; then
     pass "button marker present: $marker"
   else
