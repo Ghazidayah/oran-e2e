@@ -235,8 +235,6 @@ ensure_cu_plane_healthy() {
   section "Bringing up split CU plane (CU-CP + CU-UP); verifying NGAP + E1"
   # Ensure the split CMs + deployments exist (idempotent; safe on fresh cluster).
   kubectl apply -f "$ROOT_DIR/manifests/ran/e1/e1-split.yaml" >/dev/null 2>&1 || true
-  # Monolithic CU must stay down (it shares CU-CP/CU-UP IPs).
-  kubectl -n oran-ran scale deploy/oai-cu --replicas=0 >/dev/null 2>&1 || true
   local i ngap_ok e1_ok
   for i in $(seq 1 "$CU_MAX_TRIES"); do
     echo "Attempt $i/$CU_MAX_TRIES: start CU-CP, then CU-UP (correct E1 order)"
