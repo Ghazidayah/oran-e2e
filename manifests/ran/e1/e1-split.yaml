@@ -1,0 +1,188 @@
+# E1 split (CU-CP + CU-UP) — EXPERIMENTAL, branch feat-e1-cucp-cuup-split.
+# Reuses existing N2/N3 Multus bridges. Monolithic oai-cu stays in git, scaled to 0
+# during the test; restore via scripts/e1/restore-monolithic-cu.sh.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oai-cucp-config
+  namespace: oran-ran
+data:
+  gnb.conf: |
+    # CU-CP (control plane): RRC + NGAP->AMF + F1-C + E1 server
+    # Derived from manifests/ran/f1/cu.conf; adds E1_INTERFACE(type=cp), drops NG-U.
+    Active_gNBs = ( "cu-rfsim");
+    Asn1_verbosity = "none";
+    
+    gNBs =
+    (
+     {
+        gNB_ID = 0xe00;
+        gNB_name  =  "cu-rfsim";
+        tracking_area_code  =  1;
+        plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }, { sst = 2; }, { sst = 3; }) });
+    
+        nr_cellid = 12345678L;
+    
+        tr_s_preference = "f1";
+        local_s_address     = "10.10.0.120";   # F1-C listen (DUs already target this)
+        remote_s_address    = "0.0.0.0";       # multiple DUs
+        local_s_portd       = 2152;
+        remote_s_portd      = 2152;
+    
+        SCTP : { SCTP_INSTREAMS = 2; SCTP_OUTSTREAMS = 2; };
+    
+        amf_ip_address = ({ ipv4 = "10.10.0.101"; });
+    
+        E1_INTERFACE =
+        (
+          {
+            type = "cp";
+            ipv4_cucp = "10.10.0.120";
+            port_cucp = 38462;
+            ipv4_cuup = "0.0.0.0";   # accept the CU-UP
+            port_cuup = 38462;
+          }
+        )
+    
+        NETWORK_INTERFACES :
+        {
+            GNB_IPV4_ADDRESS_FOR_NG_AMF              = "10.10.0.120";
+        };
+      }
+    );
+    
+    security = {
+      ciphering_algorithms = ( "nea0" );
+      integrity_algorithms = ( "nia2", "nia0" );
+      drb_ciphering = "yes";
+      drb_integrity = "no";
+    };
+    
+    log_config : {
+      global_log_level = "info";
+      rrc_log_level    = "info";
+      f1ap_log_level   = "info";
+      ngap_log_level   = "info";
+      e1ap_log_level   = "debug";
+    };
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oai-cuup-config
+  namespace: oran-ran
+data:
+  gnb.conf: |
+    # CU-UP (user plane): PDCP/SDAP + NG-U->UPF + F1-U + E1 client
+    # Derived from OAI gnb-cuup.sa.f1.conf reference, adapted to this platform.
+    Active_gNBs = ( "cu-rfsim");
+    Asn1_verbosity = "none";
+    
+    gNBs =
+    (
+     {
+        gNB_ID = 0xe00;
+        gNB_CU_UP_ID = 0xe00;
+        gNB_name  =  "cu-rfsim";
+        tracking_area_code  =  1;
+        plmn_list = ({ mcc = 999; mnc = 70; mnc_length = 2; snssaiList = ({ sst = 1; }, { sst = 2; }, { sst = 3; }) });
+    
+        tr_s_preference = "f1";
+        local_s_address  = "10.10.0.140";   # F1-U (TNL signaled to DUs via F1AP)
+        remote_s_address = "0.0.0.0";       # multiple DUs
+        local_s_portd    = 2152;
+        remote_s_portd   = 2152;
+    
+        SCTP : { SCTP_INSTREAMS = 2; SCTP_OUTSTREAMS = 2; };
+    
+        E1_INTERFACE =
+        (
+          {
+            type = "up";
+            ipv4_cucp = "10.10.0.120";
+            ipv4_cuup = "10.10.0.140";
+          }
+        )
+    
+        NETWORK_INTERFACES :
+        {
+            GNB_IPV4_ADDRESS_FOR_NG_AMF              = "10.10.0.140";
+            GNB_IPV4_ADDRESS_FOR_NGU                 = "10.20.0.120";  # N3 to UPF (inherited)
+            GNB_PORT_FOR_S1U                         = 2152;
+        };
+      }
+    );
+    
+    log_config : {
+      global_log_level = "info";
+      pdcp_log_level   = "info";
+      f1ap_log_level   = "info";
+      ngap_log_level   = "info";
+      e1ap_log_level   = "debug";
+    };
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-cu-cp
+  namespace: oran-ran
+  labels: { app: oai-cu-cp }
+spec:
+  replicas: 0
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: oai-cu-cp } }
+  template:
+    metadata:
+      labels: { app: oai-cu-cp }
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.120/24"]}]'
+    spec:
+      containers:
+      - name: oai-cu-cp
+        image: oaisoftwarealliance/oai-gnb:2025.w45
+        imagePullPolicy: IfNotPresent
+        command: ["/opt/oai-gnb/bin/nr-softmodem"]
+        args:
+        - "-O"
+        - "/opt/oai-gnb/etc/gnb.conf"
+        - "--log_config.global_log_options"
+        - "level,nocolor,time"
+        securityContext: { capabilities: { add: ["SYS_NICE"] } }
+        volumeMounts:
+        - { name: cucp-config, mountPath: /opt/oai-gnb/etc/gnb.conf, subPath: gnb.conf }
+      volumes:
+      - name: cucp-config
+        configMap: { name: oai-cucp-config }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-cu-up
+  namespace: oran-ran
+  labels: { app: oai-cu-up }
+spec:
+  replicas: 0
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: oai-cu-up } }
+  template:
+    metadata:
+      labels: { app: oai-cu-up }
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[{"name":"n2-net","ips":["10.10.0.140/24"]},{"name":"n3-net","ips":["10.20.0.120/24"]}]'
+    spec:
+      containers:
+      - name: oai-cu-up
+        image: oaisoftwarealliance/oai-nr-cuup:2025.w45
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash","-lc"]
+        args:
+        - |
+          BIN="$(command -v nr-cuup || find /opt -type f -name nr-cuup 2>/dev/null | head -1)"
+          echo "[cu-up] using binary: $BIN"
+          exec "$BIN" -O /opt/oai-gnb/etc/gnb.conf --log_config.global_log_options level,nocolor,time
+        securityContext: { capabilities: { add: ["SYS_NICE","NET_ADMIN"] } }
+        volumeMounts:
+        - { name: cuup-config, mountPath: /opt/oai-gnb/etc/gnb.conf, subPath: gnb.conf }
+      volumes:
+      - name: cuup-config
+        configMap: { name: oai-cuup-config }

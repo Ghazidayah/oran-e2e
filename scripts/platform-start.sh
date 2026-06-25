@@ -198,21 +198,21 @@ recover_mixed_du_if_available() {
   )
 }
 
-# ---- CU<->AMF NGAP association gate -------------------------------------
-# A "Ready" CU pod is NOT a NGAP-associated CU. On cold start the CU can sit in
-# "[NGAP] No AMF is associated to the gNB" and never self-heal; then every UE
-# RRC-connects but is released and no oaitun tunnel forms. Reconciling UEs is
-# futile until the CU re-associates, so gate on it here.
-NGAP_GATE="${ORAN_NGAP_GATE:-1}"
-NGAP_MAX_TRIES="${ORAN_NGAP_MAX_TRIES:-3}"
-NGAP_SETTLE="${ORAN_NGAP_SETTLE_SECONDS:-25}"
+# ---- CU plane gate: CU-CP<->AMF (NGAP) + CU-UP<->CU-CP (E1) -------------
+# The split CU has two SCTP associations a "Ready" pod does NOT guarantee:
+#   - CU-CP <-> AMF over N2 (NGAP).  If down: "[NGAP] No AMF is associated".
+#   - CU-UP <-> CU-CP over E1 (SCTP 38462). If down: no user plane / no tunnels.
+# OAI caveat: a CU-UP that (re)connects to an already-running CU-CP can be
+# rejected until the CU-CP restarts, so when re-pairing we restart CU-CP THEN CU-UP.
+CU_GATE="${ORAN_CU_GATE:-1}"
+CU_MAX_TRIES="${ORAN_CU_MAX_TRIES:-3}"
+CU_SETTLE="${ORAN_CU_SETTLE_SECONDS:-25}"
 
-cu_ngap_down() {
-  # actively failing = "No AMF is associated" still being appended (2 samples)
-  kubectl -n oran-ran logs deploy/oai-cu --tail=10 2>/dev/null \
+cucp_ngap_down() {
+  kubectl -n oran-ran logs deploy/oai-cu-cp --tail=10 2>/dev/null \
     | grep -q "No AMF is associated" || return 1
   sleep 5
-  kubectl -n oran-ran logs deploy/oai-cu --tail=5 2>/dev/null \
+  kubectl -n oran-ran logs deploy/oai-cu-cp --tail=5 2>/dev/null \
     | grep -q "No AMF is associated"
 }
 
@@ -221,27 +221,51 @@ amf_has_gnb() {
     | grep -q "gNB-N2 accepted"
 }
 
-ensure_cu_ngap_associated() {
-  if [ "$NGAP_GATE" != "1" ]; then echo "[SKIP] ORAN_NGAP_GATE=$NGAP_GATE"; return 0; fi
-  section "Verifying CU<->AMF NGAP association"
-  local i
-  for i in $(seq 1 "$NGAP_MAX_TRIES"); do
-    echo "Settling ${NGAP_SETTLE}s before NGAP check (attempt $i/$NGAP_MAX_TRIES)..."
-    sleep "$NGAP_SETTLE"
-    if ! cu_ngap_down; then
-      echo "CU is NGAP-associated with the AMF."
+e1_associated() {
+  kubectl -n oran-ran logs deploy/oai-cu-cp --tail=300 2>/dev/null \
+    | grep -qiE "Accepting new CU-UP|E1AP_SETUP_RESP" && return 0
+  kubectl -n oran-ran logs deploy/oai-cu-up --tail=300 2>/dev/null \
+    | grep -qiE "E1 connection established|SCTP_STATE_ESTABLISHED"
+}
+
+wait_ready() { kubectl -n oran-ran rollout status deploy/"$1" --timeout="${2:-180s}" >/dev/null 2>&1; }
+
+ensure_cu_plane_healthy() {
+  if [ "$CU_GATE" != "1" ]; then echo "[SKIP] ORAN_CU_GATE=$CU_GATE"; return 0; fi
+  section "Bringing up split CU plane (CU-CP + CU-UP); verifying NGAP + E1"
+  # Ensure the split CMs + deployments exist (idempotent; safe on fresh cluster).
+  kubectl apply -f "$ROOT_DIR/manifests/ran/e1/e1-split.yaml" >/dev/null 2>&1 || true
+  # Monolithic CU must stay down (it shares CU-CP/CU-UP IPs).
+  kubectl -n oran-ran scale deploy/oai-cu --replicas=0 >/dev/null 2>&1 || true
+  local i ngap_ok e1_ok
+  for i in $(seq 1 "$CU_MAX_TRIES"); do
+    echo "Attempt $i/$CU_MAX_TRIES: start CU-CP, then CU-UP (correct E1 order)"
+    kubectl -n oran-ran scale deploy/oai-cu-cp --replicas=1 >/dev/null 2>&1
+    wait_ready oai-cu-cp 180s
+    kubectl -n oran-ran scale deploy/oai-cu-up --replicas=1 >/dev/null 2>&1
+    wait_ready oai-cu-up 180s
+    echo "Settling ${CU_SETTLE}s before checking NGAP + E1..."
+    sleep "$CU_SETTLE"
+    ngap_ok=1; e1_ok=1
+    cucp_ngap_down && ngap_ok=0
+    e1_associated   || e1_ok=0
+    if [ "$ngap_ok" = 1 ] && [ "$e1_ok" = 1 ]; then
+      echo "CU-CP is NGAP-associated with the AMF."
       amf_has_gnb && echo "AMF confirms: gNB-N2 accepted."
+      echo "CU-UP is E1-associated with the CU-CP."
+      section "Restarting DUs so F1-C re-associates to the CU-CP"
+      kubectl -n oran-ran rollout restart deploy/oai-du0 deploy/oai-du1 >/dev/null 2>&1
+      wait_ready oai-du0 120s; wait_ready oai-du1 120s
       return 0
     fi
-    echo "[WARN] CU has NO AMF association. Restarting CU + DUs (re-form F1)..."
-    kubectl -n oran-ran rollout restart deploy/oai-cu
-    kubectl -n oran-ran rollout status  deploy/oai-cu  --timeout=180s || true
-    kubectl -n oran-ran rollout restart deploy/oai-du0 deploy/oai-du1
-    kubectl -n oran-ran rollout status  deploy/oai-du0 --timeout=180s || true
-    kubectl -n oran-ran rollout status  deploy/oai-du1 --timeout=180s || true
+    [ "$ngap_ok" = 0 ] && echo "[WARN] CU-CP has no AMF (NGAP) association."
+    [ "$e1_ok"   = 0 ] && echo "[WARN] CU-UP not E1-associated (OAI: re-pair needs CU-CP restart)."
+    echo "Re-pairing: restart CU-CP, then CU-UP..."
+    kubectl -n oran-ran rollout restart deploy/oai-cu-cp >/dev/null 2>&1; wait_ready oai-cu-cp 180s
+    kubectl -n oran-ran rollout restart deploy/oai-cu-up >/dev/null 2>&1; wait_ready oai-cu-up 180s
   done
-  echo "[WARN] CU still not NGAP-associated after $NGAP_MAX_TRIES attempts."
-  echo "[WARN] Inspect N2/Multus (br-n2) and AMF SCTP 38412 before demoing."
+  echo "[WARN] CU plane not fully healthy after $CU_MAX_TRIES attempts."
+  echo "[WARN] Check CU-CP<->AMF (N2/38412) and CU-UP<->CU-CP (E1/38462) before demoing."
   return 1
 }
 
@@ -308,7 +332,7 @@ for dep in mongodb amf smf upf; do
   wait_deploy_if_needed oran-core "$dep" 240s
 done
 
-for dep in oai-cu oai-du0 oai-du1 oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
+for dep in oai-du0 oai-du1 oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
   wait_deploy_if_needed oran-ran "$dep" 240s
 done
 
@@ -318,7 +342,7 @@ done
 
 start_dashboard
 start_traffic_api
-ensure_cu_ngap_associated
+ensure_cu_plane_healthy
 recover_mixed_du_if_available
 reconcile_ue_sessions
 
