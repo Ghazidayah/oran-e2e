@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED (legacy single-DU F1 era). Superseded by the Mixed-DU handover
+# (web-dashboard/mixed_du_handover_api.py). Not used by platform-start or the
+# dashboard. Targets the monolithic oai-cu; scheduled for deletion in Phase 2
+# alongside the monolithic CU. Do not use with the CU-CP/CU-UP (E1) split.
 set -euo pipefail
 
 NS="${NS:-oran-ran}"
@@ -27,7 +31,7 @@ RUN_DIR="$SEQ_DIR/05-switch-back-du0" ./scripts/switch-f1-du.sh du0 2>&1 | tee "
 echo "===== Final state ====="
 kubectl -n "$NS" get pods -o wide | tee "$SEQ_DIR/06-final-pods.txt"
 kubectl -n "$NS" get deploy -o wide | tee "$SEQ_DIR/07-final-deployments.txt"
-kubectl -n "$NS" get endpoints oai-cu-cp-ci oai-du0-rfsim oai-du1-rfsim -o wide | tee "$SEQ_DIR/08-final-endpoints.txt" || true
+kubectl -n "$NS" get endpoints oai-cu-ci oai-du0-rfsim oai-du1-rfsim -o wide | tee "$SEQ_DIR/08-final-endpoints.txt" || true
 
 echo "F1_DU_SWITCH_SEQUENCE_OK"
 echo "Evidence saved in: $SEQ_DIR"

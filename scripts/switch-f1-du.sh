@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED (legacy single-DU F1 era). Superseded by the Mixed-DU handover
+# (web-dashboard/mixed_du_handover_api.py). Not used by platform-start or the
+# dashboard. Targets the monolithic oai-cu; scheduled for deletion in Phase 2
+# alongside the monolithic CU. Do not use with the CU-CP/CU-UP (E1) split.
 set -euo pipefail
 
 TARGET="${1:-}"
