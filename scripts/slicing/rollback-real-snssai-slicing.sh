@@ -56,8 +56,9 @@ kubectl -n "oran-core" rollout status deploy/open5gs-amf --timeout=180s
 kubectl -n "oran-core" rollout status deploy/open5gs-smf --timeout=180s
 kubectl -n "oran-core" rollout status deploy/open5gs-nssf --timeout=180s
 
-kubectl -n "oran-ran" rollout restart deploy/oai-cu deploy/oai-du0 deploy/oai-nr-ue
-kubectl -n "oran-ran" rollout status deploy/oai-cu --timeout=180s
+kubectl -n "oran-ran" rollout restart deploy/oai-cu-cp deploy/oai-cu-up deploy/oai-du0 deploy/oai-nr-ue
+kubectl -n "oran-ran" rollout status deploy/oai-cu-cp --timeout=180s
+kubectl -n "oran-ran" rollout status deploy/oai-cu-up --timeout=180s
 kubectl -n "oran-ran" rollout status deploy/oai-du0 --timeout=180s
 kubectl -n "oran-ran" rollout status deploy/oai-nr-ue --timeout=180s
 

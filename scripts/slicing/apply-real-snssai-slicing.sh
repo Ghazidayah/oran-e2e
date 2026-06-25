@@ -74,7 +74,7 @@ kubectl -n "$NS_CORE" get cm open5gs-amf -o yaml > "$BACKUP/open5gs-amf-cm.yaml"
 kubectl -n "$NS_CORE" get cm open5gs-smf -o yaml > "$BACKUP/open5gs-smf-cm.yaml"
 kubectl -n "$NS_CORE" get cm open5gs-nssf -o yaml > "$BACKUP/open5gs-nssf-cm.yaml"
 
-kubectl -n "$NS_RAN" get cm oai-cu-f1-config -o yaml > "$BACKUP/oai-cu-f1-config-cm.yaml"
+kubectl -n "$NS_RAN" get cm oai-cucp-config -o yaml > "$BACKUP/oai-cucp-config-cm.yaml"
 kubectl -n "$NS_RAN" get cm oai-du0-f1-config -o yaml > "$BACKUP/oai-du0-f1-config-cm.yaml"
 kubectl -n "$NS_RAN" get cm oai-du1-f1-config -o yaml > "$BACKUP/oai-du1-f1-config-cm.yaml"
 kubectl -n "$NS_RAN" get cm oai-nrue-config -o yaml > "$BACKUP/oai-nrue-config-cm.yaml"
@@ -85,7 +85,7 @@ extract_cm_key "$NS_CORE" open5gs-amf amf.yaml "$WORK/amf.yaml"
 extract_cm_key "$NS_CORE" open5gs-smf smf.yaml "$WORK/smf.yaml"
 extract_cm_key "$NS_CORE" open5gs-nssf nssf.yaml "$WORK/nssf.yaml"
 
-extract_cm_key "$NS_RAN" oai-cu-f1-config gnb.conf "$WORK/oai-cu.conf"
+extract_cm_key "$NS_RAN" oai-cucp-config gnb.conf "$WORK/oai-cu.conf"
 extract_cm_key "$NS_RAN" oai-du0-f1-config gnb.conf "$WORK/oai-du0.conf"
 extract_cm_key "$NS_RAN" oai-du1-f1-config gnb.conf "$WORK/oai-du1.conf"
 extract_cm_key "$NS_RAN" oai-nrue-config nr-ue.conf "$WORK/nr-ue.conf"
@@ -228,7 +228,7 @@ apply_cm_key "$NS_CORE" open5gs-amf amf.yaml "$WORK/amf.yaml"
 apply_cm_key "$NS_CORE" open5gs-smf smf.yaml "$WORK/smf.yaml"
 apply_cm_key "$NS_CORE" open5gs-nssf nssf.yaml "$WORK/nssf.yaml"
 
-apply_cm_key "$NS_RAN" oai-cu-f1-config gnb.conf "$WORK/oai-cu.conf"
+apply_cm_key "$NS_RAN" oai-cucp-config gnb.conf "$WORK/oai-cu.conf"
 apply_cm_key "$NS_RAN" oai-du0-f1-config gnb.conf "$WORK/oai-du0.conf"
 apply_cm_key "$NS_RAN" oai-du1-f1-config gnb.conf "$WORK/oai-du1.conf"
 apply_cm_key "$NS_RAN" oai-nrue-config nr-ue.conf "$WORK/nr-ue.conf"
@@ -411,7 +411,7 @@ echo "Backup source: $BACKUP"
 kubectl apply -f "$BACKUP/open5gs-amf-cm.yaml"
 kubectl apply -f "$BACKUP/open5gs-smf-cm.yaml"
 kubectl apply -f "$BACKUP/open5gs-nssf-cm.yaml"
-kubectl apply -f "$BACKUP/oai-cu-f1-config-cm.yaml"
+kubectl apply -f "$BACKUP/oai-cucp-config-cm.yaml"
 kubectl apply -f "$BACKUP/oai-du0-f1-config-cm.yaml"
 kubectl apply -f "$BACKUP/oai-du1-f1-config-cm.yaml"
 kubectl apply -f "$BACKUP/oai-nrue-config-cm.yaml"
@@ -460,8 +460,9 @@ kubectl -n "$NS_CORE" rollout status deploy/open5gs-amf --timeout=180s
 kubectl -n "$NS_CORE" rollout status deploy/open5gs-smf --timeout=180s
 kubectl -n "$NS_CORE" rollout status deploy/open5gs-nssf --timeout=180s
 
-kubectl -n "$NS_RAN" rollout restart deploy/oai-cu deploy/oai-du0 deploy/oai-nr-ue
-kubectl -n "$NS_RAN" rollout status deploy/oai-cu --timeout=180s
+kubectl -n "$NS_RAN" rollout restart deploy/oai-cu-cp deploy/oai-cu-up deploy/oai-du0 deploy/oai-nr-ue
+kubectl -n "$NS_RAN" rollout status deploy/oai-cu-cp --timeout=180s
+kubectl -n "$NS_RAN" rollout status deploy/oai-cu-up --timeout=180s
 kubectl -n "$NS_RAN" rollout status deploy/oai-du0 --timeout=180s
 kubectl -n "$NS_RAN" rollout status deploy/oai-nr-ue --timeout=180s
 
@@ -479,8 +480,9 @@ kubectl -n "$NS_CORE" rollout status deploy/open5gs-nssf --timeout=180s
 
 echo
 echo "===== 11. RESTART ACTIVE RAN / UE ====="
-kubectl -n "$NS_RAN" rollout restart deploy/oai-cu deploy/oai-du0 deploy/oai-nr-ue
-kubectl -n "$NS_RAN" rollout status deploy/oai-cu --timeout=180s
+kubectl -n "$NS_RAN" rollout restart deploy/oai-cu-cp deploy/oai-cu-up deploy/oai-du0 deploy/oai-nr-ue
+kubectl -n "$NS_RAN" rollout status deploy/oai-cu-cp --timeout=180s
+kubectl -n "$NS_RAN" rollout status deploy/oai-cu-up --timeout=180s
 kubectl -n "$NS_RAN" rollout status deploy/oai-du0 --timeout=180s
 kubectl -n "$NS_RAN" rollout status deploy/oai-nr-ue --timeout=180s
 
