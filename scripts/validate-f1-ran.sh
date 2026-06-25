@@ -11,10 +11,13 @@ echo "===== Core pods ====="
 kubectl -n "$CORE_NS" get pods -o wide
 
 echo "===== F1 deployments ====="
-kubectl -n "$NS" get deploy oai-cu oai-du0 oai-du1 -o wide
+kubectl -n "$NS" get deploy oai-cu-cp oai-cu-up oai-du0 oai-du1 -o wide
 
-echo "===== CU logs: F1/NGAP ====="
-kubectl -n "$NS" logs deploy/oai-cu --tail=200 | egrep -i 'F1|F1AP|DU|gNB|NGAP|SCTP|Setup|accepted|connected' || true
+echo "===== CU-CP logs: F1/NGAP ====="
+kubectl -n "$NS" logs deploy/oai-cu-cp --tail=200 | egrep -i 'F1|F1AP|DU|gNB|NGAP|SCTP|Setup|accepted|connected' || true
+
+echo "===== CU-UP logs: E1/bearers ====="
+kubectl -n "$NS" logs deploy/oai-cu-up --tail=150 | egrep -i 'E1|E1AP|bearer|established|CU-CP|CU-UP|TEID' || true
 
 echo "===== DU0 logs: F1/RFsim ====="
 kubectl -n "$NS" logs deploy/oai-du0 --tail=200 | egrep -i 'F1|F1AP|CU|DU|rfsim|connect|sync|SIB|RRC' || true
