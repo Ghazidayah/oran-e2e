@@ -186,3 +186,15 @@ spec:
       volumes:
       - name: cuup-config
         configMap: { name: oai-cuup-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oai-cu-cp-ci
+  namespace: oran-ran
+  labels: { app: oai-cu-cp }
+spec:
+  type: ClusterIP
+  selector: { app: oai-cu-cp }
+  ports:
+  - { name: ci, port: 9090, targetPort: 9090 }

@@ -370,7 +370,8 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
         extra UE deployments can interfere with the single-UE F1 handover setup.
         """
         checks = [
-            ("oai-cu", 1, 1),
+            ("oai-cu-cp", 1, 1),
+            ("oai-cu-up", 1, 1),
             ("oai-du0", 1, 1),
             ("oai-du1", 1, 1),
             ("oai-gnb", 0, 0),

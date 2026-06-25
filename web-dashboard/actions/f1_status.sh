@@ -38,7 +38,8 @@ check_deploy() {
 }
 
 section "F1 topology deployments"
-check_deploy oai-cu
+check_deploy oai-cu-cp
+check_deploy oai-cu-up
 check_deploy oai-du0
 check_deploy oai-du1
 check_deploy oai-nr-ue-f1
@@ -46,7 +47,7 @@ check_deploy oai-nr-ue-f1
 section "Old monolithic gNB deployments"
 kubectl -n "$NS" get deploy oai-gnb oai-gnb-b 2>/dev/null || true
 
-CU_POD="$(get_pod oai-cu)"
+CU_POD="$(get_pod oai-cu-cp)"   # F1-C / F1AP logs live on the CU-CP
 DU0_POD="$(get_pod oai-du0)"
 DU1_POD="$(get_pod oai-du1)"
 UE_POD="$(get_pod oai-nr-ue-f1)"
@@ -63,8 +64,8 @@ if [ -z "${CU_POD:-}" ] || [ -z "${DU0_POD:-}" ] || [ -z "${DU1_POD:-}" ] || [ -
 fi
 
 section "Services"
-kubectl -n "$NS" get svc oai-cu-ci oai-nr-ue-f1-rfsim 2>/dev/null || {
-  echo "[FAIL] Missing oai-cu-ci or oai-nr-ue-f1-rfsim service"
+kubectl -n "$NS" get svc oai-cu-cp-ci oai-nr-ue-f1-rfsim 2>/dev/null || {
+  echo "[FAIL] Missing oai-cu-cp-ci or oai-nr-ue-f1-rfsim service"
   topology_ok=false
 }
 

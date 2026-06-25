@@ -474,13 +474,19 @@ else
 fi
 echo ""
 
-# CU
-echo "===== CU (oai-cu) ====="
-CU_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu \
+# CU (split: CU-CP + CU-UP)
+echo "===== CU-CP (oai-cu-cp) ====="
+CUCP_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu-cp \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-CU_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu \
+CUCP_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu-cp \
   -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
-echo "Pod    : ${CU_POD:-NOT FOUND}  Phase: $CU_PHASE"
+echo "Pod    : ${CUCP_POD:-NOT FOUND}  Phase: $CUCP_PHASE"
+echo "===== CU-UP (oai-cu-up) ====="
+CUUP_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu-up \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+CUUP_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu-up \
+  -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
+echo "Pod    : ${CUUP_POD:-NOT FOUND}  Phase: $CUUP_PHASE"
 echo ""
 
 echo "VERDICT=SERVING_DU_CHECK_DONE"
@@ -631,11 +637,16 @@ echo "$SEP"
 echo "3. F1-SPLIT RAN TOPOLOGY"
 echo "$SEP"
 
-CU_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu \
+CUCP_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu-cp \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-CU_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu \
+CUCP_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu-cp \
   -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
-echo "CU  : ${CU_POD:-NOT FOUND}  [$CU_PHASE]"
+echo "CU-CP: ${CUCP_POD:-NOT FOUND}  [$CUCP_PHASE]"
+CUUP_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu-up \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+CUUP_PHASE=$(kubectl -n "$RAN_NS" get pod -l app=oai-cu-up \
+  -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "NotFound")
+echo "CU-UP: ${CUUP_POD:-NOT FOUND}  [$CUUP_PHASE]"
 
 DU0_POD=$(kubectl -n "$RAN_NS" get pod -l app=oai-du0 \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
