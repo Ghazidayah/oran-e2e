@@ -96,7 +96,6 @@ for asset in \
   dashboard-multi-ue.js \
   mixed-du-handover.js \
   mixed-du-table.js \
-  frequency-profile.js \
   dashboard-status-live.js
 do
   if curl -fsS --max-time 20 "$BASE/static/$asset" > "$OUT/$asset"; then
