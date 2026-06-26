@@ -83,7 +83,7 @@ fi
 for marker in \
   "Radio / Modulation Profile Control" \
   "End-to-End UE Validation Scenarios" \
-  "Real S-NSSAI Slice Traffic - Phase 3" \
+  "Real S-NSSAI Slice Traffic" \
   "Real-Time Multi-UE Data Transfer" \
   "mixedDuLowerHandoverSection" \
   "Multi-UE Control"

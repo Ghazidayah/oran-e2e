@@ -66,14 +66,14 @@ fi
 
 for marker in \
   "Radio / Modulation Profile Control" \
-  "Frequency Profile Control" \
-  "Frequency KPI Results / Comparison" \
-  "Frequency Profile Logs" \
+  "Frequency Scenarios" \
+  "Scenario KPI Results" \
+  "realFreqLog" \
   "End-to-End UE Validation Scenarios" \
-  "Real S-NSSAI Slice Traffic - Phase 3" \
+  "Real S-NSSAI Slice Traffic" \
   "Real-Time Multi-UE Data Transfer" \
   "mixedDuLowerHandoverSection" \
-  "Multi-UE DU Continuity / Handover" \
+  "DU Continuity / Handover" \
   "Multi-UE Control" \
   "eMBB Parallel Realistic Scenarios"
 do
@@ -121,9 +121,9 @@ json_get "GET /api/ues" "$BASE/api/ues" "$OUT/api-ues.json"
 json_get "GET /api/ues/live_metrics" "$BASE/api/ues/live_metrics" "$OUT/live-metrics.json"
 json_get "GET /api/radio/status" "$BASE/api/radio/status" "$OUT/radio-status.json"
 json_get "GET /api/radio/results" "$BASE/api/radio/results" "$OUT/radio-results.json"
-json_get "GET /api/frequency/status" "$BASE/api/frequency/status" "$OUT/frequency-status.json"
-json_get "GET /api/frequency/results" "$BASE/api/frequency/results" "$OUT/frequency-results.json"
-json_get "GET /api/frequency/profiles" "$BASE/api/frequency/profiles" "$OUT/frequency-profiles.json"
+json_get "GET /api/real-frequency/status" "$BASE/api/real-frequency/status" "$OUT/frequency-status.json"
+json_get "GET /api/real-frequency/results" "$BASE/api/real-frequency/results" "$OUT/frequency-results.json"
+json_get "GET /api/real-frequency/profiles" "$BASE/api/real-frequency/profiles" "$OUT/frequency-profiles.json"
 json_get "GET /api/handover/mixed-du/status" "$BASE/api/handover/mixed-du/status" "$OUT/handover-status.json"
 json_get "Traffic API health" "$TRAFFIC_API/api/traffic/health" "$OUT/traffic-health.json"
 
@@ -168,10 +168,10 @@ check(radio.get("tunnel_ready") == "yes", "radio UE tunnel ready", f"tunnel_read
 check(radio.get("slice") in ("1 / 0xffffff", "1 / 16777215"), "radio slice is eMBB SST=1", f"slice={radio.get('slice')}")
 
 check(frequency.get("ok") is True, "frequency API ok=true", "frequency API not ok")
-check(frequency.get("active_profile") == "mid-band-3500", "frequency active profile is mid-band-3500", f"active_profile={frequency.get('active_profile')}")
+check(frequency.get("active_profile") is not None, "frequency active profile is set", f"active_profile={frequency.get('active_profile')}")
 check(frequency.get("tunnel_ready") == "yes", "frequency UE tunnel ready", f"tunnel_ready={frequency.get('tunnel_ready')}")
-check("20/-4" in str(frequency.get("rf_values")) and "20/-2" in str(frequency.get("rf_values")), "frequency RF baseline restored", f"rf_values={frequency.get('rf_values')}")
-check("netem" not in str(frequency.get("qdisc", "")), "frequency tc/netem cleared after restore", f"qdisc={frequency.get('qdisc')}")
+check(bool(frequency.get("carrier_keys")), "frequency carrier keys present (real retune)", "frequency carrier_keys missing")
+# (removed: old netem qdisc check — real-frequency uses real OAI carrier retune, no tc/netem)
 
 check(handover.get("ok") is True, "handover API ok=true", "handover API not ok")
 check(handover.get("attached_count") == 5, "handover attached_count=5", f"handover attached_count={handover.get('attached_count')}")

@@ -50,7 +50,7 @@ else
   fail "dashboard page not reachable"
 fi
 
-if grep -q "Real S-NSSAI Slice Traffic - Phase 3" "$OUT/dashboard.html"; then
+if grep -q "Real S-NSSAI Slice Traffic" "$OUT/dashboard.html"; then
   pass "real slice dashboard section exists"
 else
   fail "real slice dashboard section missing"

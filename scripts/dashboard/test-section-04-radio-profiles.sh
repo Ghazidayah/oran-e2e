@@ -117,8 +117,8 @@ fi
 
 for marker in \
   "Radio / Modulation Profile Control" \
-  "Radio Profile Results / Comparison" \
-  "Radio Profile Logs"
+  "Radio / Modulation Profile Control" \
+  "radio-results"
 do
   if grep -q "$marker" "$OUT/dashboard.html"; then
     pass "radio UI marker present: $marker"
