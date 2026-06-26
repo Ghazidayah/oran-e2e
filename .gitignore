@@ -39,6 +39,13 @@ web-dashboard/*.bak.*
 web-dashboard/templates/*.bak.*
 scripts/ue/*.bak.*
 backups/
+# Stale kubectl/mongo snapshot captures (runtime, never commit)
+all.txt
+configmaps.txt
+mongo-collections.txt
+mongo-nf.txt
+pods.txt
+svc-endpoints.txt
 *.patch
 web-dashboard/radio-profile-results.json
 web-dashboard/real-frequency-results.json
