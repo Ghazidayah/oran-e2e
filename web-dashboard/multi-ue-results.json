@@ -7,8 +7,8 @@
   "requested_jobs": 5,
   "selected_count": 5,
   "label": "Multi-UE eMBB Realistic Scenarios",
-  "proof_dir": "/home/ghazi/oran-proof/phase4-multi-ue-embb-realistic/20260625-075913",
-  "base_url": "http://192.168.1.142:56609",
+  "proof_dir": "/home/ghazi/oran-proof/phase4-multi-ue-embb-realistic/20260626-085423",
+  "base_url": "http://192.168.1.142:49785",
   "skipped": [],
   "results": [
     {
@@ -19,9 +19,9 @@
       "sst": 1,
       "ok": true,
       "exit": 0,
-      "output": "{\n  \"scenario\": \"image\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.7\",\n  \"resources_requested\": 1,\n  \"resources_ok\": 1,\n  \"total_bytes\": 716800,\n  \"duration_seconds\": 1.361236,\n  \"throughput_mbps\": 4.212642,\n  \"resources\": [\n    {\n      \"path\": \"/images/test-image.bin\",\n      \"http_status\": 200,\n      \"bytes\": 716800,\n      \"time_seconds\": 1.357562,\n      \"sha256\": \"cf57780690e3f187723550ccc21d4e155a55870e733a707a00cdff5d47655c4f\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: image\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 1 / 1\nrx_delta_bytes=716800\ntx_delta_bytes=0\nduration_sec=1.361\napprox_total_mbps=4.212642\npacket_loss=0%\nverdict=OK",
-      "pod": "oai-nr-ue-f946dc8bc-btcnp",
-      "tunnel_ip": "10.45.0.7/24"
+      "output": "{\n  \"scenario\": \"image\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.58\",\n  \"resources_requested\": 1,\n  \"resources_ok\": 1,\n  \"total_bytes\": 716800,\n  \"duration_seconds\": 0.807482,\n  \"throughput_mbps\": 7.101585,\n  \"resources\": [\n    {\n      \"path\": \"/images/test-image.bin\",\n      \"http_status\": 200,\n      \"bytes\": 716800,\n      \"time_seconds\": 0.806392,\n      \"sha256\": \"cf57780690e3f187723550ccc21d4e155a55870e733a707a00cdff5d47655c4f\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: image\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 1 / 1\nrx_delta_bytes=716800\ntx_delta_bytes=0\nduration_sec=0.807\napprox_total_mbps=7.101585\npacket_loss=0%\nverdict=OK",
+      "pod": "oai-nr-ue-6b4c56c9fb-7rq5r",
+      "tunnel_ip": "10.45.0.58/24"
     },
     {
       "ue": "ue2",
@@ -31,9 +31,9 @@
       "sst": 1,
       "ok": true,
       "exit": 0,
-      "output": "{\n  \"scenario\": \"web\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.9\",\n  \"resources_requested\": 5,\n  \"resources_ok\": 5,\n  \"total_bytes\": 1433880,\n  \"duration_seconds\": 4.005981,\n  \"throughput_mbps\": 2.863478,\n  \"resources\": [\n    {\n      \"path\": \"/web/index.html\",\n      \"http_status\": 200,\n      \"bytes\": 181,\n      \"time_seconds\": 0.355637,\n      \"sha256\": \"7c136b3e5146eda5ad3596fb924fa69d86aa1cfe9b5e74bfdc8b3205a7f0a400\"\n    },\n    {\n      \"path\": \"/web/style.css\",\n      \"http_status\": 200,\n      \"bytes\": 60,\n      \"time_seconds\": 0.178047,\n      \"sha256\": \"303bc220aa920c9b9bde47805fe4ed09ba17388a63811967fdb6cf88f606e4c0\"\n    },\n    {\n      \"path\": \"/web/app.js\",\n      \"http_status\": 200,\n      \"bytes\": 39,\n      \"time_seconds\": 0.14428,\n      \"sha256\": \"6d4194991225d0368b7f0172f488f7d25f13760bf374b710d9d75c81a66f5db4\"\n    },\n    {\n      \"path\": \"/web/image1.bin\",\n      \"http_status\": 200,\n      \"bytes\": 716800,\n      \"time_seconds\": 2.203058,\n      \"sha256\": \"416622566ea50af7cfdcdcf0539a27cabba08c47930f9d6fe241440277087ca8\"\n    },\n    {\n      \"path\": \"/web/image2.bin\",\n      \"http_status\": 200,\n      \"bytes\": 716800,\n      \"time_seconds\": 1.11219,\n      \"sha256\": \"c9d094ffc3fb58b88017f3eaa1fbcabe7425e0a9cbdddaa5c424f2c43e398906\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: web\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 5 / 5\nrx_delta_bytes=1433880\ntx_delta_bytes=0\nduration_sec=4.006\napprox_total_mbps=2.863478\npacket_loss=0%\nverdict=OK",
-      "pod": "oai-nr-ue-2-676f89cc97-9pk2d",
-      "tunnel_ip": "10.45.0.9/24"
+      "output": "{\n  \"scenario\": \"web\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.61\",\n  \"resources_requested\": 5,\n  \"resources_ok\": 5,\n  \"total_bytes\": 1433880,\n  \"duration_seconds\": 3.631057,\n  \"throughput_mbps\": 3.159146,\n  \"resources\": [\n    {\n      \"path\": \"/web/index.html\",\n      \"http_status\": 200,\n      \"bytes\": 181,\n      \"time_seconds\": 0.313589,\n      \"sha256\": \"7c136b3e5146eda5ad3596fb924fa69d86aa1cfe9b5e74bfdc8b3205a7f0a400\"\n    },\n    {\n      \"path\": \"/web/style.css\",\n      \"http_status\": 200,\n      \"bytes\": 60,\n      \"time_seconds\": 0.15272,\n      \"sha256\": \"303bc220aa920c9b9bde47805fe4ed09ba17388a63811967fdb6cf88f606e4c0\"\n    },\n    {\n      \"path\": \"/web/app.js\",\n      \"http_status\": 200,\n      \"bytes\": 39,\n      \"time_seconds\": 0.164912,\n      \"sha256\": \"6d4194991225d0368b7f0172f488f7d25f13760bf374b710d9d75c81a66f5db4\"\n    },\n    {\n      \"path\": \"/web/image1.bin\",\n      \"http_status\": 200,\n      \"bytes\": 716800,\n      \"time_seconds\": 1.922101,\n      \"sha256\": \"416622566ea50af7cfdcdcf0539a27cabba08c47930f9d6fe241440277087ca8\"\n    },\n    {\n      \"path\": \"/web/image2.bin\",\n      \"http_status\": 200,\n      \"bytes\": 716800,\n      \"time_seconds\": 1.069474,\n      \"sha256\": \"c9d094ffc3fb58b88017f3eaa1fbcabe7425e0a9cbdddaa5c424f2c43e398906\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: web\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 5 / 5\nrx_delta_bytes=1433880\ntx_delta_bytes=0\nduration_sec=3.631\napprox_total_mbps=3.159146\npacket_loss=0%\nverdict=OK",
+      "pod": "oai-nr-ue-2-56d8b7c74c-cfqk7",
+      "tunnel_ip": "10.45.0.61/24"
     },
     {
       "ue": "ue3",
@@ -43,9 +43,9 @@
       "sst": 1,
       "ok": true,
       "exit": 0,
-      "output": "{\n  \"scenario\": \"streaming\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.11\",\n  \"resources_requested\": 9,\n  \"resources_ok\": 9,\n  \"total_bytes\": 4194616,\n  \"duration_seconds\": 6.83148,\n  \"throughput_mbps\": 4.912102,\n  \"resources\": [\n    {\n      \"path\": \"/hls/playlist.m3u8\",\n      \"http_status\": 200,\n      \"bytes\": 312,\n      \"time_seconds\": 0.921108,\n      \"sha256\": \"ef5b9baeaee3f2859bd0ecf68836a8918af48d2435169d7d06f8d8aae299d4b8\"\n    },\n    {\n      \"path\": \"/hls/segment_001.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 2.044935,\n      \"sha256\": \"045d9cfb685f07193b33213565b62c69d250ef04b9199b1c863506805b8bbd46\"\n    },\n    {\n      \"path\": \"/hls/segment_002.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.929343,\n      \"sha256\": \"57dfdacbdab246b38b9e312b329287d3a033dd88b038f9e5da0f160139192e4e\"\n    },\n    {\n      \"path\": \"/hls/segment_003.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.7166,\n      \"sha256\": \"88b8114b54960955e8f9ceb556336a2df7f21ae478464ab31284b65bff2f840f\"\n    },\n    {\n      \"path\": \"/hls/segment_004.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.717283,\n      \"sha256\": \"cc872b3123f0d2f5931bf144b7f2425b8c5220a6549acbfc1d017184e3faefbc\"\n    },\n    {\n      \"path\": \"/hls/segment_005.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.555645,\n      \"sha256\": \"a234f4f4d63caa37033ae9b23aa87a07c66c224dd60cbae1f5ca8bddc10fa7da\"\n    },\n    {\n      \"path\": \"/hls/segment_006.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.382878,\n      \"sha256\": \"52b0ae625e09c3ec7c386982250e6835d9ebc7b2fd5b79d4f7f6dc4dff65876c\"\n    },\n    {\n      \"path\": \"/hls/segment_007.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.288508,\n      \"sha256\": \"de0003c461b2899ad72fae1410caf24c34572c58a879cc9cea8b0977e268b1a4\"\n    },\n    {\n      \"path\": \"/hls/segment_008.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.262547,\n      \"sha256\": \"12b22bc210530eca6c9407df3f32b57bbe931236c29da16c6e3dd9f57d74319f\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: streaming\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 9 / 9\nrx_delta_bytes=4194616\ntx_delta_bytes=0\nduration_sec=6.831\napprox_total_mbps=4.912102\npacket_loss=0%\nverdict=OK",
-      "pod": "oai-nr-ue-3-75c6478b8-jff7b",
-      "tunnel_ip": "10.45.0.11/24"
+      "output": "{\n  \"scenario\": \"streaming\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.6\",\n  \"resources_requested\": 9,\n  \"resources_ok\": 9,\n  \"total_bytes\": 4194616,\n  \"duration_seconds\": 7.297058,\n  \"throughput_mbps\": 4.598693,\n  \"resources\": [\n    {\n      \"path\": \"/hls/playlist.m3u8\",\n      \"http_status\": 200,\n      \"bytes\": 312,\n      \"time_seconds\": 0.311599,\n      \"sha256\": \"ef5b9baeaee3f2859bd0ecf68836a8918af48d2435169d7d06f8d8aae299d4b8\"\n    },\n    {\n      \"path\": \"/hls/segment_001.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 1.857648,\n      \"sha256\": \"045d9cfb685f07193b33213565b62c69d250ef04b9199b1c863506805b8bbd46\"\n    },\n    {\n      \"path\": \"/hls/segment_002.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.862247,\n      \"sha256\": \"57dfdacbdab246b38b9e312b329287d3a033dd88b038f9e5da0f160139192e4e\"\n    },\n    {\n      \"path\": \"/hls/segment_003.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.967687,\n      \"sha256\": \"88b8114b54960955e8f9ceb556336a2df7f21ae478464ab31284b65bff2f840f\"\n    },\n    {\n      \"path\": \"/hls/segment_004.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 1.107254,\n      \"sha256\": \"cc872b3123f0d2f5931bf144b7f2425b8c5220a6549acbfc1d017184e3faefbc\"\n    },\n    {\n      \"path\": \"/hls/segment_005.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.522269,\n      \"sha256\": \"a234f4f4d63caa37033ae9b23aa87a07c66c224dd60cbae1f5ca8bddc10fa7da\"\n    },\n    {\n      \"path\": \"/hls/segment_006.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.369839,\n      \"sha256\": \"52b0ae625e09c3ec7c386982250e6835d9ebc7b2fd5b79d4f7f6dc4dff65876c\"\n    },\n    {\n      \"path\": \"/hls/segment_007.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.479434,\n      \"sha256\": \"de0003c461b2899ad72fae1410caf24c34572c58a879cc9cea8b0977e268b1a4\"\n    },\n    {\n      \"path\": \"/hls/segment_008.ts\",\n      \"http_status\": 200,\n      \"bytes\": 524288,\n      \"time_seconds\": 0.796516,\n      \"sha256\": \"12b22bc210530eca6c9407df3f32b57bbe931236c29da16c6e3dd9f57d74319f\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: streaming\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 9 / 9\nrx_delta_bytes=4194616\ntx_delta_bytes=0\nduration_sec=7.297\napprox_total_mbps=4.598693\npacket_loss=0%\nverdict=OK",
+      "pod": "oai-nr-ue-3-64795f46c7-kwxzf",
+      "tunnel_ip": "10.45.0.6/24"
     },
     {
       "ue": "ue4",
@@ -55,9 +55,9 @@
       "sst": 1,
       "ok": true,
       "exit": 0,
-      "output": "{\n  \"scenario\": \"video_download\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.13\",\n  \"resources_requested\": 1,\n  \"resources_ok\": 1,\n  \"total_bytes\": 5242880,\n  \"duration_seconds\": 5.542222,\n  \"throughput_mbps\": 7.567911,\n  \"resources\": [\n    {\n      \"path\": \"/videos/sample-video.mp4\",\n      \"http_status\": 200,\n      \"bytes\": 5242880,\n      \"time_seconds\": 5.523288,\n      \"sha256\": \"23fe7fce83ff4316f8c316ee661d845bda5eac8c0ce1626d922de7f795555df7\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: video_download\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 1 / 1\nrx_delta_bytes=5242880\ntx_delta_bytes=0\nduration_sec=5.542\napprox_total_mbps=7.567911\npacket_loss=0%\nverdict=OK",
-      "pod": "oai-nr-ue-4-774586f798-wppgz",
-      "tunnel_ip": "10.45.0.13/24"
+      "output": "{\n  \"scenario\": \"video_download\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.4\",\n  \"resources_requested\": 1,\n  \"resources_ok\": 1,\n  \"total_bytes\": 5242880,\n  \"duration_seconds\": 5.519086,\n  \"throughput_mbps\": 7.599635,\n  \"resources\": [\n    {\n      \"path\": \"/videos/sample-video.mp4\",\n      \"http_status\": 200,\n      \"bytes\": 5242880,\n      \"time_seconds\": 5.499452,\n      \"sha256\": \"23fe7fce83ff4316f8c316ee661d845bda5eac8c0ce1626d922de7f795555df7\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: video_download\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 1 / 1\nrx_delta_bytes=5242880\ntx_delta_bytes=0\nduration_sec=5.519\napprox_total_mbps=7.599635\npacket_loss=0%\nverdict=OK",
+      "pod": "oai-nr-ue-4-7856dff5db-xt4dg",
+      "tunnel_ip": "10.45.0.4/24"
     },
     {
       "ue": "ue5",
@@ -67,10 +67,10 @@
       "sst": 1,
       "ok": true,
       "exit": 0,
-      "output": "{\n  \"scenario\": \"tcp_download\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.15\",\n  \"resources_requested\": 2,\n  \"resources_ok\": 2,\n  \"total_bytes\": 10485760,\n  \"duration_seconds\": 6.270747,\n  \"throughput_mbps\": 13.377366,\n  \"resources\": [\n    {\n      \"path\": \"/videos/sample-video.mp4\",\n      \"http_status\": 200,\n      \"bytes\": 5242880,\n      \"time_seconds\": 3.225421,\n      \"sha256\": \"23fe7fce83ff4316f8c316ee661d845bda5eac8c0ce1626d922de7f795555df7\"\n    },\n    {\n      \"path\": \"/videos/sample-video.mp4\",\n      \"http_status\": 200,\n      \"bytes\": 5242880,\n      \"time_seconds\": 3.01299,\n      \"sha256\": \"23fe7fce83ff4316f8c316ee661d845bda5eac8c0ce1626d922de7f795555df7\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: tcp_download\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 2 / 2\nrx_delta_bytes=10485760\ntx_delta_bytes=0\nduration_sec=6.271\napprox_total_mbps=13.377366\npacket_loss=0%\nverdict=OK",
-      "pod": "oai-nr-ue-5-c5f6f7dbf-h24dx",
-      "tunnel_ip": "10.45.0.15/24"
+      "output": "{\n  \"scenario\": \"tcp_download\",\n  \"slice\": \"eMBB\",\n  \"sst\": 1,\n  \"bind_source_ip\": \"10.45.0.5\",\n  \"resources_requested\": 2,\n  \"resources_ok\": 2,\n  \"total_bytes\": 10485760,\n  \"duration_seconds\": 7.255231,\n  \"throughput_mbps\": 11.562151,\n  \"resources\": [\n    {\n      \"path\": \"/videos/sample-video.mp4\",\n      \"http_status\": 200,\n      \"bytes\": 5242880,\n      \"time_seconds\": 5.569307,\n      \"sha256\": \"23fe7fce83ff4316f8c316ee661d845bda5eac8c0ce1626d922de7f795555df7\"\n    },\n    {\n      \"path\": \"/videos/sample-video.mp4\",\n      \"http_status\": 200,\n      \"bytes\": 5242880,\n      \"time_seconds\": 1.663393,\n      \"sha256\": \"23fe7fce83ff4316f8c316ee661d845bda5eac8c0ce1626d922de7f795555df7\"\n    }\n  ],\n  \"verdict\": \"OK\"\n}\nScenario: tcp_download\nSlice: eMBB\nSST: 1\nHTTP status: OK\nResources OK: 2 / 2\nrx_delta_bytes=10485760\ntx_delta_bytes=0\nduration_sec=7.255\napprox_total_mbps=11.562151\npacket_loss=0%\nverdict=OK",
+      "pod": "oai-nr-ue-5-5489cbc676-sqhqf",
+      "tunnel_ip": "10.45.0.5/24"
     }
   ],
-  "timestamp": "2026-06-25 07:59:24"
+  "timestamp": "2026-06-26 08:54:35"
 }

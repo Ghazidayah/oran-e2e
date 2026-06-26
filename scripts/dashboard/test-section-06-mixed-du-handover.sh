@@ -139,7 +139,7 @@ fi
 
 for marker in \
   "mixedDuLowerHandoverSection" \
-  "Multi-UE DU Continuity / Handover" \
+  "DU Continuity / Handover" \
   "Refresh DU Status" \
   "Run Mixed-DU Validation" \
   "mixedDuTableBody"
