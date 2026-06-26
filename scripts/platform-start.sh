@@ -8,7 +8,12 @@ PORT="${ORAN_DASHBOARD_PORT:-18080}"
 START_DASHBOARD="${ORAN_START_DASHBOARD:-1}"
 START_TRAFFIC_API="${ORAN_START_TRAFFIC_API:-1}"
 TRAFFIC_API_PORT="${TRAFFIC_API_PORT:-5055}"
-RECOVER_MIXED_DU="${ORAN_RECOVER_MIXED_DU:-1}"
+# Mixed-DU recovery is a HANDOVER-DEMO routine, not a bootstrap step: it switches
+# UEs to DU1 and runs traffic tests. Running it on cold start (before UEs attach)
+# both wastes ~6 min and thrashes UEs out of attaching. OFF by default; the normal
+# attach path (reconcile_ue_sessions) brings UEs up. Set ORAN_RECOVER_MIXED_DU=1
+# only when you explicitly want to stage/demo the mixed-DU handover layout.
+RECOVER_MIXED_DU="${ORAN_RECOVER_MIXED_DU:-0}"
 TARGET_NAMESPACES="${ORAN_PLATFORM_NAMESPACES:-oran-core oran-ran monitoring}"
 
 section() {
