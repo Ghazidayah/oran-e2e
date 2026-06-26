@@ -318,66 +318,53 @@ if [ ! -s "$STATE_FILE" ]; then
   exit 1
 fi
 
-# ---- 5GC SBI mesh gate: NRF discovery / AMF identity resolution -----------
-# A "Ready" core pod does NOT mean the SBI mesh is converged. On cold start the
-# AMF/UDM/AUSF can come up before NRF discovery settles; then every UE is rejected
-# at the SUCI->SUPI identity step with "Registration reject [9]" (5GMM cause #9,
-# "identity cannot be derived"), and UEs fall into CrashLoopBackOff. Gate on it:
-# detect reject[9] while UEs are registering, and re-converge the SBI in order.
+# ---- 5GC startup ordering: AMF/SMF must start AFTER NF discovery is populated --
+# Confirmed root cause of cold-start "Registration reject [9]" (5GMM cause #9,
+# "identity cannot be derived"): on a cold start the AMF can boot before the NRF
+# has the AUSF/UDM/UDR registered, so it cannot resolve UE identity and rejects
+# every UE -> CrashLoopBackOff. The cure is ORDERING, not detection: bring up the
+# registry + data + auth NFs first, let them register into the NRF, THEN restart
+# AMF+SMF last so they boot into a populated NRF and discover everyone on attempt 1.
+# (Restarting AMF here is also why it must run BEFORE the CU-plane gate: the CU-CP's
+# NGAP and the UEs both depend on a stable AMF.)
 CORE_GATE="${ORAN_CORE_GATE:-1}"
-CORE_MAX_TRIES="${ORAN_CORE_MAX_TRIES:-2}"
-CORE_POLL_SECONDS="${ORAN_CORE_POLL_SECONDS:-60}"
+CORE_REGISTER_SETTLE="${ORAN_CORE_REGISTER_SETTLE:-25}"
 
-core_nfs_ready() {
-  local d
-  for d in open5gs-nrf open5gs-scp open5gs-udr open5gs-udm open5gs-ausf open5gs-amf open5gs-smf; do
-    kubectl -n oran-core get deploy "$d" -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q '^[1-9]' || return 1
-  done
-  return 0
+core_dep_ready() {
+  kubectl -n oran-core get deploy "$1" -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q '^[1-9]'
 }
 
-amf_identity_failing() {
-  # reject [9] in the recent window = SUCI->SUPI identity unresolved (SBI not converged)
-  kubectl -n oran-core logs deploy/open5gs-amf --since=120s 2>/dev/null \
-    | grep -q "Registration reject \[9\]"
-}
-
-reconverge_core_sba() {
-  # restart in dependency order: NRF -> (SCP, UDR) -> (UDM, AUSF) -> AMF
-  kubectl -n oran-core rollout restart deploy/open5gs-nrf >/dev/null 2>&1
-  kubectl -n oran-core rollout status  deploy/open5gs-nrf --timeout=120s >/dev/null 2>&1
-  kubectl -n oran-core rollout restart deploy/open5gs-scp deploy/open5gs-udr >/dev/null 2>&1; sleep 8
-  kubectl -n oran-core rollout restart deploy/open5gs-udm deploy/open5gs-ausf >/dev/null 2>&1; sleep 8
-  kubectl -n oran-core rollout restart deploy/open5gs-amf >/dev/null 2>&1
-  kubectl -n oran-core rollout status  deploy/open5gs-amf --timeout=120s >/dev/null 2>&1
-}
-
-ensure_core_sba_healthy() {
-  if [ "$CORE_GATE" != "1" ]; then echo "[SKIP] ORAN_CORE_GATE=$CORE_GATE"; return 0; fi
-  section "Verifying 5GC SBI mesh (UE identity resolution: no Registration reject[9])"
-  local i w
-  for i in $(seq 1 "$CORE_MAX_TRIES"); do
-    for w in $(seq 1 24); do core_nfs_ready && break; sleep 5; done
-    # poll while UEs register; conclusive as soon as reject[9] appears, else healthy after the window
-    local t=0 broken=0
-    while [ "$t" -lt "$CORE_POLL_SECONDS" ]; do
-      if amf_identity_failing; then broken=1; break; fi
-      sleep 10; t=$((t+10))
-    done
-    if [ "$broken" = 0 ]; then
-      echo "5GC SBI healthy: no Registration reject[9] over ${CORE_POLL_SECONDS}s."
-      return 0
-    fi
-    echo "[WARN] AMF Registration reject[9] (identity unresolved) -> SBI mesh not converged."
-    echo "Re-converging core in dependency order (NRF -> SCP/UDR -> UDM/AUSF -> AMF)..."
-    reconverge_core_sba
-    echo "Restarting UEs to clear poisoned NAS contexts..."
-    for d in $(kubectl -n oran-ran get deploy -o name 2>/dev/null | grep oai-nr-ue); do
-      kubectl -n oran-ran rollout restart "$d" >/dev/null 2>&1
-    done
-  done
-  echo "[WARN] SBI still failing identity after $CORE_MAX_TRIES attempts; check NRF/UDM/UDR + mongodb."
+wait_core_dep() {
+  local d="$1" max="${2:-180}" t=0
+  while [ "$t" -lt "$max" ]; do core_dep_ready "$d" && return 0; sleep 5; t=$((t+5)); done
   return 1
+}
+
+ensure_core_amf_ready() {
+  if [ "$CORE_GATE" != "1" ]; then echo "[SKIP] ORAN_CORE_GATE=$CORE_GATE"; return 0; fi
+  section "5GC ordering: NF directory up first, then (re)start AMF+SMF last"
+  # 1. Registry + data + auth NFs must be Ready before the AMF can discover them.
+  local d
+  for d in open5gs-mongodb open5gs-nrf open5gs-scp open5gs-udr open5gs-udm open5gs-ausf open5gs-upf; do
+    if wait_core_dep "$d" 180; then echo "  ready: $d"; else echo "  [WARN] $d not Ready in time"; fi
+  done
+  # 2. Give the NFs time to register their profiles into the NRF.
+  echo "Letting NFs register into the NRF (${CORE_REGISTER_SETTLE}s)..."
+  sleep "$CORE_REGISTER_SETTLE"
+  # 3. Restart AMF + SMF LAST so they boot into a populated NRF (discover AUSF/UDM/UPF).
+  echo "Restarting AMF + SMF so they discover the populated NRF..."
+  kubectl -n oran-core rollout restart deploy/open5gs-amf deploy/open5gs-smf >/dev/null 2>&1
+  kubectl -n oran-core rollout status  deploy/open5gs-amf --timeout=150s >/dev/null 2>&1
+  kubectl -n oran-core rollout status  deploy/open5gs-smf --timeout=150s >/dev/null 2>&1
+  # 4. Positive confirmation: AMF logged NF profiles discovered from the NRF.
+  sleep 6
+  local seen
+  seen=$(kubectl -n oran-core logs deploy/open5gs-amf --tail=200 2>/dev/null | grep -c "NF registered")
+  if [ "${seen:-0}" -ge 1 ]; then
+    echo "AMF discovered ${seen} NF profile(s) via NRF — UE identity resolution ready."
+  else
+    echo "[WARN] AMF shows no 'NF registered' yet; reconcile will restart UEs to retry."
+  fi
 }
 
 section "Saved replica state"
@@ -402,8 +389,8 @@ done
 
 start_dashboard
 start_traffic_api
+ensure_core_amf_ready
 ensure_cu_plane_healthy
-ensure_core_sba_healthy
 recover_mixed_du_if_available
 reconcile_ue_sessions
 
