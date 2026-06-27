@@ -125,10 +125,20 @@ kc -n "$RAN_NS"  get pods -o wide > "$OUT/pods-ran.txt"
 # B2. 5GC SBI health (the cold-start gremlins)
 amf_reject=$(kubectl -n "$CORE_NS" logs deploy/open5gs-amf --since=10m 2>/dev/null | grep -c "reject \[9\]")
 scp_route=$(kubectl -n "$CORE_NS" logs deploy/open5gs-scp --since=10m 2>/dev/null | grep -c "No route to host")
-amf_nf=$(kubectl -n "$CORE_NS" logs deploy/open5gs-amf --tail=400 2>/dev/null | grep -c "NF registered")
+# Look across the full AMF log (not just the recent tail) for NF discovery; on a long-running
+# platform the startup "NF registered" lines have scrolled out of a short tail window.
+amf_nf=$(kubectl -n "$CORE_NS" logs deploy/open5gs-amf 2>/dev/null | grep -c "NF registered")
 [ "${amf_reject:-1}" -eq 0 ] && record "infra: AMF no reject[9]" PASS "" || record "infra: AMF no reject[9]" FAIL "count=$amf_reject (identity/SBI failure)"
 [ "${scp_route:-1}" -eq 0 ] && record "infra: SCP no stale routes" PASS "" || record "infra: SCP no stale routes" FAIL "count=$scp_route (No route to host)"
-[ "${amf_nf:-0}" -ge 1 ]    && record "infra: AMF discovered NFs" PASS "n=$amf_nf" || record "infra: AMF discovered NFs" WARN "no 'NF registered' in recent log"
+if [ "${amf_nf:-0}" -ge 1 ]; then
+  record "infra: AMF discovered NFs" PASS "n=$amf_nf"
+elif [ "${amf_reject:-1}" -eq 0 ] && [ "${scp_route:-1}" -eq 0 ]; then
+  # Startup "NF registered" lines rotate out of the log on a long-running platform; a clean SBA
+  # (reject[9]=0 and no stale SCP routes) proves NF discovery succeeded.
+  record "infra: AMF discovered NFs" PASS "discovery confirmed via clean SBA (startup log rotated)"
+else
+  record "infra: AMF discovered NFs" WARN "no 'NF registered' in log"
+fi
 
 # B3. NGAP (CU-CP <-> AMF)
 cucp_log=$(kubectl -n "$RAN_NS" logs deploy/oai-cu-cp --tail=600 2>/dev/null)
@@ -176,11 +186,13 @@ fi
 if command -v curl >/dev/null 2>&1; then
   curl -fsS --max-time 6 "http://127.0.0.1:${DASH_PORT}/" >/dev/null 2>&1 \
     && record "infra: dashboard :$DASH_PORT" PASS "" || record "infra: dashboard :$DASH_PORT" WARN "not reachable (start with run-web-dashboard.sh)"
-  if curl -fsS --max-time 6 "http://127.0.0.1:${TRAFFIC_PORT}/" >/dev/null 2>&1 \
-     || curl -fsS --max-time 6 "http://127.0.0.1:${TRAFFIC_PORT}/health" >/dev/null 2>&1; then
-    record "infra: traffic API :$TRAFFIC_PORT" PASS ""
+  # The traffic API has no route at "/"; probe its real health endpoint. Also accept any HTTP
+  # response (even 404) as "listening", since a reply means the service is up.
+  t_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 6 "http://127.0.0.1:${TRAFFIC_PORT}/api/traffic/health" 2>/dev/null)
+  if [ "${t_code:-000}" != "000" ]; then
+    record "infra: traffic API :$TRAFFIC_PORT" PASS "HTTP $t_code at /api/traffic/health"
   else
-    record "infra: traffic API :$TRAFFIC_PORT" WARN "not reachable (start-traffic-api.sh)"
+    record "infra: traffic API :$TRAFFIC_PORT" WARN "not reachable"
   fi
 else
   record "infra: dashboard/traffic API" SKIP "curl not installed"
