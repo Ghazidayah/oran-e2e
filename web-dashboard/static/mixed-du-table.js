@@ -90,8 +90,31 @@
     }
   }
 
+  // Grey out / re-enable every UE switch button (single-flight: one handover at a time).
+  function setSwitchButtonsDisabled(disabled) {
+    var btns = document.querySelectorAll("#mixedDuTableBody button[data-ue]");
+    Array.prototype.forEach.call(btns, function (b) {
+      // Keep buttons that are disabled for their own reason (non-switchable UE) disabled.
+      if (disabled) {
+        if (!b.hasAttribute("disabled")) { b.setAttribute("disabled", "disabled"); b.dataset.tempDisabled = "1"; }
+        b.style.opacity = "0.45";
+      } else {
+        if (b.dataset.tempDisabled === "1") { b.removeAttribute("disabled"); delete b.dataset.tempDisabled; }
+        b.style.opacity = "";
+      }
+    });
+  }
+
+  var _handoverInFlight = false;
+
   async function switchDu(ue, target) {
-    setText("mixedDuActionLog", "Switching " + ue + " to " + target + "...");
+    if (_handoverInFlight) {
+      setText("mixedDuActionLog", "A handover is already in progress — please wait for it to finish.");
+      return;
+    }
+    _handoverInFlight = true;
+    setSwitchButtonsDisabled(true);
+    setText("mixedDuActionLog", "Switching " + ue + " to " + target + " ... (other handovers disabled until this completes)");
     try {
       var data = await jsonApi("/api/handover/mixed-du/switch", {
         method: "POST",
@@ -106,7 +129,16 @@
 
       await refreshMixedDuStatus();
     } catch (e) {
-      setText("mixedDuActionLog", "ERROR switching " + ue + ":\n" + String(e));
+      // 409 from the backend single-flight lock surfaces here as an error.
+      var msg = String(e);
+      if (msg.indexOf("in progress") !== -1 || msg.indexOf("HANDOVER_BUSY") !== -1) {
+        setText("mixedDuActionLog", "Another handover is in progress; only one runs at a time. Try again once it finishes.");
+      } else {
+        setText("mixedDuActionLog", "ERROR switching " + ue + ":\n" + msg);
+      }
+    } finally {
+      _handoverInFlight = false;
+      setSwitchButtonsDisabled(false);
     }
   }
 

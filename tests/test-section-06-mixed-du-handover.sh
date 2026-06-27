@@ -190,8 +190,9 @@ print("allowed_ues=", d.get("allowed_ues"))
 assert d.get("attached_count") == 5, d.get("attached_count")
 assert d.get("expected_count") == 5, d.get("expected_count")
 assert d.get("handover_ready") is True, d.get("handover_ready")
-assert "ue1" in d.get("blocked_ues", [])
-assert all(u in d.get("allowed_ues", []) for u in ["ue2","ue3","ue4","ue5"])
+# Current design: all 5 UEs are DU-switchable; ue1 is the reference (DU0 baseline), not blocked.
+assert all(u in d.get("allowed_ues", []) for u in ["ue1","ue2","ue3","ue4","ue5"])
+assert d.get("blocked_ues", []) == [], d.get("blocked_ues")
 
 print("PASS: preflight Mixed-DU topology is ready")
 PY
@@ -417,7 +418,7 @@ assert d.get("attached_count") == 5, d.get("attached_count")
 assert d.get("handover_ready") is True, d.get("handover_ready")
 
 expected = {
-    "ue1": ("du0", "oai-du0-rfsim", True),
+    "ue1": ("du0", "oai-du0-rfsim", False),
     "ue2": ("du1", "oai-du1-rfsim", False),
     "ue3": ("du1", "oai-du1-rfsim", False),
     "ue4": ("du1", "oai-du1-rfsim", False),

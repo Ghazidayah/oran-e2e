@@ -2,6 +2,8 @@ import json
 import os
 import re
 import subprocess
+import threading
+import time
 import urllib.request
 from pathlib import Path
 
@@ -14,6 +16,14 @@ SELF_URL = os.environ.get("ORAN_DASHBOARD_SELF_URL", f"http://127.0.0.1:{PORT}")
 REPO = Path(os.environ.get("ORAN_REPO", Path(__file__).resolve().parents[1]))
 
 SWITCH_SCRIPT = REPO / "scripts" / "handover" / "switch-ue-du-target.sh"
+
+# --- Single-flight handover lock ----------------------------------------------
+# Only ONE DU handover may run at a time. On a single-node RFsim, firing several
+# UE switches concurrently overwhelms the CPU and several fail. This lock makes
+# concurrent switch requests return 409 immediately instead of all running at
+# once, so handovers are serialized (one UE re-homes, then the next).
+_HANDOVER_LOCK = threading.Lock()
+_HANDOVER_STATE = {"in_progress": False, "ue": None, "target": None, "started_at": None}
 
 UE_MAP = {
     "ue1": {"deployment": "oai-nr-ue", "configmap": "oai-nrue-config", "protected": False, "reference": True, "baseline_du": "du0"},
@@ -218,6 +228,8 @@ def _status():
         "ue1_attached": ue1_attached,
         "ue1_baseline_du": "du0",
         "handover_ready": ready,
+        "handover_in_progress": _HANDOVER_STATE.get("in_progress", False),
+        "handover_busy_ue": _HANDOVER_STATE.get("ue"),
         "ues": ues,
         "allowed_ues": ["ue1", "ue2", "ue3", "ue4", "ue5"],
         "blocked_ues": [],
@@ -362,19 +374,37 @@ def _switch_ue():
             "verdict": "SWITCH_SCRIPT_MISSING",
         }), 500
 
-    r = _run([str(SWITCH_SCRIPT), ue, target], timeout=330)
-    output = (r.get("stdout", "") + "\n" + r.get("stderr", "")).strip()
-    ok = "VERDICT=UE_DU_SWITCH_OK" in output
+    # Single-flight: reject if another handover is already running (no CPU pile-up).
+    if not _HANDOVER_LOCK.acquire(blocking=False):
+        busy_ue = _HANDOVER_STATE.get("ue")
+        return jsonify({
+            "ok": False,
+            "busy": True,
+            "verdict": "HANDOVER_BUSY",
+            "error": f"another handover is in progress (ue={busy_ue}); only one runs at a time",
+            "in_progress_ue": busy_ue,
+            "status": _status(),
+        }), 409
 
-    return jsonify({
-        "ok": ok,
-        "mode": "mixed-du-rfsim",
-        "ue": ue,
-        "target": target,
-        "verdict": "UE_DU_SWITCH_OK" if ok else "UE_DU_SWITCH_FAILED",
-        "script_output": output,
-        "status": _status(),
-    }), 200
+    try:
+        _HANDOVER_STATE.update({"in_progress": True, "ue": ue, "target": target, "started_at": time.time()})
+
+        r = _run([str(SWITCH_SCRIPT), ue, target], timeout=330)
+        output = (r.get("stdout", "") + "\n" + r.get("stderr", "")).strip()
+        ok = "VERDICT=UE_DU_SWITCH_OK" in output
+
+        return jsonify({
+            "ok": ok,
+            "mode": "mixed-du-rfsim",
+            "ue": ue,
+            "target": target,
+            "verdict": "UE_DU_SWITCH_OK" if ok else "UE_DU_SWITCH_FAILED",
+            "script_output": output,
+            "status": _status(),
+        }), 200
+    finally:
+        _HANDOVER_STATE.update({"in_progress": False, "ue": None, "target": None, "started_at": None})
+        _HANDOVER_LOCK.release()
 
 
 def _run_handover_validation():
