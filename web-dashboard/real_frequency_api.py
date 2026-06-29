@@ -55,17 +55,31 @@ PROFILES = {
 
 
 # Representative tc netem profiles per band — EMULATED, not measured from RFsim
+def _ceiling_mbit():
+    """Plafond reel mesure (portabilite). Fallback 33."""
+    try:
+        return int(open(os.path.expanduser("~/oran-proof/ceiling-mbit.txt")).read().strip())
+    except Exception:
+        return 33
+
+_CEIL = _ceiling_mbit()
+
+# Debit par bande = % du plafond mesure, CROISSANT avec la frequence (illustre la
+# difference reelle de largeur de bande). EMULE.
+# La latence n'est PAS differenciee par bande: physiquement elle ne depend pas de
+# la bande -> on ne faconne que le debit; le ping reflete la base RFsim (~11ms),
+# identique pour toutes les bandes.
 BAND_NETEM = {
     "n41-2600": {
-        "delay": "6ms", "jitter": "1ms", "loss": "0%", "rate": "13mbit",
+        "pct": 55, "rate": f"{int(0.55*_CEIL)}mbit",
         "label": "Mid-band 2600 MHz (TDD)",
     },
     "n78-3500": {
-        "delay": "10ms", "jitter": "1ms", "loss": "0.1%", "rate": "9mbit",
+        "pct": 75, "rate": f"{int(0.75*_CEIL)}mbit",
         "label": "C-band 3500 MHz (TDD)",
     },
     "n77-4174": {
-        "delay": "13ms", "jitter": "2ms", "loss": "0.1%", "rate": "6mbit",
+        "pct": 90, "rate": f"{int(0.90*_CEIL)}mbit",
         "label": "Upper C-band 4174 MHz (TDD)",
     },
 }
@@ -348,11 +362,11 @@ def _run_kpi_test(profile):
         return {"ok": False, "error": "oaitun_ue1 not up", "log": "oaitun_ue1 not found in UE pod"}
     log.append("oaitun_ue1 up")
 
+    # Seul le RATE est faconne (proxy de largeur de bande). Pas de delay/jitter/loss
+    # artificiels: la latence ne depend pas de la bande -> ping = base RFsim reelle.
     tc_apply = (
         "tc qdisc del dev oaitun_ue1 root 2>/dev/null; "
-        f"tc qdisc add dev oaitun_ue1 root netem "
-        f"delay {netem['delay']} {netem['jitter']} distribution normal "
-        f"loss {netem['loss']} rate {netem['rate']}"
+        f"tc qdisc add dev oaitun_ue1 root netem rate {netem['rate']}"
     )
 
     ping_out = ""
@@ -362,8 +376,8 @@ def _run_kpi_test(profile):
             ["kubectl", "-n", "oran-ran", "exec", pod, "--", "sh", "-lc", tc_apply],
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20,
         )
-        log.append(f"netem applied: delay={netem['delay']} ±{netem['jitter']} "
-                   f"loss={netem['loss']} rate={netem['rate']}")
+        log.append(f"netem applied: rate={netem['rate']} "
+                   f"({netem['pct']}% du plafond {_CEIL}mbit); latence identique entre bandes")
 
         show = subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--",
@@ -404,7 +418,7 @@ def _run_kpi_test(profile):
     return {
         "ok": True,
         "profile": profile,
-        "netem": f"delay {netem['delay']} ±{netem['jitter']}, loss {netem['loss']}, rate {netem['rate']}",
+        "netem": f"rate {netem['rate']} ({netem['pct']}% du plafond; latence identique entre bandes)",
         "ping_loss": (loss_m.group(1) + "%") if loss_m else "?",
         "ping_avg": (rtt_m.group(2) + " ms") if rtt_m else "?",
         "ping_rtt": (f"{rtt_m.group(1)}/{rtt_m.group(2)}/{rtt_m.group(3)}/{rtt_m.group(4)} ms") if rtt_m else "?",
