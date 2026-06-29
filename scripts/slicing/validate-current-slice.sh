@@ -29,7 +29,7 @@ REQ_SST="$(echo "$CONF" | sed -n 's/.*nssai_sst[[:space:]]*=[[:space:]]*\([0-9]*
 echo "IMSI: $IMSI  Requested SST: ${REQ_SST:-unknown}" | tee "$DIR/ue-requested-slice.txt"
 
 kubectl -n "$NS" exec "$UE" -- ip addr show oaitun_ue1 | tee "$DIR/oaitun.txt"
-kubectl -n "$NS" exec "$UE" -- ping -I oaitun_ue1 -c 4 8.8.8.8 | tee "$DIR/ping.txt"
+kubectl -n "$NS" exec "$UE" -- ping -I oaitun_ue1 -c 4 -W 4 10.45.0.1 | tee "$DIR/ping.txt"
 PING_OK=$?
 
 GRANTED="$(kubectl -n "$NS_CORE" logs deploy/open5gs-amf --tail=300 2>/dev/null \

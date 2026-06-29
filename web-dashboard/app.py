@@ -955,9 +955,11 @@ def _parse_slice_output(text, profile):
         row["tunnel_ip"] = m.group(1).split("/")[0]
 
     # Ping avg and loss from validate-current-slice.sh (it runs ping -c 4)
-    m = re.search(r"rtt min/avg/max/mdev = [0-9.]+/([0-9.]+)/", pre_restore)
-    if m:
-        row["ping_avg_ms"] = m.group(1)
+    # Prendre la DERNIERE mesure rtt (= ping APRES application du netem delay),
+    # pas la premiere (qui precede le netem et vaut toujours ~11ms).
+    rtts = re.findall(r"rtt min/avg/max/mdev = [0-9.]+/([0-9.]+)/", pre_restore)
+    if rtts:
+        row["ping_avg_ms"] = rtts[-1]
     m = re.search(r"(\d+)% packet loss", pre_restore)
     if m:
         row["loss_pct"] = m.group(1) + "%"

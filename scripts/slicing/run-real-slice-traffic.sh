@@ -57,6 +57,10 @@ echo
 echo "===== 3. APPLY PHASE 4 SLICE RESOURCE PROFILE ====="
 scripts/slicing/apply-slice-resource-profile.sh "$PROFILE" | tee "$DIR/resource-profile-${PROFILE}.log"
 
+# Re-mesure du ping APRES application du netem delay (reflete la latence du slice).
+echo "===== PING INTERNE APRES NETEM (KPI latence du slice) ====="
+scripts/slicing/validate-current-slice.sh | tee "$DIR/validate-after-netem-sst${SST}.log"
+
 run_scenario() {
   local scenario="$1"
 

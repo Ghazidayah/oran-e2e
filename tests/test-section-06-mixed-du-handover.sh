@@ -9,6 +9,14 @@ TS="$(date +%Y%m%d-%H%M%S)"
 OUT="$HOME/oran-proof/full-platform-functional-tests/section-06-mixed-du-handover-$TS"
 mkdir -p "$OUT"
 
+# Tear down any residual per-UE tc/netem (e.g. mMTC 1000ms delay from the slice
+# section) so it cannot stall UE rollouts/attach during the DU switches below.
+echo "[section6] clearing residual netem on all UEs before handover tests"
+for _u in oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
+  _p=$(kubectl -n oran-ran get pod -l app=$_u -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+  [ -n "$_p" ] && kubectl -n oran-ran exec "$_p" -- sh -lc 'tc qdisc del dev oaitun_ue1 root 2>/dev/null; tc qdisc del dev oaitun_ue1 ingress 2>/dev/null; ip link del ifb_ue1 2>/dev/null; true' 2>/dev/null
+done
+
 LOG="$OUT/test.log"
 exec > >(tee -a "$LOG") 2>&1
 
