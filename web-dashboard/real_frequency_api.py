@@ -56,7 +56,10 @@ PROFILES = {
 
 # Representative tc netem profiles per band — EMULATED, not measured from RFsim
 def _ceiling_mbit():
-    """Plafond reel mesure (portabilite). Fallback 33."""
+    """Plafond reel = debit UL TCP non-capped (UE1 isole). AUTO-MESURE par
+    scripts/traffic/measure-ceiling.sh, qui ecrit ~/oran-proof/ceiling-mbit.txt.
+    Ne PAS hardcoder. Mesure live 2026-06-30: ~36 (34-36). Fallback 33 = filet
+    de securite seulement (si la calibration n'a jamais tourne)."""
     try:
         return int(open(os.path.expanduser("~/oran-proof/ceiling-mbit.txt")).read().strip())
     except Exception:
@@ -64,32 +67,40 @@ def _ceiling_mbit():
 
 _CEIL = _ceiling_mbit()
 
-# Debit par bande = % du plafond mesure, CROISSANT avec la frequence (illustre la
-# difference reelle de largeur de bande). EMULE.
+# Debit par bande = % du plafond mesure, DECROISSANT avec la frequence: une bande
+# plus haute subit plus d'attenuation (path loss) -> moins de debit, a budget radio
+# egal. RFsim n'a PAS de modele de propagation: ce profil est EMULE (tc netem rate)
+# pour illustrer la tendance physique d'un deploiement reel; le retuning de porteuse,
+# lui, est REEL (changement d'ARFCN + re-validation E2E).
+# IMPORTANT: chaque cap (70/50/30%) est pose SOUS le plafond mesure -> le netem est
+# la contrainte qui MORD -> debit mesure ~= cap, donc reproductible et attribuable a
+# l'emulation (et non au bruit RFsim). Plafond AUTO-MESURE (UE1 isole, ~36 le 06-30):
+# caps ~25/18/10 mbit, tous < plafond -> n41 > n78 > n77, descente monotone.
 # La latence n'est PAS differenciee par bande: physiquement elle ne depend pas de
-# la bande -> on ne faconne que le debit; le ping reflete la base RFsim (~11ms),
+# la bande -> on ne faconne que le debit; le ping reflete la base RFsim (~15ms),
 # identique pour toutes les bandes.
 BAND_NETEM = {
     "n41-2600": {
-        "pct": 55, "rate": f"{int(0.55*_CEIL)}mbit",
-        "label": "Mid-band 2600 MHz (TDD)",
+        "pct": 70, "rate": f"{int(0.70*_CEIL)}mbit",
+        "label": "Mid-band 2600 MHz (TDD) - moindre attenuation",
     },
     "n78-3500": {
-        "pct": 75, "rate": f"{int(0.75*_CEIL)}mbit",
+        "pct": 50, "rate": f"{int(0.50*_CEIL)}mbit",
         "label": "C-band 3500 MHz (TDD)",
     },
     "n77-4174": {
-        "pct": 90, "rate": f"{int(0.90*_CEIL)}mbit",
-        "label": "Upper C-band 4174 MHz (TDD)",
+        "pct": 30, "rate": f"{int(0.30*_CEIL)}mbit",
+        "label": "Upper C-band 4174 MHz (TDD) - plus forte attenuation",
     },
 }
 
-# KPI measurement target: UPF DN gateway (in 5G data path, ~11.6ms RFsim base RTT).
+# KPI measurement target: UPF DN gateway (in 5G data path, ~15ms RFsim base RTT).
 # Never use an internet target: ~60-90ms internet RTT swamps the emulated deltas.
-# Rate caps sit below the measured uncapped RFsim UL TCP floor (~17 Mbps,
-# baseline 2026-06-10: 17.08-17.54 Mbps x3) so the netem cap is the binding
-# constraint and band ordering is monotonic. Throughput is UPLINK (UE=iperf3
-# client to host node); netem root qdisc shapes UE egress only.
+# Rate caps sit BELOW the measured uncapped RFsim UL TCP floor (~17 Mbps, baseline
+# 2026-06-10: 17.08-17.54 Mbps x3) AND below each band's real per-band rate, so the
+# netem cap is the binding constraint -> measured ~= cap and band ordering is a
+# reproducible monotone DESCENT (n41 > n78 > n77), not RFsim noise. Throughput is
+# UPLINK (UE=iperf3 client to host node); netem root qdisc shapes UE egress only.
 KPI_PING_TARGET = "10.45.0.1"
 
 
@@ -362,8 +373,10 @@ def _run_kpi_test(profile):
         return {"ok": False, "error": "oaitun_ue1 not up", "log": "oaitun_ue1 not found in UE pod"}
     log.append("oaitun_ue1 up")
 
-    # Seul le RATE est faconne (proxy de largeur de bande). Pas de delay/jitter/loss
-    # artificiels: la latence ne depend pas de la bande -> ping = base RFsim reelle.
+    # Seul le RATE est faconne (proxy d'attenuation: bande haute -> debit plus bas).
+    # Cap pose SOUS le debit reel de la bande -> netem MORD, debit mesure ~= cap.
+    # Pas de delay/jitter/loss artificiels: la latence ne depend pas de la bande
+    # -> ping = base RFsim reelle, identique entre bandes.
     tc_apply = (
         "tc qdisc del dev oaitun_ue1 root 2>/dev/null; "
         f"tc qdisc add dev oaitun_ue1 root netem rate {netem['rate']}"

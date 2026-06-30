@@ -5,7 +5,9 @@ NS="${NS:-oran-ran}"; DEP="${DEP:-oai-nr-ue}"
 REPO="${REPO:-$HOME/oran-e2e-freeze}"
 source "$REPO/scripts/ue/ue-common.sh"
 
-# Plafond mesuré (portabilité): rate = PCT % du plafond. Fallback 33.
+# Plafond = débit UL TCP non-capped, AUTO-MESURE par scripts/traffic/measure-ceiling.sh
+# (UE1 isolé, ~36 le 2026-06-30). rate = PCT % du plafond. eMBB 100% (~plafond, non
+# façonné) ; URLLC 60% et mMTC 6% MORDENT. Fallback 33 = filet de sécurité seulement.
 CEILING_MBIT="${CEILING_MBIT:-$(cat $HOME/oran-proof/ceiling-mbit.txt 2>/dev/null || echo 33)}"
 
 # Profils par slice:  PCT = % du plafond (débit, ÉMULÉ via tbf)
