@@ -26,9 +26,10 @@
     var body = byId("freqBandResultsBody");
     if (!body) return;
     if (!rows || !rows.length) {
-      body.innerHTML = '<tr><td colspan="9">No runs yet — click a band button above to start.</td></tr>';
+      body.innerHTML = '<tr><td colspan="11">No runs yet — click a band button above to start.</td></tr>';
       return;
     }
+    var F_REF = 2593.35;
     body.innerHTML = rows.map(function (r) {
       var attachOk = (r.retune_verdict || r.verdict || "").indexOf("PASS") !== -1 ||
                      (r.retune_verdict || r.verdict || "").indexOf("OK") !== -1;
@@ -36,13 +37,23 @@
       var mbps = parseFloat(r.tcp_mbps) || 0;
       var mbpsColor = mbps > 10 ? "var(--ok)" : mbps > 5 ? "var(--warn)" : "var(--err)";
       var mbpsDisplay = (r.tcp_mbps && r.tcp_mbps !== "?") ? r.tcp_mbps + " Mbps" : "—";
+
+      var freqMhz = parseFloat(r.freq_mhz) || 0;
+      var deltaPl = freqMhz > 0 ? 20 * Math.log10(freqMhz / F_REF) : 0;
+      var K = Math.pow(10, -deltaPl / 10);
+      var pct = Math.round(K * 100);
+      var capMatch = (r.netem || "").match(/rate\s+(\d+(?:\.\d+)?)mbit/);
+      var capMbit = capMatch ? capMatch[1] : "—";
+
       return (
         "<tr>" +
         "<td><strong>" + (r.band || r.profile || "-") + "</strong></td>" +
         "<td>" + (r.freq_mhz || "-") + "</td>" +
         "<td style='font-size:0.85em;font-family:monospace'>" + (r.ssb ? r.ssb + " / " + (r.pointa || "-") : "-") + "</td>" +
         "<td style='color:" + attachColor + ";font-weight:bold'>" + (r.retune_verdict || r.verdict || "-") + "</td>" +
-        "<td style='font-size:0.85em'>" + (r.netem || "—") + "</td>" +
+        "<td>" + (freqMhz > 0 ? deltaPl.toFixed(2) : "—") + "</td>" +
+        "<td>" + (freqMhz > 0 ? K.toFixed(2) : "—") + "</td>" +
+        "<td>" + capMbit + "</td>" +
         "<td>" + (r.ping_avg || "—") + "</td>" +
         "<td>" + (r.ping_loss || "—") + "</td>" +
         "<td style='font-weight:bold;color:" + mbpsColor + "'>" + mbpsDisplay + "</td>" +

@@ -10,6 +10,7 @@ from multi_ue_api import register_multi_ue_routes
 from handover_api import handover_bp
 from radio_profile_api import radio_bp
 from real_frequency_api import real_freq_bp
+from traffic_kpi_api import traffic_kpi_bp
 
 BASE_DIR = Path.home() / "oran-e2e-freeze"
 PROOF_DIR = Path.home() / "oran-proof"
@@ -23,6 +24,7 @@ PROMETHEUS_URL = f"http://{LAB_IP}:30090"
 app = Flask(__name__)
 app.register_blueprint(real_freq_bp, url_prefix="/api/real-frequency")
 app.register_blueprint(handover_bp)
+app.register_blueprint(traffic_kpi_bp)
 
 
 def run_cmd(cmd, timeout=20):

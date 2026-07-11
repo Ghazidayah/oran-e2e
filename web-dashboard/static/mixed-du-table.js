@@ -81,8 +81,6 @@
         "handover ready=" + data.handover_ready
       ];
 
-      if (data.note) lines.push("note=" + data.note);
-
       setText("mixedDuOutput", lines.join("\n"));
       renderUeRows(data.ues || []);
     } catch (e) {

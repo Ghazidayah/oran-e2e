@@ -185,7 +185,7 @@ let desiredUeCountUserEdited = false;
       </table>
     `;
 
-    if (writeLogs) setMultiUeOutput(rawBlocks || 'No logs yet — run scenarios to populate.');
+    if (writeLogs) setMultiUeOutput(rawBlocks || 'Ready.');
   }
 
   function fmtBytes(n) {

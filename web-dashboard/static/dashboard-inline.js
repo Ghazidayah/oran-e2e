@@ -751,7 +751,7 @@ function renderSliceResults(rows) {
   const body = document.getElementById("sliceResultsBody");
   if (!body) return;
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="9">No runs yet. Click a slice button above to start.</td></tr>';
+    body.innerHTML = '<tr><td colspan="8">No runs yet. Click a slice button above to start.</td></tr>';
     return;
   }
   body.innerHTML = rows.map(function(r) {
@@ -775,7 +775,6 @@ function renderSliceResults(rows) {
       "<td>" + (r.ping_avg_ms || "—") + "</td>" +
       "<td>" + (r.loss_pct || "—") + "</td>" +
       "<td style='" + mbpsStyle + "'>" + (r.tcp_mbps || "—") + "</td>" +
-      "<td style='font-size:12px'>" + (r.tc_profile || "—") + "</td>" +
       "<td style='" + vStyle + "'>" + v + "</td>" +
       "<td style='font-size:11px;opacity:.8'>" + (r.time || "").replace("T", " ").split(".")[0] + "</td>" +
       "</tr>";
@@ -790,7 +789,7 @@ document.addEventListener("DOMContentLoaded", function() { loadSliceResults(); }
 // ===== E2E Scenario KPI Results table (PHASE2_KPI_RESULTS) =====
 async function loadE2eKpiResults() {
   try {
-    const res = await fetch(PHASE2_TRAFFIC_API + "/api/traffic/results");
+    const res = await fetch("/api/e2e-kpi/results");
     const data = await res.json();
     renderE2eKpiResults(data.rows || []);
   } catch (e) {

@@ -50,10 +50,6 @@
       </div>
 
       <h3>Modulation Profile KPI Results</h3>
-      <p style="font-size:13px;opacity:.8">
-        Italic rows = reference values from <code>docs/modulation-scenarios-validation.md</code>.
-        Live runs appear as regular rows.
-      </p>
       <div class="radio-table-wrap">
         <table class="radio-results">
           <thead>

@@ -40,7 +40,6 @@
     <div class="card">
       <h3>RAN + UE</h3>
       <div id="ranMetric" class="metric">-</div>
-      <div class="small">Normal gNB, UE1-UE5, and dedicated F1 UE</div>
     </div>
 
     <div class="card">
@@ -88,7 +87,9 @@
           <th>MHz <span class="badge real" style="font-size:9px;vertical-align:middle;">REAL</span></th>
           <th>SSB / PointA <span class="badge real" style="font-size:9px;vertical-align:middle;">REAL</span></th>
           <th>Attach <span class="badge real" style="font-size:9px;vertical-align:middle;">REAL</span></th>
-          <th>netem profile <span class="badge emulated" style="font-size:9px;vertical-align:middle;">EMU</span></th>
+          <th>ΔPL (dB)</th>
+          <th>K</th>
+          <th>Cap (Mbit)</th>
           <th>Ping avg <span class="badge emulated" style="font-size:9px;vertical-align:middle;">EMU</span></th>
           <th>Loss <span class="badge emulated" style="font-size:9px;vertical-align:middle;">EMU</span></th>
           <th>TCP Mbps <span class="badge emulated" style="font-size:9px;vertical-align:middle;">EMU</span></th>
@@ -96,7 +97,7 @@
         </tr>
       </thead>
       <tbody id="freqBandResultsBody">
-        <tr><td colspan="9">No runs yet — click a band button above to start.</td></tr>
+        <tr><td colspan="11">No runs yet — click a band button above to start.</td></tr>
       </tbody>
     </table>
   </div>
@@ -230,13 +231,12 @@
           <th>Ping avg ms</th>
           <th>Loss %</th>
           <th>TCP Mbps</th>
-          <th>tc Profile (EMULATED)</th>
           <th>Verdict</th>
           <th>Time</th>
         </tr>
       </thead>
       <tbody id="sliceResultsBody">
-        <tr><td colspan="9">No runs yet. Click a slice button above to start.</td></tr>
+        <tr><td colspan="8">No runs yet. Click a slice button above to start.</td></tr>
       </tbody>
     </table>
   </div>
@@ -312,7 +312,7 @@
     <button type="button" id="mixedDuRunBtn">Run Mixed-DU Validation</button>
   </div>
 
-  <pre id="mixedDuOutput" class="handover-output">Ready.</pre>
+  <pre id="mixedDuOutput" class="handover-output" style="min-height:0;max-height:none;">Ready.</pre>
 
   <div style="overflow-x:auto; margin-top: 12px;">
     <table style="width:100%; border-collapse: collapse;">
