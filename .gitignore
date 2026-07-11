@@ -52,4 +52,5 @@ web-dashboard/real-frequency-results.json
 web-dashboard/freq-kpi-results.json
 web-dashboard/real-slice-results.json
 web-dashboard/frequency-profile-results.json
+web-dashboard/multi-ue-results.json
 *.bak-*

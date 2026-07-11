@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Real S-NSSAI slice switch for protected UE1 (v2, 2026-06-10).
-# Proven mechanism (see docs/slicing-real-snssai-validation.md):
+# Proven mechanism (see docs/validation/slicing-real-snssai-validation.md):
 #   1) UE config must use the LEGACY uicc0 keys (dnn/nssai_sst/nssai_sd) — the
 #      pdu_sessions = ({...}) block is silently IGNORED by the 2025.w45 nr-ue.
 #   2) The OAI UE sends no Requested NSSAI at registration, so Open5GS allows only

@@ -24,9 +24,9 @@ ue1 to DU0.
 ## What changed since 2026-05-30
 
 - Slice switching is now v2: flips the Mongo default together with the UE
-  config and asserts the AMF grant (docs/slicing-real-snssai-validation.md).
+  config and asserts the AMF grant (docs/validation/slicing-real-snssai-validation.md).
 - UE2-UE5 configs converted to legacy nssai keys, all-SST1-at-rest policy
-  (docs/ue-slice-alignment-validation.md, tag ue-slice-alignment-validated-20260611).
+  (docs/validation/ue-slice-alignment-validation.md, tag ue-slice-alignment-validated-20260611).
 - Known risk: the CU segfaults intermittently (CLAUDE.md "Known risks");
   recovery = scripts/recover-ue-sessions.sh --fix (diagnose-first).
 

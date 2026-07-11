@@ -4,7 +4,7 @@ Branch: `allow-ue1-du-switch-all-scenarios`
 
 This fixes the **measurement** behind the dashboard's "Frequency Band KPI Comparison"
 table. It does **not** touch the real carrier retune (PROFILES + switch-ue-frequency-profile-du-aware.sh),
-which remains validated separately (see docs/frequency-scenarios-validation.md).
+which remains validated separately (see docs/validation/frequency-scenarios-validation.md).
 
 ## What was wrong
 1. Ping targeted 8.8.8.8 — internet base RTT (~60-90 ms) swamped emulated deltas (2-25 ms);
@@ -41,4 +41,4 @@ Both columns strictly monotonic.
 - KPIs are EMULATED via tc netem, not RFsim PHY (AWGN channel does not vary with carrier).
 - Throughput is UPLINK (UE = iperf3 client; netem root qdisc shapes UE egress only).
   Column labelled "UL TCP Mbps" so ~11.5 Mbps is not mistaken for DL capability
-  (DL reaches ~30 Mbps under forced 64QAM — see docs/modulation-scenarios-validation.md).
+  (DL reaches ~30 Mbps under forced 64QAM — see docs/validation/modulation-scenarios-validation.md).

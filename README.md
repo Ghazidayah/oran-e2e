@@ -111,10 +111,10 @@ curl -s http://127.0.0.1:5055/api/traffic/health # → {"ok":true}
 | `CLAUDE.md` | **Safety rules** — read before any cluster mutation |
 | `attic/README.md` | Legacy file index + restore instructions |
 | `docs/repo-inventory-20260612.md` | Full file inventory with ACTIVE / LEGACY verdicts |
-| `docs/modulation-scenarios-validation.md` | Real forced-MCS profiles (QPSK/16/64QAM verified) |
-| `docs/frequency-scenarios-validation.md` | Carrier retune + frequency KPI validation |
-| `docs/phase3-real-slice-traffic-validation.md` | S-NSSAI slice admission + traffic results |
-| `docs/ue1-du-aware-handover-validation.md` | UE1 DU0↔DU1 switchover validation |
+| `docs/validation/modulation-scenarios-validation.md` | Real forced-MCS profiles (QPSK/16/64QAM verified) |
+| `docs/validation/frequency-scenarios-validation.md` | Carrier retune + frequency KPI validation |
+| `docs/validation/phase3-real-slice-traffic-validation.md` | S-NSSAI slice admission + traffic results |
+| `docs/validation/ue1-du-aware-handover-validation.md` | UE1 DU0↔DU1 switchover validation |
 | `docs/dashboard-full-test-report-2026-06-11.md` | Full dashboard API sweep + bug triage |
 
 ---

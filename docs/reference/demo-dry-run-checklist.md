@@ -49,7 +49,7 @@ VERDICT=ALL_HEALTHY. If not, run step 3's recovery (see panic box below) until y
 - Say: "Real application traffic over the real 5G user plane - checksum-verified
   download, ~17 Mbps measured throughput."
 - Proves: REAL data path. The Scenario KPI Results table fills with verdicts.
-- Reference: docs/what-is-real-vs-emulated.md section 3.1.
+- Reference: docs/reference/what-is-real-vs-emulated.md section 3.1.
 
 ### Step 3 - Modulation control (Radio / Modulation Profile section)
 - Click: select qam16-balanced -> Run KPI Test; then qam64-throughput -> Run KPI Test.

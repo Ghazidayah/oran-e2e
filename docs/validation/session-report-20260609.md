@@ -73,5 +73,5 @@ Scenario scripts (slicing/QoS/traffic/radio) were already DU-agnostic; only the 
 1. n28 700 MHz writeup in `docs/` (sync-only, by-elimination).
 2. Wire working 3500/2600 profiles into the dashboard.
 3. `scripts/recover-ue-sessions.sh` for core-bounce tunnel loss.
-4. Refresh stale `docs/ue1-du-aware-handover-validation.md`.
+4. Refresh stale `docs/validation/ue1-du-aware-handover-validation.md`.
 5. Fix `validate-n28-700-on-du0.sh` restore (version-strip; don't trust its backup).
