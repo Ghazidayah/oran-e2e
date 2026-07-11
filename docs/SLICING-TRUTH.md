@@ -1,0 +1,70 @@
+# Slicing Truth: What the Platform Actually Does
+
+## Baseline state (out of the box)
+
+AMF, SMF, NSSF, CU-CP, DU0, and DU1 are all configured with **SST=1 only** at cold start.
+The subscriber DB (MongoDB) also has a single slice entry: `sst=1, sd=FFFFFF, default_indicator=true`.
+
+Static audit tools that read the ConfigMaps without running any script will always see SST=1.
+**This is correct and by design, not a bug.**
+
+## How multi-slice is activated
+
+The runtime scripts are already committed. No generation step is needed.
+
+| Script | What it does |
+|---|---|
+| `scripts/slicing/switch-ue-slice.sh <sst> [sd]` | Patches UE1's ConfigMap (`oai-nrue-config`) with the requested `pdu_sessions` SST, then rollout-restarts UE1. Accepted SST values: 1, 2, 3. |
+| `scripts/slicing/validate-current-slice.sh` | Checks the live UE config, shows the tunnel IP, and pings 8.8.8.8 through `oaitun_ue1`. |
+| `scripts/slicing/apply-slice-resource-profile.sh <profile>` | Applies per-UE QoS shaping on UE1 (see below). |
+
+To activate full multi-slice support on AMF/SMF/NSSF/CU/DU you must run
+`scripts/slicing/apply-real-snssai-slicing.sh`, but **that script is blocked by default**:
+
+```
+BLOCKED: legacy real S-NSSAI generator is disabled by default.
+Reason: it may overwrite DU-aware Phase 3 / Phase 4 / E2E runtime scripts.
+```
+
+To run it anyway: `ALLOW_LEGACY_SNSSAI_GENERATOR=1 bash scripts/slicing/apply-real-snssai-slicing.sh`
+
+It will:
+1. Backup live ConfigMaps to `~/oran-proof/phase3-real-snssai-apply/<run-id>/backup/`
+2. Patch AMF (PLMN 999/70 → SST 1/2/3/4), SMF (info: SST 1/2/3/4 + DNN oai), NSSF (NSI: SST 1/2/3/4)
+3. Patch CU-CP, DU0, DU1 `snssaiList` to include SST 1/2/3/4. (SST=4 was later removed from the live subscriber DB baseline in commit bc9158d, but this legacy script still writes it.)
+4. Update the subscriber DB so all IMSIs `99970*` have slices 1/2/3/4 with `sd=FFFFFF`
+5. Restart AMF, SMF, NSSF, CU-CP, CU-UP, DU0, UE1
+
+Rollback: `scripts/slicing/rollback-real-snssai-slicing.sh`
+(Hardcoded to backup run `20260526-021239`; restores to SST=1 only.)
+
+## Per-UE QoS shaping (apply-slice-resource-profile.sh)
+
+Applies `tc tbf` + `netem delay` on `oaitun_ue1` (egress/uplink) and via an `ifb_ue1` redirect
+on ingress (downlink). Requires the `ifb` kernel module to be loaded on the host node.
+
+Rate is computed as a **percentage of the auto-measured ceiling** stored in
+`~/oran-proof/ceiling-mbit.txt` (fallback: 33 Mbit if file is absent).
+
+| Profile | Rate (% of ceiling) | Burst | netem delay | 3GPP target |
+|---|---|---|---|---|
+| `embb` | 100% (uncapped) | 256kb | 2ms | eMBB |
+| `urllc` | 60% | 64kb | 0ms | URLLC (RFsim floor ~11ms RTT) |
+| `mmtc` | 6% | 32kb | 1000ms | mMTC |
+| `clear` | — | — | — | Remove all shaping |
+
+QoS differentiation is **emulated via software tc**, not 5QI scheduling — RFsim has no radio
+priority mechanism. Label results accordingly in demos and reports.
+
+## Important: success is AMF-granted S-NSSAI, not a tunnel
+
+The 2025.w45 nr-ue firmware ignores `pdu_sessions` in the ConfigMap and sends no Requested NSSAI.
+Allowed NSSAI equals the subscriber MongoDB default only. A tunnel forming on SST=1 **does not
+prove** that a slice switch worked. Success criterion is the AMF log line:
+
+```
+[AMF] Allowed NSSAI[SST:X]
+```
+
+Use `scripts/slicing/validate-current-slice.sh` to confirm end-to-end connectivity after any
+slice switch.
