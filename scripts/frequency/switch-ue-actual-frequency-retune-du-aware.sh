@@ -411,6 +411,17 @@ main(){
   capture_state after
   echo "PASS=$PASS WARN=$WARN FAIL=$FAIL"
   echo "VERDICT=ACTUAL_FREQUENCY_RETUNE_${TARGET_NAME}_PASS" | tee "$PROOF_DIR/final-verdict.txt"
+
+  # --- FSPL degradation cap (opt-in via FSPL_CAP=1) -------------------------
+  # Applies the frequency-band throughput cap derived from the FSPL model,
+  # using the SAME carrier the UE was just retuned to (TARGET_C_HZ).
+  # Percentage is computed live by apply-fspl-band-profile.sh; nothing hardcoded.
+  if [ "${FSPL_CAP:-0}" = "1" ] && [ -n "${TARGET_C_HZ:-}" ]; then
+    F_MHZ="$(awk "BEGIN{printf \"%.2f\", ${TARGET_C_HZ}/1000000}")"
+    section "FSPL degradation cap (f=${F_MHZ} MHz)"
+    bash "$(dirname "$0")/apply-fspl-band-profile.sh" "$F_MHZ" || warn "FSPL cap application failed (non-fatal)"
+  fi
+  # --------------------------------------------------------------------------
   echo "Proof: $PROOF_DIR"
 }
 
