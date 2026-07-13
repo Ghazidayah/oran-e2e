@@ -607,6 +607,7 @@ echo "╚═══════════════════════�
 echo "Generated : $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "Host      : $(hostname)  /  kernel $(uname -r)"
 echo "PLMN      : 999/70   DNN: oai   AMF: 10.10.0.101:38412"
+echo "Repo      : branch $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?') @ commit $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
 echo ""
 
 echo "$SEP"
@@ -618,7 +619,7 @@ echo "Resource usage:"
 kubectl top nodes 2>/dev/null || echo "(metrics-server not available)"
 echo ""
 echo "Disk:"
-df -h / /var/lib 2>/dev/null | tail -n+1 || true
+df -h / 2>/dev/null || true
 echo ""
 
 echo "$SEP"
@@ -675,6 +676,22 @@ print(v)' 2>/dev/null || echo "?")
 echo "DU1 : ${DU1_POD:-NOT FOUND}  [$DU1_PHASE]  dl_max_mcs=$DU1_MCS"
 echo ""
 
+echo "Control-plane associations (CU-CP log — NG / E1 / F1):"
+if [ -n "$CUCP_POD" ]; then
+  NG=$(kubectl -n "$RAN_NS" logs "$CUCP_POD" 2>/dev/null \
+    | grep -E "Received NGSetupResponse|associated AMF" | tail -2)
+  E1=$(kubectl -n "$RAN_NS" logs "$CUCP_POD" 2>/dev/null \
+    | grep -E "Accepting new CU-UP" | tail -1)
+  F1=$(kubectl -n "$RAN_NS" logs "$CUCP_POD" 2>/dev/null \
+    | grep -E "Accepting DU|releasing DU" | tail -4)
+  [ -n "$NG" ] && echo "$NG" || echo "(no NG setup lines in current CU-CP log)"
+  [ -n "$E1" ] && echo "$E1" || echo "(no E1 setup lines in current CU-CP log)"
+  [ -n "$F1" ] && echo "$F1" || echo "(no F1 setup lines in current CU-CP log)"
+else
+  echo "(CU-CP pod not found)"
+fi
+echo ""
+
 echo "$SEP"
 echo "4. UE1 — SERVING DU + USER PLANE"
 echo "$SEP"
@@ -716,15 +733,24 @@ echo "$SEP"
 echo "5. ALL UE TUNNEL STATUS (UE1–UE5)"
 echo "$SEP"
 for app in oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
+  cm="oai-nrue-config${app#oai-nr-ue}"
+  sa=$(kubectl -n "$RAN_NS" get cm "$cm" \
+    -o jsonpath='{.data.nr-ue\.conf}' 2>/dev/null \
+    | sed -n 's/.*serveraddr[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+  case "$sa" in
+    oai-du0-rfsim|server) du="DU0" ;;
+    oai-du1-rfsim)        du="DU1" ;;
+    *)                    du="?" ;;
+  esac
   pod=$(kubectl -n "$RAN_NS" get pod -l app="$app" \
     --field-selector=status.phase=Running \
     -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
   if [ -n "$pod" ]; then
     tun=$(kubectl -n "$RAN_NS" exec "$pod" -- \
-      sh -c 'ip -br addr show | grep oaitun || echo NO_TUNNEL' 2>/dev/null || echo NO_TUNNEL)
-    echo "$app ($pod): $tun"
+      sh -c 'ip -4 -o addr show oaitun_ue1 2>/dev/null | awk "{print \$4}"' 2>/dev/null)
+    printf "  %-12s DU=%-4s tunnel=%-16s pod=%s\n" "$app" "$du" "${tun:-NO_TUNNEL}" "$pod"
   else
-    echo "$app: pod not running"
+    printf "  %-12s DU=%-4s pod not running\n" "$app" "$du"
   fi
 done
 echo ""
@@ -738,10 +764,11 @@ case "$SERVERADDR" in
   *) ACTIVE_DU_APP=""; ACTIVE_DU_POD="" ;;
 esac
 if [ -n "$ACTIVE_DU_POD" ]; then
-  echo "Serving DU pod: $ACTIVE_DU_POD (last 90s)"
-  kubectl -n "$RAN_NS" logs "$ACTIVE_DU_POD" --since=90s 2>/dev/null \
-    | grep -E "RNTI|Qm [0-9]|dlsch_rounds|RRC.*Reconfig|UE.*connect" \
-    | tail -20 || echo "(no matching log lines)"
+  echo "Serving DU pod: $ACTIVE_DU_POD (last 120s, latest MAC snapshot per UE)"
+  kubectl -n "$RAN_NS" logs "$ACTIVE_DU_POD" --since=120s 2>/dev/null \
+    | grep -E "RNTI|dlsch_rounds|ulsch_rounds|RRC.*Reconfig|UE.*connect" \
+    | tac | awk '!seen[$1" "$2" "$3]++' | tac | tail -12 \
+    || echo "(no matching log lines)"
 else
   echo "(could not determine serving DU pod)"
 fi
@@ -750,27 +777,30 @@ echo ""
 echo "$SEP"
 echo "7. CORE NETWORK"
 echo "$SEP"
-AMF_POD=$(kubectl -n "$CORE_NS" get pod -l app=open5gs-amf \
+ESC=$(printf '\033')
+AMF_POD=$(kubectl -n "$CORE_NS" get pod -l app.kubernetes.io/name=amf \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 echo "--- AMF ($AMF_POD) — last registrations ---"
 if [ -n "$AMF_POD" ]; then
   kubectl -n "$CORE_NS" logs "$AMF_POD" --tail=200 2>/dev/null \
+    | sed "s/${ESC}\[[0-9;]*m//g" \
     | grep -E "Registration.Complete|InitialContext|PDU.Session|IMSI|NGAP" \
     | tail -15 || echo "(no matching lines)"
   echo ""
-  echo "AMF NGAP socket:"
+  echo "AMF NGAP sockets (LISTEN + ESTAB = gNB association up):"
   kubectl -n "$CORE_NS" exec "$AMF_POD" -- \
-    ss -lnp 2>/dev/null | grep 38412 || echo "(not found)"
+    ss -anp 2>/dev/null | grep 38412 || echo "(not found)"
 else
   echo "AMF pod not found"
 fi
 echo ""
 
-SMF_POD=$(kubectl -n "$CORE_NS" get pod -l app=open5gs-smf \
+SMF_POD=$(kubectl -n "$CORE_NS" get pod -l app.kubernetes.io/name=smf \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 echo "--- SMF ($SMF_POD) — active PDU sessions ---"
 if [ -n "$SMF_POD" ]; then
   kubectl -n "$CORE_NS" logs "$SMF_POD" --tail=200 2>/dev/null \
+    | sed "s/${ESC}\[[0-9;]*m//g" \
     | grep -E "PDU.Session.Establishment|10\.45\.0\.|DNN|IMSI|Create.Session" \
     | tail -15 || echo "(no matching lines)"
 else
@@ -778,7 +808,7 @@ else
 fi
 echo ""
 
-UPF_POD=$(kubectl -n "$CORE_NS" get pod -l app=open5gs-upf \
+UPF_POD=$(kubectl -n "$CORE_NS" get pod -l app.kubernetes.io/name=upf \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 echo "--- UPF ($UPF_POD) — GTP-U socket ---"
 if [ -n "$UPF_POD" ]; then
@@ -792,15 +822,69 @@ echo ""
 echo "$SEP"
 echo "8. RECENT RUN HISTORY"
 echo "$SEP"
-find "$HOME/oran-proof" -maxdepth 3 -name summary.json 2>/dev/null \
-  | sort -r | head -10 \
-  | xargs -I{} python3 -c '
-import json,sys
-try:
-    d=json.load(open(sys.argv[1]))
-    print(f"  {d.get(\"time\",\"?\"):<22} {d.get(\"action\",\"?\"):<18} {d.get(\"status\",\"?\")}")
-except: pass
-' {} 2>/dev/null || echo "(no run history)"
+find "$HOME/oran-proof" -maxdepth 3 -name summary.json -printf "%T@ %p\n" 2>/dev/null \
+  | sort -rn | head -12 | cut -d" " -f2- \
+  | python3 -c '
+import json, sys
+rows = []
+for path in sys.stdin.read().split():
+    try:
+        d = json.load(open(path))
+    except Exception:
+        continue
+    when = d.get("time") or d.get("finished_at") or "?"
+    what = d.get("action") or d.get("scenario") or d.get("profile") or "?"
+    if isinstance(d.get("ok"), bool):
+        state = "OK" if d["ok"] else "FAILED"
+    else:
+        state = str(d.get("status", "?"))
+    rows.append("  %-22s %-24s %s" % (when, what, state))
+print("\n".join(rows) if rows else "(no run history)")
+' 2>/dev/null || echo "(no run history)"
+echo ""
+
+echo "$SEP"
+echo "9. LATEST KPI SNAPSHOT (dashboard caches)"
+echo "$SEP"
+python3 - <<'PYEOF'
+import json, os
+base = os.path.expanduser("~/oran-e2e-freeze/web-dashboard")
+
+def load(name):
+    try:
+        return json.load(open(os.path.join(base, name)))
+    except Exception:
+        return None
+
+freq = load("freq-kpi-results.json")
+print("--- Frequency band KPIs (freq-kpi-results.json) ---")
+if isinstance(freq, list) and freq:
+    for r in freq:
+        print("  %-14s %-9s retune=%-12s ping=%-8s tcp=%-7s %s" % (
+            r.get("band") or r.get("profile", "?"), str(r.get("freq_mhz", "?")),
+            r.get("retune_verdict", "?"), str(r.get("ping_avg", "?")),
+            str(r.get("tcp_mbps", "?")), r.get("timestamp", "")))
+else:
+    print("  (no results)")
+
+sl = load("real-slice-results.json")
+print("--- Slice KPIs (real-slice-results.json) ---")
+if isinstance(sl, list) and sl:
+    for r in sl:
+        print("  %-8s SST=%s granted=%-4s tcp=%-7s %-22s %s" % (
+            r.get("profile", "?"), str(r.get("sst", "?")), str(r.get("granted_sst", "?")),
+            str(r.get("tcp_mbps", "?")), r.get("verdict", "?"), str(r.get("time", ""))[:19]))
+else:
+    print("  (no results)")
+
+mu = load("multi-ue-results.json")
+print("--- Multi-UE last run (multi-ue-results.json) ---")
+if isinstance(mu, dict) and mu:
+    print("  label=%s mode=%s slice=%s ok=%s" % (
+        mu.get("label", "?"), mu.get("mode", "?"), mu.get("slice", "?"), mu.get("ok", "?")))
+else:
+    print("  (no results)")
+PYEOF
 echo ""
 
 echo "$SEP"
