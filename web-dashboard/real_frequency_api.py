@@ -81,16 +81,16 @@ _CEIL = _ceiling_mbit()
 # identique pour toutes les bandes.
 BAND_NETEM = {
     "n41-2600": {
-        "pct": 70, "rate": f"{int(0.70*_CEIL)}mbit",
-        "label": "Mid-band 2600 MHz (TDD) - moindre attenuation",
+        "pct": 100, "rate": f"{int(1.00*_CEIL)}mbit",
+        "label": "Mid-band 2600 MHz (TDD) - FSPL K=1.00 (reference)",
     },
     "n78-3500": {
-        "pct": 50, "rate": f"{int(0.50*_CEIL)}mbit",
-        "label": "C-band 3500 MHz (TDD)",
+        "pct": 55, "rate": f"{int(0.55*_CEIL)}mbit",
+        "label": "C-band 3500 MHz (TDD) - FSPL K=0.55",
     },
     "n77-4174": {
-        "pct": 30, "rate": f"{int(0.30*_CEIL)}mbit",
-        "label": "Upper C-band 4174 MHz (TDD) - plus forte attenuation",
+        "pct": 39, "rate": f"{int(0.39*_CEIL)}mbit",
+        "label": "Upper C-band 4174 MHz (TDD) - FSPL K=0.39",
     },
 }
 
@@ -390,7 +390,7 @@ def _run_kpi_test(profile):
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20,
         )
         log.append(f"netem applied: rate={netem['rate']} "
-                   f"({netem['pct']}% du plafond {_CEIL}mbit); latence identique entre bandes")
+                   f"({netem['pct']}% du plafond {_CEIL}mbit — FSPL K depuis la porteuse)")
 
         show = subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--",
@@ -431,7 +431,7 @@ def _run_kpi_test(profile):
     return {
         "ok": True,
         "profile": profile,
-        "netem": f"rate {netem['rate']} ({netem['pct']}% du plafond; latence identique entre bandes)",
+        "netem": f"rate {netem['rate']} ({netem['pct']}% du plafond — FSPL K depuis la porteuse)",
         "ping_loss": (loss_m.group(1) + "%") if loss_m else "?",
         "ping_avg": (rtt_m.group(2) + " ms") if rtt_m else "?",
         "ping_rtt": (f"{rtt_m.group(1)}/{rtt_m.group(2)}/{rtt_m.group(3)}/{rtt_m.group(4)} ms") if rtt_m else "?",
