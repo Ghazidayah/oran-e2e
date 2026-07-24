@@ -282,7 +282,7 @@ kubectl -n oran-ran logs "$UE_POD" --tail=500 \
 bash scripts/frequency/validate-n28-700-on-du0.sh restore
 ```
 
-If `validate-n28-700-on-du0.sh restore` fails (backup corrupted — see CLAUDE.md §5):
+If `validate-n28-700-on-du0.sh restore` fails (backup corrupted — see OPERATING-RULES.md §5):
 
 ```bash
 # Safe fallback: restore DU0 from canonical source file

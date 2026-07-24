@@ -69,7 +69,7 @@ bash scripts/slicing/validate-current-slice.sh        # expect VERDICT=REAL_SLIC
 bash scripts/slicing/switch-ue-slice.sh 1 0xffffff   # restore baseline
 ```
 
-## Operational lessons (added to CLAUDE.md)
+## Operational lessons (added to OPERATING-RULES.md)
 
 - ConfigMap edits do NOT reach running pods (subPath mounts): the CU ran a stale
   config for 14 days; the AMF likewise. Always restart the consumer pod and

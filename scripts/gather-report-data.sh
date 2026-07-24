@@ -39,7 +39,7 @@ cp scripts/slicing/apply-slice-resource-profile.sh \
    scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh \
    scripts/handover/switch-ue-du-target.sh "$B/params/" 2>/dev/null
 # IP plan / PLMN / project memory
-cp CLAUDE.md README.md "$B/params/" 2>/dev/null
+cp OPERATING-RULES.md README.md "$B/params/" 2>/dev/null
 # AMF + SMF + NSSF config (PLMN, S-NSSAI, slices)
 kubectl -n "$CORE_NS" get cm -o name 2>/dev/null > "$B/params/core-configmaps-list.txt"
 for nf in amf smf nssf; do

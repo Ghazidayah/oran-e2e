@@ -35,4 +35,4 @@ rollout-restarted UE2-UE5, then asserted fresh AMF grants.
 ## Repo/live consistency restored
 - manifests/ran/f1/du1.conf: snssaiList synced to live SST1-4.
 - manifests/ran/mixed-du-live/cm-oai-nrue-config-{2..5}.yaml: regenerated from
-  live CMs (legacy keys), server fields stripped per CLAUDE.md rule 4.
+  live CMs (legacy keys), server fields stripped per OPERATING-RULES.md rule 4.

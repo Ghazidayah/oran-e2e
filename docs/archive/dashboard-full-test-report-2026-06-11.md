@@ -2,7 +2,7 @@
 **Date:** 2026-06-11  
 **Branch:** `allow-ue1-du-switch-all-scenarios`  
 **Dashboard:** Flask on `http://192.168.1.142:18080`  
-**Tester:** Claude Code (automated API + scenario sweep, read-only)
+**Tester:** assistant de développement (automated API + scenario sweep, read-only)
 
 ---
 

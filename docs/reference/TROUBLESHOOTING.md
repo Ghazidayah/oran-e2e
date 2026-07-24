@@ -108,7 +108,7 @@ no `Allowed NSSAI` or shows only SST=1 when a different slice was expected.
 
 The AMF's real config source is ConfigMap `open5gs-oai-prep` (key `amf.yaml`) in namespace
 `oran-core`, **not** `open5gs-amf`. After editing any ConfigMap, the AMF pod must be restarted —
-subPath mounts do NOT hot-reload (CLAUDE.md Rule 8).
+subPath mounts do NOT hot-reload (OPERATING-RULES.md Rule 8).
 
 ```bash
 kubectl -n oran-core get cm open5gs-oai-prep -o jsonpath='{.data.amf\.yaml}' | grep -A5 s_nssai
@@ -160,7 +160,7 @@ Or via the dashboard API: `POST /api/handover/mixed-du/recover`.
 
 ## ConfigMap edit has no effect on a running pod
 
-CLAUDE.md Rule 8: subPath-mounted ConfigMaps do NOT hot-reload. The pod must be restarted AND
+OPERATING-RULES.md Rule 8: subPath-mounted ConfigMaps do NOT hot-reload. The pod must be restarted AND
 the new file verified inside the new pod:
 
 ```bash
@@ -172,7 +172,7 @@ kubectl -n oran-ran exec deploy/oai-cu-cp -- grep snssaiList /etc/oai/gnb.conf
 
 ## `kubectl apply` rejected with "object has been modified"
 
-CLAUDE.md Rule 4: Never apply a previously-saved manifest verbatim. Strip the runtime metadata
+OPERATING-RULES.md Rule 4: Never apply a previously-saved manifest verbatim. Strip the runtime metadata
 first, or use the `--dry-run=client` + pipe pattern:
 
 ```bash

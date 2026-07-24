@@ -59,7 +59,7 @@ CU-UP has no fixed Multus IP; it connects outward to CU-CP E1 at `10.10.0.120:38
 
 UE→DU mapping is resolved at runtime from each UE's `--rfsimulator.serveraddr` deployment arg
 (`oai-du0-rfsim` or `oai-du1-rfsim`). The ConfigMap value is overridden by deployment args
-(CLAUDE.md Rule 10). Never assume from the ConfigMap alone.
+(OPERATING-RULES.md Rule 10). Never assume from the ConfigMap alone.
 
 RFsim service TCP port: **4043** (`oai-du0-rfsim` / `oai-du1-rfsim`).
 

@@ -23,7 +23,7 @@
 10. [Phase 9 — Mixed-DU Validation + Platform Tools (2026-05-29 to 05-30)](#phase-9)
 11. [Phase 10 — Radio / Modulation Profiles + Dashboard Cleanup (2026-06-02)](#phase-10)
 12. [Phase 11 — Realistic Frequency Profiles + Carrier Retune (2026-06-03 to 06-04)](#phase-11)
-13. [Phase 12 — CLAUDE.md · UE1 DU Switching · n28 700 MHz · Real Modulation API (2026-06-09)](#phase-12)
+13. [Phase 12 — OPERATING-RULES.md · UE1 DU Switching · n28 700 MHz · Real Modulation API (2026-06-09)](#phase-12)
 14. [Phase 13 — Slicing Root-Cause Fix + Frequency KPI Fix + Session Recovery (2026-06-10)](#phase-13)
 15. [Phase 14 — Platform Hardening + E2E Scenario Sweep + UI Fixes (2026-06-11)](#phase-14)
 16. [Phase 15 — Repo Cleanup + CSS Consolidation + Grafana Live (2026-06-12)](#phase-15)
@@ -93,7 +93,7 @@ Naive `kubectl apply` of previously-saved manifests fails with:
 error: Operation cannot be fulfilled on ...: the object has been modified;
 please apply your changes to the latest version and try again
 ```
-Cause: saved YAML carries a stale `resourceVersion`. Fix: always strip metadata fields before applying. This became **CLAUDE.md Safety Rule 4**.
+Cause: saved YAML carries a stale `resourceVersion`. Fix: always strip metadata fields before applying. This became **OPERATING-RULES.md Safety Rule 4**.
 
 ### Result
 
@@ -279,7 +279,7 @@ F1 handover fully functional via dashboard. CU + DU0 + DU1 running in k3s. UE1 s
 
 The May-18 handover worked but was brittle — the action scripts directly patched the UE ConfigMap rather than the Deployment args. This sprint redesigned the switch mechanism.
 
-**Root cause**: UE deployment `args` override ConfigMap values (CLAUDE.md Rule 10, discovered here). Patching only the ConfigMap left the running UE on the old `serveraddr`.
+**Root cause**: UE deployment `args` override ConfigMap values (OPERATING-RULES.md Rule 10, discovered here). Patching only the ConfigMap left the running UE on the old `serveraddr`.
 
 **Redesign** (`36e5679`):  
 New `scripts/switch-f1-du.sh` — patches `--rfsimulator.serveraddr` in the UE **Deployment** args (not just CM), then calls `kubectl rollout restart deploy/oai-nr-ue`. This became the canonical switch mechanism.
@@ -543,7 +543,7 @@ Four TDD profiles validated (2026-06-03 to 06-04):
 **DU-aware frequency retune API** (`web-dashboard/real_frequency_api.py`):  
 `/api/frequency/retune`, `/api/frequency/status`, `/api/frequency/profiles`
 
-### Safety rule for sed in config files (CLAUDE.md Rule 3 origin)
+### Safety rule for sed in config files (OPERATING-RULES.md Rule 3 origin)
 
 During n78-3500 carrier retune, `sed` silently matched nothing because the config file used multiple spaces for alignment:
 ```
@@ -554,7 +554,7 @@ sed 's/absoluteFrequencySSB = 621312/absoluteFrequencySSB = 633312/'
 # Fixed (whitespace-agnostic):
 sed -E 's/(absoluteFrequencySSB[[:space:]]*=[[:space:]]*)[0-9]+/\1633312/'
 ```
-The fix used inline Python instead of sed, checking with grep after patching. This became **CLAUDE.md Safety Rule 3**.
+The fix used inline Python instead of sed, checking with grep after patching. This became **OPERATING-RULES.md Safety Rule 3**.
 
 ### Result
 
@@ -563,15 +563,15 @@ The fix used inline Python instead of sed, checking with grep after patching. Th
 ---
 
 <a name="phase-12"></a>
-## Phase 12 — CLAUDE.md · UE1 DU Switching · n28 700 MHz · Real Modulation API
+## Phase 12 — OPERATING-RULES.md · UE1 DU Switching · n28 700 MHz · Real Modulation API
 
 **Date:** 2026-06-09  
 **Commits:** `2d282e1`, `5f518de`, `384641a`, `47e966f`, `4b1d926`, `4ac6a1d`, `ee306bc`, `e44aabb`, `ea58237`, `89038030`, `c329cfa`
 
 ### What was done
 
-**CLAUDE.md** (`2d282e1`):  
-Created the project safety guide (11 rules) after multiple incidents. Full session report `docs/session-report-20260609.md` and `docs/claude-code-session-2026-06-09.md` added.
+**OPERATING-RULES.md** (`2d282e1`):  
+Created the project safety guide (11 rules) after multiple incidents. Full session report `docs/session-report-20260609.md` added.
 
 **UE1 DU switching re-enabled across all scenarios** (`5f518de`, `384641a`):  
 UE1 had been blocked from DU switching in some scenario scripts as a safety measure (added 2026-06-02 when mixed-DU topology was fragile). After validating the mixed-DU recovery mechanism, the block was removed. UE1 is now DU0↔DU1 switchable in all scenarios.
@@ -591,7 +591,7 @@ prach_RootSequenceIndex    = 1
 
 `scripts/frequency/validate-n28-700-on-du0.sh` — full-conf-swap validator (uses `kubectl create cm --dry-run -o yaml | kubectl apply -f -` pattern).
 
-**n28 result:** sync-only. Cell builds, SIB1 broadcasts, UE attaches (RACH Msg1 + Msg2 = Random Access Response), but **Msg3 (PUSCH) never decodes**. Root cause: OAI RFsim does not implement FDD PUSCH timing in the 2025.w45 build. Proven by elimination: tried both PRACH formats (short/long), both dmrs_TypeA positions. Not a config bug. Documented in `docs/` and CLAUDE.md as "Do not retry without a different OAI build."
+**n28 result:** sync-only. Cell builds, SIB1 broadcasts, UE attaches (RACH Msg1 + Msg2 = Random Access Response), but **Msg3 (PUSCH) never decodes**. Root cause: OAI RFsim does not implement FDD PUSCH timing in the 2025.w45 build. Proven by elimination: tried both PRACH formats (short/long), both dmrs_TypeA positions. Not a config bug. Documented in `docs/` and OPERATING-RULES.md as "Do not retry without a different OAI build."
 
 **Real forced-MCS modulation profiles** (`4b1d926`):  
 Replaced netem-faked radio profiles with real `--MACRLCs.[0].dl_max_mcs` / `ul_max_mcs` DU args:
@@ -660,7 +660,7 @@ nssai_sd = 0xffffff
 DU0 ConfigMap had only `SST 1` in `snssaiList`. Added SST 1–4.
 
 **Layer 3 — AMF wrong config source:**  
-`open5gs-amf` ConfigMap is mounted but **unused** (subPath mount, CLAUDE.md Rule 8). The real AMF config is `open5gs-oai-prep` (key `amf.yaml`). The slice list in `open5gs-oai-prep` was missing SST 2–4 in the `plmnSupportList`.
+`open5gs-amf` ConfigMap is mounted but **unused** (subPath mount, OPERATING-RULES.md Rule 8). The real AMF config is `open5gs-oai-prep` (key `amf.yaml`). The slice list in `open5gs-oai-prep` was missing SST 2–4 in the `plmnSupportList`.
 
 **Layer 4 — MongoDB `default_indicator` not set:**  
 The subscriber's `default_indicator` was not being set alongside the slice config, so AMF always granted the subscriber's default SST 1 regardless of the Requested NSSAI.
@@ -669,7 +669,7 @@ After fixing all 4 layers:
 - Updated `scripts/slicing/switch-ue-slice.sh` (v2) to patch both UE CM (legacy keys) and MongoDB `default_indicator`
 - Updated `scripts/slicing/validate-current-slice.sh` to assert AMF log shows the correct `S_NSSAI[SST:x]`
 
-**AMF config discovery became CLAUDE.md Rule 9:** "The AMF's real config source is ConfigMap `open5gs-oai-prep` (key `amf.yaml`) — NOT `open5gs-amf`, which is mounted but unused."
+**AMF config discovery became OPERATING-RULES.md Rule 9:** "The AMF's real config source is ConfigMap `open5gs-oai-prep` (key `amf.yaml`) — NOT `open5gs-amf`, which is mounted but unused."
 
 **Frequency KPI fix** (`57f9971`):  
 Two measurement bugs in the frequency KPI comparison:
@@ -693,7 +693,7 @@ Both columns strictly monotonic (higher band = lower latency + more throughput).
 Added a results table to the "Real S-NSSAI Slice Traffic" dashboard panel showing per-slice KPIs from the most recent run.
 
 **`scripts/recover-ue-sessions.sh`** (`46ade69`):  
-Diagnose-first UE session recovery after CU restart (CLAUDE.md Rule 2). Algorithm:
+Diagnose-first UE session recovery after CU restart (OPERATING-RULES.md Rule 2). Algorithm:
 1. For each UE: read SMF's latest PDU session assignment (from SMF logs)
 2. Read UE's current tunnel IP (from `kubectl exec ip -br a`)
 3. Compare: if tunnel IP ≠ SMF assignment, or tunnel is DOWN → RECOVERY_NEEDED
@@ -713,7 +713,7 @@ UE1 stranded stale oaitun_ue1 tunnel
 Recovery: recover-ue-sessions.sh --fix (~30s)
 ```
 
-CU segfault root cause is upstream OAI 2025.w45. Observed ~4 restarts/23h. Documented in CLAUDE.md Known Risks.
+CU segfault root cause is upstream OAI 2025.w45. Observed ~4 restarts/23h. Documented in OPERATING-RULES.md Known Risks.
 
 ### Result
 
@@ -729,8 +729,8 @@ CU segfault root cause is upstream OAI 2025.w45. Observed ~4 restarts/23h. Docum
 
 ### What was done
 
-**CLAUDE.md: CU segfault documented** (`853ff1d`):  
-Added Known Risks section to CLAUDE.md with segfault details and mitigation command.
+**OPERATING-RULES.md: CU segfault documented** (`853ff1d`):  
+Added Known Risks section to OPERATING-RULES.md with segfault details and mitigation command.
 
 **du1.conf repo/live sync** (`bdc2f17`):  
 `manifests/ran/f1/du1.conf` in the repo had only `SST 1` in `snssaiList`. Live cluster had SST 1–4 (fixed during the `ee66444` slicing sprint). Synced repo to match live.
@@ -742,7 +742,7 @@ Converted UE2–UE5 ConfigMaps from the ignored `pdu_sessions` syntax to legacy 
 `docs/ue1-du-aware-handover-validation.md` rewritten with 2026-06-11 round-trip evidence (item 5 from open items list). Prior doc described a state rolled back on 2026-06-02 and re-enabled on 2026-06-09.
 
 **Mixed-DU panel: DU detection fix** (`47565ad`):  
-UE2 was showing "unknown" DU. Root cause: code read ConfigMap `serveraddr` value but CLAUDE.md Rule 10 says **Deployment args override CM values**. Fixed to read Deployment args first, fall back to CM.
+UE2 was showing "unknown" DU. Root cause: code read ConfigMap `serveraddr` value but OPERATING-RULES.md Rule 10 says **Deployment args override CM values**. Fixed to read Deployment args first, fall back to CM.
 
 **Multi-UE panel performance** (`adaab93`):  
 Status polling was calling 5 separate `kubectl exec` per poll cycle (~15s total). Changed to a single `kubectl get pods -o wide` + `kubectl exec` batch — now 5× faster (3s). Added resilient refresh (retry on 5xx, exponential backoff).
@@ -896,7 +896,7 @@ Repo cleaned. 15 legacy files archived with history preserved. Single CSS file. 
 
 **Solution:** Always strip `resourceVersion`, `uid`, `creationTimestamp`, `managedFields`, `generation`, `status` before applying. Use `kubectl create cm --dry-run=client -o yaml | kubectl apply -f -` for ConfigMaps.
 
-**Became:** CLAUDE.md Safety Rule 4.
+**Became:** OPERATING-RULES.md Safety Rule 4.
 
 ---
 
@@ -906,7 +906,7 @@ Repo cleaned. 15 legacy files archived with history preserved. Single CSS file. 
 
 **Solution:** Use `sed -E 's/(key[[:space:]]*=[[:space:]]*)OLD;/\1NEW;/'` or inline Python. Always `grep` the result to verify the change landed.
 
-**Became:** CLAUDE.md Safety Rule 3.
+**Became:** OPERATING-RULES.md Safety Rule 3.
 
 ---
 
@@ -916,7 +916,7 @@ Repo cleaned. 15 legacy files archived with history preserved. Single CSS file. 
 
 **Solution:** After editing any ConfigMap, restart the consuming deployment AND verify the file inside the new pod (`kubectl exec ... grep`).
 
-**Became:** CLAUDE.md Safety Rule 8.
+**Became:** OPERATING-RULES.md Safety Rule 8.
 
 ---
 
@@ -926,7 +926,7 @@ Repo cleaned. 15 legacy files archived with history preserved. Single CSS file. 
 
 **Solution:** Edit only `open5gs-oai-prep` for AMF config changes.
 
-**Became:** CLAUDE.md Safety Rule 9.
+**Became:** OPERATING-RULES.md Safety Rule 9.
 
 ---
 
@@ -936,7 +936,7 @@ Repo cleaned. 15 legacy files archived with history preserved. Single CSS file. 
 
 **Solution:** Always patch Deployment args (not just CM) when changing `serveraddr`, band, frequency, etc. Dashboard DU-detection code updated to read Deployment args first.
 
-**Became:** CLAUDE.md Safety Rule 10.
+**Became:** OPERATING-RULES.md Safety Rule 10.
 
 ---
 
@@ -962,7 +962,7 @@ All 4 layers must be correct simultaneously for slice admission to work.
 
 **Conclusion:** OAI RFsim 2025.w45 does not implement FDD PUSCH decoding in the simulator. This is not a config bug. Status: **sync-only**.
 
-**Decision:** Do not retry without a different OAI build. Documented in CLAUDE.md and `docs/frequency-scenarios-validation.md`.
+**Decision:** Do not retry without a different OAI build. Documented in OPERATING-RULES.md and `docs/frequency-scenarios-validation.md`.
 
 ---
 

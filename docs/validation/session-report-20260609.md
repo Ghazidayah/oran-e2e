@@ -1,7 +1,7 @@
 # Session Report — 2026-06-09
 
 Working session on the O-RAN E2E testbed (`oran-lab`, branch `allow-ue1-du-switch-all-scenarios`).
-Captures everything done so a fresh Claude Code session has full context.
+Captures everything done so a fresh assistant de développement session has full context.
 
 ## Summary of outcomes
 
@@ -61,7 +61,7 @@ Scenario scripts (slicing/QoS/traffic/radio) were already DU-agnostic; only the 
 
 **Conclusion:** Msg1+Msg2 always succeed, Msg3 never decodes regardless of DMRS/PRACH in a perfect AWGN channel → **OAI RFsim FDD uplink limitation**, not a tunable config value. Legitimate finding, documented; not retried further.
 
-**Cleanup gotchas hit (now in CLAUDE.md safety rules):** stale-`resourceVersion` apply conflict; the validate script's own backup was overwritten by repeated applies → DU0 restored from `manifests/ran/f1/du0.conf`; non-whitespace-agnostic `sed` silently no-op'd twice.
+**Cleanup gotchas hit (now in OPERATING-RULES.md safety rules):** stale-`resourceVersion` apply conflict; the validate script's own backup was overwritten by repeated applies → DU0 restored from `manifests/ran/f1/du0.conf`; non-whitespace-agnostic `sed` silently no-op'd twice.
 
 ## Final state
 

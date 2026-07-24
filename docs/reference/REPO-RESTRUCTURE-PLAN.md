@@ -48,7 +48,7 @@ manifests/ran/
 | `scripts/gather-report-data.sh:32` | `manifests/ran/f1/du0.conf manifests/ran/f1/du1.conf` | `manifests/ran/du/...` |
 | `scripts/gather-report-data.sh:34` | `manifests/ran/mixed-du-live/*.yaml` | `manifests/ran/handover/*.yaml` |
 | `web-dashboard/multi_ue_api.py:28,37,46,55` | `manifests/ran/multi-ue/oai-nr-ue-{2..5}.yaml` | `manifests/ran/ue/...` |
-| `CLAUDE.md:51` | Safety Rule 5: baseline lives in `manifests/ran/f1/du0.conf` | `manifests/ran/du/du0.conf` — **must be edited in the same commit; this is the DU0 restore-source rule** |
+| `OPERATING-RULES.md:51` | Safety Rule 5: baseline lives in `manifests/ran/f1/du0.conf` | `manifests/ran/du/du0.conf` — **must be edited in the same commit; this is the DU0 restore-source rule** |
 | `README.md:93` | "Deploy CU + DU0 + DU1 from `manifests/ran/f1/`" | `manifests/ran/du/` |
 | `docs/reference/PROJECT-FILE-MAP.md:98,101,104,107` | `manifests/ran/multi-ue/oai-nr-ue-{2..5}.yaml` | `manifests/ran/ue/...` |
 | `docs/reference/LIMITATIONS-AND-FUTURE-WORK.md:140` | `manifests/ran/f1/du0.conf` | `manifests/ran/du/du0.conf` |
@@ -61,10 +61,10 @@ Comment-only (cosmetic, fix opportunistically):
 ### Risk notes
 
 - These manifests are the **restore source for live DU/UE configmaps**
-  (CLAUDE.md rules 5 and 8). Nothing on the cluster references the repo paths,
+  (OPERATING-RULES.md rules 5 and 8). Nothing on the cluster references the repo paths,
   so the rename cannot break running pods — but every recovery procedure and
   doc that names the old path must land in the same commit, or an operator
-  following TROUBLESHOOTING/CLAUDE.md during an outage will hit a dead path.
+  following TROUBLESHOOTING/OPERATING-RULES.md during an outage will hit a dead path.
 - Use `git mv` for every file so history follows.
 
 ---

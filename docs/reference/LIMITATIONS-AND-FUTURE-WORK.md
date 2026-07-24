@@ -91,7 +91,7 @@ restart` brings up exactly the same binary. This is essential for a PFE validati
 results must be attributable to a fixed software baseline.
 
 The CU-CP intermittent segfault (exit code 139, ~4 restarts per 23 h, observed 2026-06-10/11) is
-a known upstream issue in `2025.w45` and is documented in CLAUDE.md. It does not affect
+a known upstream issue in `2025.w45` and is documented in OPERATING-RULES.md. It does not affect
 reproducibility of the validated scenarios.
 
 **Future work.**

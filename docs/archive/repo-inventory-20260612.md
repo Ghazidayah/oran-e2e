@@ -39,7 +39,7 @@ KEEP-flagged items needing human decision: see Summary section at bottom.
 | `web-dashboard/` | Flask dashboard app, action scripts, static assets | ACTIVE |
 | `run-web-dashboard.sh` | Dashboard launcher | ACTIVE |
 | `stop-web-dashboard.sh` | Dashboard stopper | ACTIVE |
-| `CLAUDE.md` | Project safety rules (protected) | ACTIVE |
+| `OPERATING-RULES.md` | Project safety rules (protected) | ACTIVE |
 | `README.md` | Quick-reference (stale — updated in Step 6) | ACTIVE |
 | `.gitignore` | Gitignore (incomplete — updated in Step 3) | ACTIVE |
 | `.last-stable-baseline` | Baseline tag pointer | ACTIVE |
@@ -99,7 +99,7 @@ References to `k8s/f1-rfsim/`: only `scripts/switch-to-f1-rfsim.sh` (itself lega
 | `platform-start.sh` | Scale up all namespaces + start dashboard + recover mixed-DU state | **ACTIVE** |
 | `platform-stop.sh` | Scale down all namespaces + stop dashboard | **ACTIVE** |
 | `prepare-network.sh` | Apply Multus network attachments | **ACTIVE** |
-| `recover-ue-sessions.sh` | Diagnose-first UE session recovery (rule 2 of CLAUDE.md) | **ACTIVE** |
+| `recover-ue-sessions.sh` | Diagnose-first UE session recovery (rule 2 of OPERATING-RULES.md) | **ACTIVE** |
 | `rollback-to-monolithic-ran.sh` | Emergency rollback to monolithic gNB. No live references. Deliberately designed escape hatch. | **LEGACY-candidate** — archived per task instructions with full restore doc in attic/README.md |
 | `run-f1-du-switch-sequence.sh` | Automated DU0↔DU1 switch test sequence | **ACTIVE** |
 | `switch-f1-du.sh` | Switch UE1 between DU0 and DU1 (RFsim serveraddr patch) | **ACTIVE** (referenced by run-f1-du-switch-sequence.sh and mixed-du handover scripts) |

@@ -27,7 +27,7 @@ ue1 to DU0.
   config and asserts the AMF grant (docs/validation/slicing-real-snssai-validation.md).
 - UE2-UE5 configs converted to legacy nssai keys, all-SST1-at-rest policy
   (docs/validation/ue-slice-alignment-validation.md, tag ue-slice-alignment-validated-20260611).
-- Known risk: the CU segfaults intermittently (CLAUDE.md "Known risks");
+- Known risk: the CU segfaults intermittently (OPERATING-RULES.md "Known risks");
   recovery = scripts/recover-ue-sessions.sh --fix (diagnose-first).
 
 ## Re-validation evidence (2026-06-11, UE1 round trip DU0 -> DU1 -> DU0)

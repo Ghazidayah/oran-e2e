@@ -40,7 +40,7 @@ oran-e2e-freeze/
 │   ├── actions/        # Shell scripts called by Flask APIs (f1_status.sh, f1_handover.sh, …)
 │   ├── static/         # CSS (style.css — single file) + JavaScript modules
 │   └── templates/      # index.html
-├── CLAUDE.md           # Safety rules (11 rules + known risks — READ BEFORE TOUCHING CLUSTER)
+├── OPERATING-RULES.md           # Safety rules (11 rules + known risks — READ BEFORE TOUCHING CLUSTER)
 ├── run-web-dashboard.sh
 └── stop-web-dashboard.sh
 ```
@@ -108,7 +108,7 @@ curl -s http://127.0.0.1:5055/api/traffic/health # → {"ok":true}
 
 | Document | What it covers |
 |----------|---------------|
-| `CLAUDE.md` | **Safety rules** — read before any cluster mutation |
+| `OPERATING-RULES.md` | **Safety rules** — read before any cluster mutation |
 | `attic/README.md` | Legacy file index + restore instructions |
 | `docs/repo-inventory-20260612.md` | Full file inventory with ACTIVE / LEGACY verdicts |
 | `docs/validation/modulation-scenarios-validation.md` | Real forced-MCS profiles (QPSK/16/64QAM verified) |

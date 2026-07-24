@@ -168,7 +168,7 @@ kubectl -n oran-core patch deploy open5gs-upf --type merge -p \
 ```
 
 NGAP/GTP-U must bind to `net1`, not `eth0`. The current source of truth is ConfigMap
-**`open5gs-oai-prep`** (CLAUDE.md rule 9 — NOT `open5gs-amf`), built from this repo and
+**`open5gs-oai-prep`** (OPERATING-RULES.md rule 9 — NOT `open5gs-amf`), built from this repo and
 rolled out by an existing script:
 
 ```bash
@@ -182,7 +182,7 @@ file. On a fresh Gradiant install they do not. TODO: the live capture's volumeMo
 placeholders (`AMF_KEY_HERE` / `AMF_CM_HERE`); reconstruct the volume patch from
 `manifests/core/open5gs-amf-deploy-live.yaml` (mountPath
 `/opt/open5gs/etc/open5gs/amf.yaml`, configMap `open5gs-oai-prep`, key `amf.yaml` per
-CLAUDE.md rule 9) and verify on a throwaway target first.
+OPERATING-RULES.md rule 9) and verify on a throwaway target first.
 
 **Likely failure (hit in March)**: AMF/UPF CrashLoopBackOff after N2/N3 preparation — bind
 params pointing at `eth0`/missing in mounted files. Fix = exactly this step: rebuild
@@ -206,7 +206,7 @@ LISTEN on `10.10.0.101:38412`; UPF shows UDP `10.20.0.101:2152` and `:8805`.
 ```bash
 cd ~/oran-e2e-freeze
 
-# 8.1 DU ConfigMaps from the canonical confs (CLAUDE.md rule 5: du0.conf is the n78 baseline)
+# 8.1 DU ConfigMaps from the canonical confs (OPERATING-RULES.md rule 5: du0.conf is the n78 baseline)
 kubectl -n oran-ran create configmap oai-du0-f1-config \
   --from-file=gnb.conf=manifests/ran/f1/du0.conf --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n oran-ran create configmap oai-du1-f1-config \
@@ -233,7 +233,7 @@ kubectl -n oran-ran create configmap oai-nrue-config \
   --from-file=nr-ue.conf=manifests/ran/nrue.lab.conf --dry-run=client -o yaml | kubectl apply -f -
 # Deployment: manifests/ran/mixed-du-live/deploy-oai-nr-ue.yaml is a LIVE capture —
 # strip resourceVersion/uid/creationTimestamp/generation + status before applying
-# (CLAUDE.md rule 4). bootstrap-platform.sh does this automatically.
+# (OPERATING-RULES.md rule 4). bootstrap-platform.sh does this automatically.
 
 # 8.5 UE2–UE5 (generated manifests embed ConfigMap + Deployment, image oai-nr-ue:2025.w45)
 bash scripts/ue/generate-5ue-manifests.sh
@@ -285,7 +285,7 @@ bash tests/run-full-platform-acceptance.sh            # full 7-section suite
 | 3 | NGAP socket | `kubectl -n oran-core exec deploy/open5gs-amf -- ss -lpn \| grep 38412` | SCTP LISTEN on `10.10.0.101` |
 | 4 | GTP-U/PFCP | `kubectl -n oran-core exec deploy/open5gs-upf -- ss -lunp \| egrep '2152\|8805'` | both UDP sockets on `10.20.0.101`/pod |
 | 5 | NG/E1/F1 | CU-CP log grep `NGSetupResponse\|Accepting new CU-UP\|Accepting DU` | all three present |
-| 6 | UE tunnels | loop from CLAUDE.md "Quick health check" | 5 × `oaitun_ue1 10.45.0.x` |
+| 6 | UE tunnels | loop from OPERATING-RULES.md "Quick health check" | 5 × `oaitun_ue1 10.45.0.x` |
 | 7 | User plane | `validate-e2e.sh` | `VERDICT=E2E_UE1_VALIDATION_OK` (ping 8.8.8.8, 0 % loss) |
 | 8 | Subscribers | Mongo `db.subscribers.count()` | 5 IMSIs `999700000000001-005` |
 | 9 | Acceptance | `tests/run-full-platform-acceptance.sh` | all sections PASS |

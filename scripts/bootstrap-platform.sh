@@ -39,7 +39,7 @@ TODO_ABORT() {
   exit 2
 }
 
-# Strip live-capture metadata (CLAUDE.md rule 4) so a saved manifest can be applied.
+# Strip live-capture metadata (OPERATING-RULES.md rule 4) so a saved manifest can be applied.
 apply_stripped() {
   local f="$1" ns="$2"
   awk '/^status:/{exit} {print}' "$f" \
@@ -199,7 +199,7 @@ kubectl -n oran-core patch deploy open5gs-upf --type merge -p \
 
 MANUAL "TODO — volumeMount rewiring must be done by hand on a fresh install:" \
   "  The AMF/UPF must mount ConfigMap open5gs-oai-prep over their config file" \
-  "  (CLAUDE.md rule 9: real AMF config = open5gs-oai-prep key amf.yaml)." \
+  "  (OPERATING-RULES.md rule 9: real AMF config = open5gs-oai-prep key amf.yaml)." \
   "  The live capture manifests/core/open5gs-amf-deploy-live.yaml holds the shape" \
   "  (mountPath /opt/open5gs/etc/open5gs/amf.yaml) but with placeholders" \
   "  (AMF_KEY_HERE / AMF_CM_HERE) — reconstruct and verify on a throwaway target." \
