@@ -54,3 +54,7 @@ web-dashboard/real-slice-results.json
 web-dashboard/frequency-profile-results.json
 web-dashboard/multi-ue-results.json
 *.bak-*
+
+# Exception : captures de preuve versionnées pour le PFE
+!docs/proofs/*.pcap
+!docs/proofs/*.pcapng
