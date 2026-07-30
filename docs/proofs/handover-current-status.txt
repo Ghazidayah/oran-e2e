@@ -1,7 +1,0 @@
-Current project status:
-- gNB-A attach and data-plane validated.
-- gNB-B standalone attach and data-plane validated.
-- N2 HO trigger command validated.
-- True seamless handover not yet validated.
-- Root cause: current RFsim deployment connects UE to one RFsim server at a time.
-- Next recommended direction: restructure to OAI-supported handover topology, preferably F1 split CU + DU0 + DU1, or confirm a supported multi-cell RFsim method for monolithic N2 HO.
