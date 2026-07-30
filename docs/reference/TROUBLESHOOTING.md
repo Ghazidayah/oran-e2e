@@ -80,8 +80,17 @@ no N2 path and no PDU sessions can be set up.
 
 **Recovery** (automated on `scripts/platform-start.sh`):
 
-`ensure_cu_ngap_associated()` in `scripts/platform-start.sh` detects this and restarts CU + DUs up
-to 3 times. It uses two log samples 5 seconds apart to avoid acting on stale log lines.
+`ensure_cu_plane_healthy()` in `scripts/platform-start.sh` (line 238) detects this and restarts
+the CU plane + DUs up to 3 times. It uses two log samples 5 seconds apart to avoid acting on
+stale log lines.
+
+It gates on **both** interfaces of the split CU, not NGAP alone: `cucp_ngap_down()` checks the
+CU-CP↔AMF association (absence of `No AMF is associated`, ideally confirmed by `gNB-N2 accepted`
+in the AMF log), and `e1_associated()` checks the CU-CP↔CU-UP E1 association (`Accepting new
+CU-UP` / `E1AP_SETUP_RESP`, or `E1 connection established` / `SCTP_STATE_ESTABLISHED` on the
+CU-UP side). A failure of either one triggers the same re-pair sequence — restart CU-CP, then
+CU-UP, in that order, because OAI requires a CU-CP restart to re-pair E1. Only once both are
+healthy does it rollout-restart DU0 and DU1 so F1-C re-associates.
 
 Manual recovery:
 
@@ -94,8 +103,9 @@ kubectl -n oran-ran rollout restart deploy/oai-du0 deploy/oai-du1
 
 Then run `scripts/recover-ue-sessions.sh --fix`.
 
-**Environment override**: `ORAN_NGAP_GATE=0` disables the gate; `ORAN_NGAP_MAX_TRIES=N` sets retry count;
-`ORAN_NGAP_SETTLE_SECONDS=N` sets the wait before each check (default 25s).
+**Environment overrides**: `ORAN_CU_GATE=0` disables the gate (default `1`);
+`ORAN_CU_MAX_TRIES=N` sets the retry count (default `3`); `ORAN_CU_SETTLE_SECONDS=N` sets the
+settle time before each NGAP/E1 check (default `25`).
 
 ---
 

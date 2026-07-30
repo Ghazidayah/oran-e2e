@@ -14,9 +14,17 @@ The runtime scripts are already committed. No generation step is needed.
 
 | Script | What it does |
 |---|---|
-| `scripts/slicing/switch-ue-slice.sh <sst> [sd]` | Patches UE1's ConfigMap (`oai-nrue-config`) with the requested `pdu_sessions` SST, then rollout-restarts UE1. Accepted SST values: 1, 2, 3. |
+| `scripts/slicing/switch-ue-slice.sh <sst> [sd]` | Patches UE1's ConfigMap (`oai-nrue-config`) with the requested `pdu_sessions` SST, then rollout-restarts UE1. Usable SST values: 1, 2, 3 (see note). |
 | `scripts/slicing/validate-current-slice.sh` | Checks the live UE config, shows the tunnel IP, and pings 8.8.8.8 through `oaitun_ue1`. |
 | `scripts/slicing/apply-slice-resource-profile.sh <profile>` | Applies per-UE QoS shaping on UE1 (see below). |
+
+**Note on the accepted SST range.** `switch-ue-slice.sh` guards its argument with
+`case "$SST" in 1|2|3|4)` and rejects anything else as "SST must be 1..4 (subscribed slices)".
+That guard is stale: SST=4 was removed from the subscriber baseline (recorded in commit
+`bc9158d`, "SST=4 retirée des abonnés" — the subscriber DB is live MongoDB state, not a repo
+file). Requesting SST=4 therefore passes the guard but cannot be granted, because Allowed NSSAI
+comes from the subscriber's slices. **Only 1, 2 and 3 are actually granted.** The guard and its
+message are left as-is: the platform is frozen and no runtime script is being changed.
 
 To activate full multi-slice support on AMF/SMF/NSSF/CU/DU you must run
 `scripts/slicing/apply-real-snssai-slicing.sh`, but **that script is blocked by default**:

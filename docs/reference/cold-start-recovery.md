@@ -95,24 +95,46 @@ Expected: `No route` = 0, `reject [9]` = 0, and five `10.45.0.x` tunnels.
 
 ## 4. Permanent fix (in `platform-start.sh`)
 
-The fix is **ordering, not restarts** — restarting NFs to "fix" discovery was itself the
-IP-churn that stranded endpoints. The script now (under `ORAN_ORDERED_BRINGUP=1`, default):
+The fix is **ordering**: the AMF and SMF must not be the ones waiting on discovery. After
+restoring the saved replica counts (`~/.oran-lab/platform-replicas.tsv`) and waiting for the
+key workloads, the script runs three ordered stages — `ensure_core_amf_ready`,
+`ensure_cu_plane_healthy`, `reconcile_ue_sessions` — in that sequence.
 
-1. Scales core + RAN workloads to **zero** (clean slate — no stale endpoints survive).
-2. Brings the core up in **dependency tiers**, each waited-for, **no restarts**:
-   - tier 1: `mongodb, nrf, scp`
-   - tier 2: `udr, udm, ausf, bsf, nssf, pcf, upf, sepp, webui` (+ settle so they register in NRF)
-   - tier 3: `amf, smf` **last** — they boot into a populated NRF and get a stable IP.
-3. Brings up the **CU plane** (CU-CP → CU-UP) against the stable core, so NGAP associates
-   once and stays; then starts the **DUs** (F1).
-4. Brings up **UEs** last, into a fully healthy core + CU plane; `reconcile_ue_sessions`
-   catches any straggler.
+**Stage 1 — `ensure_core_amf_ready()`** (gated by `ORAN_CORE_GATE`, default `1`):
 
-Fallback: `ORAN_ORDERED_BRINGUP=0 bash scripts/platform-start.sh` restores the legacy
-all-at-once path (kept intact), no git revert required.
+1. Waits for the NF directory, data and auth NFs to report a Ready replica, each up to 180s:
+   `open5gs-mongodb`, `open5gs-nrf`, `open5gs-scp`, `open5gs-udr`, `open5gs-udm`,
+   `open5gs-ausf`, `open5gs-upf`.
+2. Pauses `ORAN_CORE_REGISTER_SETTLE` seconds (default 25) so those NFs register their
+   profiles into the NRF.
+3. Restarts `open5gs-amf` + `open5gs-smf` **last**, so they boot into a populated NRF and
+   discover AUSF/UDM/UPF on the first attempt.
+4. Confirms positively: counts `NF registered` lines in the AMF log and reports how many NF
+   profiles it discovered. If none appear yet, it warns and leaves the retry to stage 3.
+
+**Stage 2 — `ensure_cu_plane_healthy()`** (gated by `ORAN_CU_GATE`, default `1`): applies
+`manifests/ran/e1/e1-split.yaml`, then scales CU-CP before CU-UP (correct E1 order), settles
+`ORAN_CU_SETTLE_SECONDS` (default 25) and verifies both NGAP (no `No AMF is associated` in the
+CU-CP log, ideally `gNB-N2 accepted` in the AMF log) and E1 association. On failure it
+re-pairs by restarting CU-CP then CU-UP, up to `ORAN_CU_MAX_TRIES` attempts (default 3). Once
+healthy it rollout-restarts DU0 and DU1 so F1-C re-associates.
+
+**Stage 3 — `reconcile_ue_sessions()`** (gated by `ORAN_RECONCILE_UES`, default `1`): sleeps
+`ORAN_UE_SETTLE_SECONDS` (default 45) to let restored UEs self-attach, then delegates to
+`scripts/recover-ue-sessions.sh --fix --yes`, which restarts only the UEs still without a
+working tunnel, and re-runs it to confirm `VERDICT=ALL_HEALTHY`.
+
+Opt-outs (each stage independently): `ORAN_CORE_GATE=0`, `ORAN_CU_GATE=0`,
+`ORAN_RECONCILE_UES=0` — e.g. `ORAN_CORE_GATE=0 bash scripts/platform-start.sh` skips the core
+ordering stage and prints `[SKIP] ORAN_CORE_GATE=0`.
 
 Tunables: `ORAN_CORE_REGISTER_SETTLE` (default 25s) — raise if the NRF needs longer to
-populate on a slow/cold cache.
+populate on a slow/cold cache; `ORAN_CU_SETTLE_SECONDS` (25s), `ORAN_CU_MAX_TRIES` (3),
+`ORAN_UE_SETTLE_SECONDS` (45s).
+
+Note: `platform-start.sh` restores replicas from the state file — it does **not** scale
+everything to zero first. The scale-to-zero clean slate in section 3 remains a manual
+procedure, to be used when the platform is already in the stale-endpoint state.
 
 ---
 
