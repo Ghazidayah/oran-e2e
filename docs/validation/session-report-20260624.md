@@ -1,5 +1,23 @@
 # Session Report — 2026-06-24
 
+> **Historical record — do not use as current reference (note added 2026-07-30).**
+> This report describes the platform as it was on 2026-06-24 and is accurate for that
+> date. The identifiers it names were introduced the same day in `aa29e5d`, then renamed
+> the next day in `87244a3` when the E1 split (CU-CP + CU-UP) landed and the gate was
+> widened to check E1 as well as NGAP:
+>
+> | Named here (2026-06-24) | Current name since `87244a3` (2026-06-25) |
+> |---|---|
+> | `ensure_cu_ngap_associated()` | `ensure_cu_plane_healthy()` |
+> | `cu_ngap_down()` | `cucp_ngap_down()` (plus a new `e1_associated()` check) |
+> | `ORAN_NGAP_GATE` | `ORAN_CU_GATE` |
+> | `ORAN_NGAP_MAX_TRIES` | `ORAN_CU_MAX_TRIES` |
+> | `ORAN_NGAP_SETTLE_SECONDS` | `ORAN_CU_SETTLE_SECONDS` |
+>
+> The old names exist in no current script. For current usage see
+> `docs/reference/TROUBLESHOOTING.md` ("CU not NGAP-associated with AMF on cold start").
+> The body below is left exactly as written.
+
 Two changes committed and pushed on branch `allow-ue1-du-switch-all-scenarios`.
 
 ---
