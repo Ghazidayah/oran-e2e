@@ -12,7 +12,7 @@ from radio_profile_api import radio_bp
 from real_frequency_api import real_freq_bp
 from traffic_kpi_api import traffic_kpi_bp
 
-BASE_DIR = Path.home() / "oran-e2e-freeze"
+BASE_DIR = Path.home() / "oran-e2e"
 PROOF_DIR = Path.home() / "oran-proof"
 RUNS_DIR = PROOF_DIR / "web-dashboard-runs"
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
@@ -848,7 +848,7 @@ echo "9. LATEST KPI SNAPSHOT (dashboard caches)"
 echo "$SEP"
 python3 - <<'PYEOF'
 import json, os
-base = os.path.expanduser("~/oran-e2e-freeze/web-dashboard")
+base = os.path.expanduser("~/oran-e2e/web-dashboard")
 
 def load(name):
     try:

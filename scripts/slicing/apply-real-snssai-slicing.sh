@@ -300,7 +300,7 @@ kubectl -n "$NS_CORE" exec "$MONGO_POD" -- sh -lc '
 
 echo
 echo "===== 7. CREATE UE SLICE SWITCH SCRIPT ====="
-cat > "$HOME/oran-e2e-freeze/scripts/slicing/switch-ue-slice.sh" <<'SWITCH'
+cat > "$HOME/oran-e2e/scripts/slicing/switch-ue-slice.sh" <<'SWITCH'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -356,11 +356,11 @@ kubectl -n "$NS" get cm "$CM" -o json \
   | grep "pdu_sessions"
 SWITCH
 
-chmod +x "$HOME/oran-e2e-freeze/scripts/slicing/switch-ue-slice.sh"
+chmod +x "$HOME/oran-e2e/scripts/slicing/switch-ue-slice.sh"
 
 echo
 echo "===== 8. CREATE CURRENT SLICE VALIDATION SCRIPT ====="
-cat > "$HOME/oran-e2e-freeze/scripts/slicing/validate-current-slice.sh" <<'VALIDATE'
+cat > "$HOME/oran-e2e/scripts/slicing/validate-current-slice.sh" <<'VALIDATE'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -397,11 +397,11 @@ kubectl -n "$NS" exec "$UE" -- ip -s link show oaitun_ue1 | tee "$DIR/oaitun-cou
 echo "===== VALIDATION OK ====="
 VALIDATE
 
-chmod +x "$HOME/oran-e2e-freeze/scripts/slicing/validate-current-slice.sh"
+chmod +x "$HOME/oran-e2e/scripts/slicing/validate-current-slice.sh"
 
 echo
 echo "===== 9. CREATE ROLLBACK SCRIPT ====="
-cat > "$HOME/oran-e2e-freeze/scripts/slicing/rollback-real-snssai-slicing.sh" <<ROLLBACK
+cat > "$HOME/oran-e2e/scripts/slicing/rollback-real-snssai-slicing.sh" <<ROLLBACK
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -469,7 +469,7 @@ kubectl -n "$NS_RAN" rollout status deploy/oai-nr-ue --timeout=180s
 echo "Rollback complete."
 ROLLBACK
 
-chmod +x "$HOME/oran-e2e-freeze/scripts/slicing/rollback-real-snssai-slicing.sh"
+chmod +x "$HOME/oran-e2e/scripts/slicing/rollback-real-snssai-slicing.sh"
 
 echo
 echo "===== 10. RESTART CORE SLICE FUNCTIONS ====="
@@ -488,7 +488,7 @@ kubectl -n "$NS_RAN" rollout status deploy/oai-nr-ue --timeout=180s
 
 echo
 echo "===== 12. VALIDATE BASELINE WITH UE STILL ON SST=1 ====="
-"$HOME/oran-e2e-freeze/scripts/slicing/validate-current-slice.sh" | tee "$DIR/validate-sst1-after-apply.txt"
+"$HOME/oran-e2e/scripts/slicing/validate-current-slice.sh" | tee "$DIR/validate-sst1-after-apply.txt"
 
 echo
 echo "===== 13. SAVE SUMMARY ====="

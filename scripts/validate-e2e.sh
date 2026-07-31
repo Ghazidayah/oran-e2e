@@ -4,7 +4,7 @@ set +u
 
 NS="${NS:-oran-ran}"
 DEP="${DEP:-oai-nr-ue}"
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 
 source "$REPO/scripts/ue/ue-common.sh"
 

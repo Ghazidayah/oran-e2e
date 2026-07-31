@@ -9,7 +9,7 @@ from pathlib import Path
 import pathlib
 from flask import Flask, jsonify, request
 
-REPO = Path.home() / "oran-e2e-freeze"
+REPO = Path.home() / "oran-e2e"
 PROOF = Path.home() / "oran-proof" / "phase2-traffic-api"
 PROOF.mkdir(parents=True, exist_ok=True)
 

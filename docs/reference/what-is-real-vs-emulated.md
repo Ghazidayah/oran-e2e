@@ -1,6 +1,6 @@
 # What Is Real and What Is Emulated
 
-**Purpose.** This is the single-source reference for which parts of the oran-e2e-freeze
+**Purpose.** This is the single-source reference for which parts of the oran-e2e
 testbed are *real* (genuine 3GPP/5G procedures and live data) and which are *emulated*
 (deliberately synthesized to illustrate behaviour that an idealized simulator cannot
 physically reproduce). It exists so that every number shown on the dashboard can be

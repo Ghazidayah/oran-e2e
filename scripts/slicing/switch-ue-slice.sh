@@ -17,7 +17,7 @@ CM="${CM:-oai-nrue-config}"
 DEP="${DEP:-oai-nr-ue}"
 SST="${1:-1}"
 SD="${2:-0xffffff}"
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 
 source "$REPO/scripts/ue/ue-common.sh"
 

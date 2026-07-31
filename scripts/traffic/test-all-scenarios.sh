@@ -11,7 +11,7 @@
 set -uo pipefail
 
 API="${TRAFFIC_API:-http://127.0.0.1:5055}"
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 POLL_MAX="${POLL_MAX:-120}"
 POLL_INT=3
 

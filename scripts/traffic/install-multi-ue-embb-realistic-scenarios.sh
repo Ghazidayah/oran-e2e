@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DASHBOARD_DIR="$HOME/oran-e2e-freeze/web-dashboard"
+DASHBOARD_DIR="$HOME/oran-e2e/web-dashboard"
 JS="$DASHBOARD_DIR/static/dashboard-multi-ue.js"
 HTML="$DASHBOARD_DIR/templates/index.html"
 API="$DASHBOARD_DIR/multi_ue_api.py"

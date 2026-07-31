@@ -6,7 +6,7 @@
 #        apply-fspl-band-profile.sh clear
 set +e; set +u
 NS="${NS:-oran-ran}"; DEP="${DEP:-oai-nr-ue}"
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 source "$REPO/scripts/ue/ue-common.sh"
 
 F_REF="${F_REF:-2593.35}"     # n41 reference carrier (MHz)

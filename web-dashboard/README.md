@@ -3,7 +3,7 @@
 Start:
 
 ```bash
-cd /home/ghazi/oran-e2e-freeze/web-dashboard
+cd /home/ghazi/oran-e2e/web-dashboard
 ./run-dashboard.sh
 ```
 
@@ -16,5 +16,5 @@ http://192.168.1.142:18080
 Environment overrides:
 
 ```bash
-PROJECT_ROOT=/home/ghazi/oran-e2e-freeze RUN_ROOT=/home/ghazi/oran-proof PORT=18080 ./run-dashboard.sh
+PROJECT_ROOT=/home/ghazi/oran-e2e RUN_ROOT=/home/ghazi/oran-proof PORT=18080 ./run-dashboard.sh
 ```

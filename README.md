@@ -1,4 +1,4 @@
-# O-RAN E2E Testbed — oran-e2e-freeze
+# O-RAN E2E Testbed — oran-e2e
 
 Single-node 5G SA testbed: Open5GS core + OAI E1/F1-split RAN (CU-CP + CU-UP + DU0 + DU1) + 5 UEs, RFsim.
 Dashboard at **http://oran-lab:18080** (Flask, port 18080).
@@ -13,7 +13,7 @@ validation script (`web-dashboard/actions/common.sh`, `RUN_ROOT` in
 ## Repository Layout
 
 ```
-oran-e2e-freeze/
+oran-e2e/
 ├── config/             # UE fleet definition (ues.yaml — read by scripts/ue/uectl.sh)
 ├── docs/               # Validation evidence (DO NOT MOVE; only add files here)
 │   ├── archive/        # Superseded reports + past inventories (kept for traceability)

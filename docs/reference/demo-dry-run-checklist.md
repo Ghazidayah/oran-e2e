@@ -1,6 +1,6 @@
 # Demo Dry-Run Checklist
 
-A click-by-click runbook for demonstrating the oran-e2e-freeze testbed, with what each
+A click-by-click runbook for demonstrating the oran-e2e testbed, with what each
 step proves and inline recovery for the one thing that may break mid-demo (the CU).
 Keep this open in a second window during the demo.
 
@@ -9,7 +9,7 @@ Keep this open in a second window during the demo.
 ## 0. Pre-demo setup (run 15 minutes before, from a terminal)
 
 ```bash
-cd ~/oran-e2e-freeze
+cd ~/oran-e2e
 
 # 1. Dashboard up (does not self-detach)
 ./stop-web-dashboard.sh; sleep 2
@@ -98,7 +98,7 @@ thing to show.
 
 Symptom: UEs detached / scenarios failing / pings fail
 ```bash
-cd ~/oran-e2e-freeze
+cd ~/oran-e2e
 ./scripts/recover-ue-sessions.sh --fix --yes      # restarts only failing UEs (~30s)
 ./scripts/recover-ue-sessions.sh                  # re-verify -> VERDICT=ALL_HEALTHY
 ```
@@ -131,7 +131,7 @@ Hard-refresh first (Ctrl+Shift+R). If still broken, restart it (step 0.1).
 ## 3. Post-demo: restore baseline
 
 ```bash
-cd ~/oran-e2e-freeze
+cd ~/oran-e2e
 # If any modulation/frequency profile was applied during the demo:
 curl -s -X POST http://127.0.0.1:18080/api/radio/restore >/dev/null
 sleep 30

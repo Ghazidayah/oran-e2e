@@ -2,7 +2,7 @@
 set -euo pipefail
 
 API_BASE="${API_BASE:-http://192.168.1.142:5055}"
-DASHBOARD_DIR="$HOME/oran-e2e-freeze/web-dashboard"
+DASHBOARD_DIR="$HOME/oran-e2e/web-dashboard"
 TEMPLATE="$DASHBOARD_DIR/templates/index.html"
 JS="$DASHBOARD_DIR/static/dashboard-inline.js"
 BACKUP_DIR="$HOME/oran-proof/dashboard-backups/flask-realistic-scenarios-$(date +%Y%m%d-%H%M%S)"

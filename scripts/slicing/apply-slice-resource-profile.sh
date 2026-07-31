@@ -2,7 +2,7 @@
 set +e; set +u
 PROFILE="${1:-embb}"
 NS="${NS:-oran-ran}"; DEP="${DEP:-oai-nr-ue}"
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 source "$REPO/scripts/ue/ue-common.sh"
 
 # Plafond = débit UL TCP non-capped, AUTO-MESURE par scripts/traffic/measure-ceiling.sh

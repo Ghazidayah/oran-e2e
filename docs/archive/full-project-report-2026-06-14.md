@@ -4,7 +4,7 @@
 **Platform:** Single-node k3s on `oran-lab` (Ubuntu 22.04.5)  
 **Stack:** Open5GS 5G SA core + OAI F1-split RAN (CU + DU0 + DU1) + 5 UEs (RFsim)  
 **PLMN:** 999/70 · DNN: oai · AMF NGAP: 10.10.0.101:38412 · UPF GTP-U: 10.20.0.101:2152  
-**Repository:** `~/oran-e2e-freeze` (branch `allow-ue1-du-switch-all-scenarios`)  
+**Repository:** `~/oran-e2e` (branch `allow-ue1-du-switch-all-scenarios`)  
 **Report generated:** 2026-06-14
 
 ---

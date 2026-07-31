@@ -17,7 +17,7 @@
 #   3) upload the printed .tar.gz
 # =============================================================================
 set -u
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 CORE_NS="oran-core"; RAN_NS="oran-ran"
 TS="$(date +%Y%m%d-%H%M%S)"
 B="$HOME/report-data-$TS"

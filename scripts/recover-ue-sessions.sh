@@ -20,7 +20,7 @@
 
 set -uo pipefail
 
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 source "$REPO/scripts/ue/ue-common.sh"
 
 NS_RAN="${NS_RAN:-oran-ran}"

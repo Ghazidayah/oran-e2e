@@ -145,7 +145,7 @@ done
 
 echo
 echo "===== 6. CREATE ROLLBACK TO PHASE 3 SHARED-QOS SLICE PROFILE ====="
-cat > "$HOME/oran-e2e-freeze/scripts/slicing/rollback-phase4-qos-resource-profiles.sh" <<'ROLLBACK'
+cat > "$HOME/oran-e2e/scripts/slicing/rollback-phase4-qos-resource-profiles.sh" <<'ROLLBACK'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -208,7 +208,7 @@ done
 echo "Rollback complete."
 ROLLBACK
 
-chmod +x "$HOME/oran-e2e-freeze/scripts/slicing/rollback-phase4-qos-resource-profiles.sh"
+chmod +x "$HOME/oran-e2e/scripts/slicing/rollback-phase4-qos-resource-profiles.sh"
 
 echo
 echo "===== 7. SUMMARY ====="

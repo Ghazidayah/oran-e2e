@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 BASE="http://127.0.0.1:${PORT}"
 

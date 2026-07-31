@@ -4,7 +4,7 @@
 # Écrit la MÉDIANE entière dans ~/oran-proof/ceiling-mbit.txt + preuve JSON.
 # ==========================================================================
 set -uo pipefail
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 SAMPLES="${SAMPLES:-3}"
 DURATION="${DURATION:-15}"
 OUT="$HOME/oran-proof/ceiling-mbit.txt"

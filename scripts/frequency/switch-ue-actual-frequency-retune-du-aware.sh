@@ -2,7 +2,7 @@
 set -u
 set -o pipefail
 
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 NS="${RAN_NS:-${NS:-oran-ran}}"
 
 UE_DEPLOY="${UE_DEPLOY:-oai-nr-ue}"

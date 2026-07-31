@@ -9,7 +9,7 @@ from flask import Blueprint, jsonify, request
 
 radio_bp = Blueprint("radio_profile", __name__)
 
-REPO = Path(os.environ.get("ORAN_REPO", Path.home() / "oran-e2e-freeze"))
+REPO = Path(os.environ.get("ORAN_REPO", Path.home() / "oran-e2e"))
 RESULTS_FILE = REPO / "web-dashboard" / "radio-profile-results.json"
 LOG_ROOT = Path.home() / "oran-proof"
 

@@ -8,7 +8,7 @@ echo " ue1 restored to baseline DU0"
 echo " SAFE MODE: no exit 1"
 echo "============================================================"
 
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 DASH="${DASH:-http://127.0.0.1:$PORT}"
 STAMP="$(date +%Y%m%d-%H%M%S)"

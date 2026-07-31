@@ -94,7 +94,7 @@ traffic-api/
   match pattern **must change** to the new filename (`traffic-api/server.py`),
   otherwise stop.sh silently stops matching and start.sh stacks duplicate
   servers on port 5055.
-- `server.py` needs **no** path changes: `REPO = Path.home()/"oran-e2e-freeze"`
+- `server.py` needs **no** path changes: `REPO = Path.home()/"oran-e2e"`
   is home-anchored, and the `SCENARIOS` dict paths
   (`scripts/traffic/run-*.sh`) remain valid because those scripts do not move.
 

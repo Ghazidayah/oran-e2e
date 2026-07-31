@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_DIR="$HOME/oran-e2e-freeze"
+BASE_DIR="$HOME/oran-e2e"
 APP_DIR="$BASE_DIR/web-dashboard"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 

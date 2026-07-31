@@ -22,7 +22,7 @@
 #   bash scripts/run-full-platform-acceptance.sh
 #
 # Useful env knobs:
-#   REPO=/path/to/oran-e2e-freeze     (default: $HOME/oran-e2e-freeze)
+#   REPO=/path/to/oran-e2e     (default: $HOME/oran-e2e)
 #   SECTION_TIMEOUT=1800              (per dashboard section, seconds)
 #   FREQ_TIMEOUT=420                  (per frequency band, seconds)
 #   SKIP_SECTIONS="2 6"              (space list of section numbers to skip)
@@ -31,7 +31,7 @@
 # =============================================================================
 set -u
 
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 CORE_NS="oran-core"
 RAN_NS="oran-ran"
 DASH_PORT="${ORAN_DASHBOARD_PORT:-18080}"

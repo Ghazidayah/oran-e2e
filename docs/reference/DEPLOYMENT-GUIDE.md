@@ -2,7 +2,7 @@
 
 > **Provenance**: consolidated from the **March 2026 deployment report**
 > (Rapport d'avancement O-RAN, Steps 1–9 + annexes) and the **current repository**
-> (`~/oran-e2e-freeze`, branch `cleanup-final-state`). The core procedure (host →
+> (`~/oran-e2e`, branch `cleanup-final-state`). The core procedure (host →
 > k3s → Open5GS → Multus/N2/N3) was executed in March 2026 on this host; the RAN
 > layer reflects the **later F1/E1 split evolution** and uses only current repo
 > manifests. This guide has **not been re-executed end-to-end on a fresh host**
@@ -80,8 +80,8 @@ helm repo add bitnami https://charts.bitnami.com/bitnami && helm repo update
 cd <chart-parent-dir> && helm dependency build charts/open5gs
 
 helm -n oran-core install open5gs ./charts/open5gs \
-  -f ~/oran-e2e-freeze/manifests/core/open5gs-5gsa.yaml \
-  -f ~/oran-e2e-freeze/manifests/core/open5gs-overrides.yaml
+  -f ~/oran-e2e/manifests/core/open5gs-5gsa.yaml \
+  -f ~/oran-e2e/manifests/core/open5gs-overrides.yaml
 kubectl -n oran-core wait --for=condition=Available deploy --all --timeout=10m
 ```
 
@@ -146,10 +146,10 @@ kubectl -n kube-system get ds | grep -i multus
 kubectl get crd | grep -i network-attachment
 
 # NADs — from this repo (bridge CNI, host-local IPAM, range .100-.200, gw .1):
-kubectl apply -f ~/oran-e2e-freeze/manifests/network/n2-net-core.yaml
-kubectl apply -f ~/oran-e2e-freeze/manifests/network/n3-net-core.yaml
-kubectl apply -f ~/oran-e2e-freeze/manifests/network/n2-net-ran.yaml
-kubectl apply -f ~/oran-e2e-freeze/manifests/network/n3-net-ran.yaml
+kubectl apply -f ~/oran-e2e/manifests/network/n2-net-core.yaml
+kubectl apply -f ~/oran-e2e/manifests/network/n3-net-core.yaml
+kubectl apply -f ~/oran-e2e/manifests/network/n2-net-ran.yaml
+kubectl apply -f ~/oran-e2e/manifests/network/n3-net-ran.yaml
 ```
 
 **Success criteria**: a test pod with both NADs gets `net1`/`net2` and can ping `10.10.0.1`
@@ -172,7 +172,7 @@ NGAP/GTP-U must bind to `net1`, not `eth0`. The current source of truth is Confi
 rolled out by an existing script:
 
 ```bash
-cd ~/oran-e2e-freeze && bash scripts/deploy-core.sh
+cd ~/oran-e2e && bash scripts/deploy-core.sh
 # creates/updates open5gs-oai-prep from manifests/core/{amf,smf,upf}.yaml,
 # restarts AMF/SMF/UPF, verifies sockets 38412 (NGAP) and 2152/8805 (GTP-U/PFCP)
 ```
@@ -204,7 +204,7 @@ LISTEN on `10.10.0.101:38412`; UPF shows UDP `10.20.0.101:2152` and `:8805`.
 > `oai-du1-rfsim` (TCP 4043), and 5 UEs. None of the March RAN commands apply anymore.
 
 ```bash
-cd ~/oran-e2e-freeze
+cd ~/oran-e2e
 
 # 8.1 DU ConfigMaps from the canonical confs (OPERATING-RULES.md rule 5: du0.conf is the n78 baseline)
 kubectl -n oran-ran create configmap oai-du0-f1-config \
@@ -261,7 +261,7 @@ Grafana NodePort 30300, Prometheus 30090).
 ## Step 10 — Dashboard, traffic API, first-start validation
 
 ```bash
-cd ~/oran-e2e-freeze
+cd ~/oran-e2e
 ./run-web-dashboard.sh                      # Flask :18080
 bash scripts/traffic/start-traffic-api.sh   # :5055
 

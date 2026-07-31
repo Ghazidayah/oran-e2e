@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_DIR="$HOME/oran-e2e-freeze"
+BASE_DIR="$HOME/oran-e2e"
 PROOF_ROOT="$HOME/oran-proof"
 
 TODAY_DIR="$PROOF_ROOT/today-$(date +%Y%m%d)-dashboard"

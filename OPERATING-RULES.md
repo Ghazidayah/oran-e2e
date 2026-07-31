@@ -12,7 +12,7 @@ Read the Safety Rules before running anything.
 - Core: **Open5GS 5G SA** (namespace `oran-core`).
 - RAN: **OpenAirInterface**, **F1 split** = CU + DU0 + DU1 (namespace `oran-ran`), **RFsim** (no radio HW).
 - Monitoring: kube-prometheus-stack (namespace `monitoring`). Note: an empty `oran-monitoring` ns also exists; the live stack is in `monitoring`.
-- Repo root: `~/oran-e2e-freeze`.
+- Repo root: `~/oran-e2e`.
 
 ## Identity / addressing (do not change casually)
 

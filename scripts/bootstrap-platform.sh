@@ -15,7 +15,7 @@
 # =============================================================================
 set -euo pipefail
 
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 
 STEP() {
   echo

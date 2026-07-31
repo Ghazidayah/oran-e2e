@@ -3,7 +3,7 @@
 Baseline ID: stable-e2e-before-ho-debug-20260503-101700  
 Date: 2026-05-03T10:25:52+01:00  
 Recovery evidence root: /home/ghazi/oran-proof/protect-baseline-recovery-20260503-101700  
-Working directory: ~/oran-e2e-freeze  
+Working directory: ~/oran-e2e  
 
 ## Result
 
@@ -34,7 +34,7 @@ The UPF IPv6 Invalid packet messages are known residual noise and are not blocki
 To return to this state after reboot or shutdown:
 
 ```bash
-cd ~/oran-e2e-freeze
+cd ~/oran-e2e
 ./scripts/prepare-network.sh
 ./scripts/deploy-core.sh
 ./scripts/deploy-ran.sh

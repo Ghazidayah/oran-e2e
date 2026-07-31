@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$HOME/oran-e2e-freeze"
+cd "$HOME/oran-e2e"
 
 LOG_DIR="$HOME/oran-proof/phase2-traffic-api"
 mkdir -p "$LOG_DIR"

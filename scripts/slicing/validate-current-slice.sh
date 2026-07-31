@@ -10,7 +10,7 @@ NS="${NS:-oran-ran}"
 NS_CORE="${NS_CORE:-oran-core}"
 CM="${CM:-oai-nrue-config}"
 DEP="${DEP:-oai-nr-ue}"
-REPO="${REPO:-$HOME/oran-e2e-freeze}"
+REPO="${REPO:-$HOME/oran-e2e}"
 DIR="${DIR:-$HOME/oran-proof/phase3-current-slice-$(date +%Y%m%d-%H%M%S)}"
 mkdir -p "$DIR"
 
