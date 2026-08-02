@@ -19,7 +19,7 @@
 #   D. Frequency retune   - real n41 / n78 / n77 carrier retune + reattach
 #
 # Usage:
-#   bash scripts/run-full-platform-acceptance.sh
+#   bash tests/run-full-platform-acceptance.sh
 #
 # Useful env knobs:
 #   REPO=/path/to/oran-e2e     (default: $HOME/oran-e2e)

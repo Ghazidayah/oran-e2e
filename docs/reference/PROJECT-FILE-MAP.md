@@ -2,9 +2,14 @@
 
 This document explains the purpose of the main files and folders in this project.
 
-Generated from the actual repository tree. Entries marked [to describe] still need a description.
+Generated from the actual repository tree. Every tracked file is listed; the only
+omission is `docs/baselines/.../` whose individual capture files are covered as a folder
+at the end of this document.
 
 ## Project root
+
+- `.gitignore`  
+  Ignore rules for runtime artifacts (venv, logs, generated KPI JSON, snapshots). Carries an explicit exception so the `docs/proofs/*.pcap` evidence captures stay tracked despite the global `*.pcap` rule.
 
 - `OPERATING-RULES.md`  
   Project safety rules and platform reference; read before running anything against the live cluster.
@@ -373,9 +378,6 @@ Generated from the actual repository tree. Entries marked [to describe] still ne
 
 ## Web dashboard - static assets
 
-- `web-dashboard/static/app.js`  
-  Dashboard frontend JavaScript helpers.
-
 - `web-dashboard/static/dashboard-inline.js`  
   Remaining dashboard logic after status/live split.
 
@@ -404,6 +406,150 @@ Generated from the actual repository tree. Entries marked [to describe] still ne
 
 - `web-dashboard/templates/index.html`  
   Main dashboard UI template.
+
+## Documentation - reference (current, authoritative)
+
+- `docs/reference/DEPLOYMENT-GUIDE.md`  
+  Fresh-host build procedure (Ubuntu 22.04 to running platform), consolidated from the March 2026 deployment report and the current repo. Spots that could not be verified from the sources are marked `TODO`.
+
+- `docs/reference/NETWORK-TOPOLOGY.md`  
+  Address plan and datapath: single-node k3s, Multus secondary NICs, N2/N3 Linux bridges, per-pod fixed IPs.
+
+- `docs/reference/TROUBLESHOOTING.md`  
+  Symptom-to-fix guide for the running platform, starting from a read-only health check.
+
+- `docs/reference/cold-start-recovery.md`  
+  Root cause and permanent fix for the Open5GS cold-start ordering failure (a stock Open5GS-on-Kubernetes weakness the E1 work exposed, not an E1 defect).
+
+- `docs/reference/SLICING-TRUTH.md`  
+  What the platform really does about slicing: SST=1 baseline at cold start, and what changes when the slicing scripts are applied.
+
+- `docs/reference/FSPL-FREQUENCY-DEGRADATION.md`  
+  Why and how carrier frequency is made to matter: RFsim ignores frequency for path loss, so an FSPL-derived per-band netem profile is applied instead.
+
+- `docs/reference/what-is-real-vs-emulated.md`  
+  Single-source reference separating genuine 3GPP procedures from deliberately synthesized behaviour. Read before making any claim about the platform.
+
+- `docs/reference/LIMITATIONS-AND-FUTURE-WORK.md`  
+  Deliberate scoping decisions and the extensions needed to move from validation platform toward production. Each item is a stated trade-off, not an oversight.
+
+- `docs/reference/demo-dry-run-checklist.md`  
+  Click-by-click demo runbook: what each step proves, plus inline recovery for the one component that may fail mid-demo (the CU).
+
+- `docs/reference/PROJECT-FILE-MAP.md`  
+  This document.
+
+- `docs/reference/REPO-RESTRUCTURE-PLAN.md`  
+  Proposed directory restructure, written 2026-07-11. **DEFERRED and NOT APPLIED** - it describes a target layout that does not match the current tree. Post-defense work only.
+
+## Documentation - evidence captures
+
+- `docs/proofs/README.md`  
+  Manifest for the four PCAP captures: address map, per-file frame tables, what to point a jury at, and why two earlier pre-E1-split captures were excluded.
+
+- `docs/proofs/01-e1ap-cuup-setup.pcap`  
+  E1AP: CU-UP registering with CU-CP (15 frames). Written in pcapng format despite the `.pcap` extension; Wireshark and tshark read it transparently.
+
+- `docs/proofs/02-f1ap-setup-rrc-attach.pcap`  
+  F1 setup, full RRC attach, and E1 bearer context setup interleaved in one trace (60 frames). The richest capture in the set.
+
+- `docs/proofs/03-n2-ngap-registration.pcap`  
+  NGAP between CU-CP and AMF: complete 5G SA registration and PDU session establishment (51 frames).
+
+- `docs/proofs/04-n3-gtpu-userplane.pcap`  
+  GTP-U between CU-UP and UPF carrying real UE traffic to the internet (41 G-PDUs, bidirectional TEIDs).
+
+- `docs/proofs/f1-handover-success.txt`  
+  Captured console evidence of the F1 RFsim handover succeeding (2026-05-17).
+
+## Documentation - validation records
+
+Dated records of each capability as it was proven. Historical by nature: they describe the
+platform at the date on the file, not necessarily the frozen state.
+
+- `docs/validation/phase2-realistic-traffic.md`  
+  Phase 2: moving beyond ping-only validation to realistic application traffic scenarios.
+
+- `docs/validation/phase2-dashboard-realistic-scenarios-validation.md`  
+  Phase 2 scenarios wired into the dashboard, replacing the earlier basic traffic cards.
+
+- `docs/validation/phase3-real-snssai-slicing-validation.md`  
+  Phase 3: enabling and validating real S-NSSAI slicing across AMF, SMF, NSSF, CU and DUs.
+
+- `docs/validation/slicing-real-snssai-validation.md`  
+  Root cause analysis behind the first genuinely granted non-default slice on the platform (2026-06-10).
+
+- `docs/validation/phase3-real-slice-traffic-validation.md`  
+  Phase 3 continued: realistic application traffic running on top of real slice selection.
+
+- `docs/validation/phase4-qos-resource-profiles.md`  
+  Phase 4: per-slice QoS and resource behaviour, beyond merely changing SST.
+
+- `docs/validation/ue-slice-alignment-validation.md`  
+  UE2-UE5 slice assignments aligned across UE configs, MongoDB defaults and DU slice lists (2026-06-11).
+
+- `docs/validation/modulation-scenarios-validation.md`  
+  Real forced modulation-order control via the DU MAC scheduler MCS caps, replacing the earlier netem-faked radio profiles.
+
+- `docs/validation/frequency-scenarios-validation.md`  
+  Frequency scenario validation on the DU-aware architecture (2026-06-09).
+
+- `docs/validation/frequency-kpi-comparison-validation.md`  
+  Fix to the measurement behind the dashboard's frequency-band KPI table. Does not touch the carrier retune itself.
+
+- `docs/validation/mixed-du-multi-ue-validation.md`  
+  Mixed-DU continuity design validated across multiple UEs (2026-05-29).
+
+- `docs/validation/mixed-du-dashboard-handover-validation.md`  
+  The validated mixed-DU design integrated into the dashboard handover section.
+
+- `docs/validation/ue1-du-aware-handover-validation.md`  
+  DU-aware handover design and evidence, re-validated 2026-06-11.
+
+- `docs/validation/f1-du-switch-validation-summary.md`  
+  Summary of the F1 DU switch redesign into a clean OAI F1-split architecture.
+
+- `docs/validation/du-aware-phase3-phase4-e2e-validation.md`  
+  Phase 3, Phase 4 and E2E validation scripts made safe under the mixed-DU architecture.
+
+- `docs/validation/session-report-20260609.md`  
+  Working session record, 2026-06-09.
+
+- `docs/validation/session-report-20260624.md`  
+  Working session record, 2026-06-24. Carries an explicit note (added 2026-07-30) that it is a historical record and must not be used as a current reference.
+
+- `docs/validation/rapport-session-20260710-20260712.md`  
+  Session report for 10-12 July 2026 (French).
+
+## Documentation - archive (superseded)
+
+Kept for traceability. These describe earlier architectures and must not be read as current.
+
+- `docs/archive/full-project-report-2026-06-14.md`  
+  Full change log, 2026-04-07 to 2026-06-14. The single largest historical record; many paths it cites no longer exist.
+
+- `docs/archive/repo-inventory-20260612.md`  
+  Repository inventory taken before the cleanup pass, with a verdict per file.
+
+- `docs/archive/DASHBOARD-FULL-PLATFORM-VALIDATION-20260518.md`  
+  Dashboard platform validation in two operational modes, 2026-05-18.
+
+- `docs/archive/dashboard-full-test-report-2026-06-11.md`  
+  Full dashboard test report, 2026-06-11.
+
+- `docs/archive/f1-du-handover-redesign-plan.md`  
+  Decision record for removing the old broken handover section and redesigning it.
+
+- `docs/archive/radio-profile-netem-final-validation-20260602.md`  
+  Record of the negative result: RFsim-only MCS forcing was never proven, which is why the netem-based approach was adopted.
+
+## Monitoring
+
+- `monitoring/grafana/dashboards/oran-lab-dashboard.json`  
+  Grafana dashboard "O-RAN 5G Lab - Operations Dashboard", 14 panels. Plain dashboard JSON.
+
+- `monitoring/grafana/dashboards/oran-5g-lab-ops.improved.json`  
+  Improved revision of the same dashboard, 17 panels. Wrapped in a `meta` + `dashboard` envelope (Grafana API export shape), so import it via the API or unwrap the `dashboard` key first.
 
 ## Folders (hand-written notes, preserved)
 
