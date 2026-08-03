@@ -971,7 +971,17 @@ def api_action(action):
     if action == "stop_traffic":
         return action_stop_traffic()
 
-    return save_run(action, f"echo 'Unknown action: {action}'; exit 1", timeout=5)
+    # Unknown action: return a 404 rather than composing a shell string from the
+    # URL segment. The previous fallback interpolated <action> into a command run
+    # with shell=True, which made the path segment executable.
+    return jsonify({
+        "ok": False,
+        "error": "Unknown action",
+        "available": [
+            "ownership", "ping", "stream", "light_traffic", "throughput",
+            "heavy_traffic", "report", "e2e", "stop_traffic",
+        ],
+    }), 404
 
 
 REAL_SLICE_PROFILES = {

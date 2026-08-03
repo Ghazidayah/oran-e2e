@@ -31,7 +31,7 @@ done
    ```bash
    scripts/recover-ue-sessions.sh          # diagnose only, read-only
    ```
-3. If any UE shows `STALE` or `NO_TUNNEL`:
+3. If any UE shows `NO_POD`, `UNHEALTHY(no-pod)` or `UNHEALTHY(ping-fail)`:
    ```bash
    scripts/recover-ue-sessions.sh --fix    # restart only the unhealthy UEs
    ```

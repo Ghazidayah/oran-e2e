@@ -600,7 +600,13 @@ const ueScenarioInteractiveLabels = {
 
 
 // PHASE2_TRAFFIC_JS_START
-const PHASE2_TRAFFIC_API = "http://192.168.1.142:5055";
+// Traffic API runs as a separate host process on port 5055. Derive the host from
+// the page so the dashboard works over localhost, the lab IP, or any hostname the
+// platform is reached by. Falls back to the lab IP only for file:// origins.
+const PHASE2_TRAFFIC_API = (function () {
+  const h = window.location.hostname;
+  return h ? window.location.protocol + "//" + h + ":5055" : "http://192.168.1.142:5055";
+})();
 
 function setPhase2TrafficOutput(text) {
   const el = document.getElementById("actionOutput");

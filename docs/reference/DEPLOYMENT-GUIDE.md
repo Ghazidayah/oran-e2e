@@ -34,7 +34,10 @@ sudo modprobe gtp || true
 #   net.ipv4.ip_forward=1  net.bridge.bridge-nf-call-iptables=1  net.ipv4.conf.all.rp_filter=0
 sudo sysctl --system
 
-sudo swapoff -a          # TODO: permanent disable (fstab edit) not recorded in March report
+sudo swapoff -a
+# Permanent: the swap entry in /etc/fstab is commented out on oran-lab
+#   #/swapfile   none   swap   sw   0   0
+# (recovered from the live host 2026-08-02)
 sudo hostnamectl set-hostname oran-lab
 ```
 
@@ -47,9 +50,10 @@ handled by the UPF in userspace.
 
 ```bash
 curl -sfL https://get.k3s.io | sudo sh -
-# kubeconfig for the current user — a permissions issue was hit and fixed in March,
-# exact command not recorded. TODO: standard approach is copying
-# /etc/rancher/k3s/k3s.yaml to ~/.kube/config and chown-ing it; verify before relying on it.
+# kubeconfig for the current user. The standard approach below matches what is
+# in place on oran-lab (verified 2026-08-02):
+mkdir -p ~/.kube && sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown "$(id -u):$(id -g)" ~/.kube/config && chmod 600 ~/.kube/config
 sudo snap install helm --classic --channel=3.7/stable
 ```
 
@@ -74,8 +78,10 @@ March deployed via a **local copy of the Gradiant open5gs Helm chart**
 (`~/oran-e2e/k8s/5g-charts/charts/open5gs`). That chart tree is **not** in this repo.
 
 ```bash
-# TODO: restore the Gradiant open5gs chart tree (local copy used in March;
-#       exact chart version not recorded — do NOT blindly take latest upstream).
+# Chart version recovered from the live release 2026-08-02 (`helm list -A`):
+#   release open5gs, namespace oran-core, chart open5gs-2.3.4, app version 2.7.5
+# The local chart tree used in March is gone from disk; fetch open5gs 2.3.4
+# specifically. Do NOT take latest upstream.
 helm repo add bitnami https://charts.bitnami.com/bitnami && helm repo update
 cd <chart-parent-dir> && helm dependency build charts/open5gs
 
@@ -97,7 +103,7 @@ of PFCP errors for ≥2 min.
 | Symptom | Fix |
 |---|---|
 | UPF logs `Cannot find PFCP-Node`, heartbeat failures | The version pins above (SMF 2.7.2 / UPF 2.7.6). If already installed unpinned: `helm upgrade` with both values files, then `rollout status` SMF+UPF |
-| `open5gs-populate` init container CrashLoopBackOff (EACCES on MongoDB / duplicate IMSI key) | Disable populate via a third values file. TODO: `open5gs-populate-disable.yaml` content was never captured in repo or report — recreate (disable the populate component) and verify |
+| `open5gs-populate` init container CrashLoopBackOff (EACCES on MongoDB / duplicate IMSI key) | Disable populate via a third values file. Content recovered from the live release 2026-08-02: `populate:` / `  enabled: false`. See the recovered Helm values at the end of this document. |
 
 **MANUAL CHECKPOINT**: do not proceed until NRF/SCP/UDR/UDM/AUSF are Ready and PFCP is
 associated (SMF log shows `PFCP associated`).
@@ -121,7 +127,7 @@ recovered from git history (`git show b89f0c0^:manifests/network/99-oran-bridges
 ```yaml
 network:
   version: 2
-  renderer: NetworkManager    # TODO: verify renderer matches the fresh host before applying
+  renderer: NetworkManager    # matches oran-lab (/etc/netplan/01-network-manager-all.yaml, verified 2026-08-02)
   bridges:
     br-n2:
       addresses: [10.10.0.1/24]
@@ -140,8 +146,26 @@ and they survive a reboot.
 ## Step 6 — Multus + NetworkAttachmentDefinitions
 
 ```bash
-# TODO: Multus installation method not recorded in either source (March annex only shows
-#       verification commands). Install the multus-cni DaemonSet for k3s, then verify:
+# Method recovered from the live cluster 2026-08-02: installed as a k3s HelmChart
+# custom resource, release rke2-multus-v4.2.401 (app 4.2.4). Recreate with:
+#
+#   apiVersion: helm.cattle.io/v1
+#   kind: HelmChart
+#   metadata: { name: multus, namespace: kube-system }
+#   spec:
+#     repo: https://rke2-charts.rancher.io
+#     chart: rke2-multus
+#     targetNamespace: kube-system
+#     valuesContent: |
+#       config:
+#         fullnameOverride: multus
+#         cni_conf:
+#           confDir: /var/lib/rancher/k3s/agent/etc/cni/net.d
+#           binDir: /var/lib/rancher/k3s/data/cni/
+#           kubeconfig: /var/lib/rancher/k3s/agent/etc/cni/net.d/multus.d/multus.kubeconfig
+#           multusAutoconfigDir: /var/lib/rancher/k3s/agent/etc/cni/net.d
+#
+# Then verify:
 kubectl -n kube-system get ds | grep -i multus
 kubectl get crd | grep -i network-attachment
 
@@ -178,11 +202,17 @@ cd ~/oran-e2e && bash scripts/deploy-core.sh
 ```
 
 **Prerequisite** — the AMF/UPF deployments must *mount* `open5gs-oai-prep` over their config
-file. On a fresh Gradiant install they do not. TODO: the live capture's volumeMount carries
-placeholders (`AMF_KEY_HERE` / `AMF_CM_HERE`); reconstruct the volume patch from
-`manifests/core/open5gs-amf-deploy-live.yaml` (mountPath
-`/opt/open5gs/etc/open5gs/amf.yaml`, configMap `open5gs-oai-prep`, key `amf.yaml` per
-OPERATING-RULES.md rule 9) and verify on a throwaway target first.
+file. On a fresh Gradiant install they do not. The live capture in `manifests/core/open5gs-amf-deploy-live.yaml` carries sanitised
+placeholders (`AMF_KEY_HERE` / `AMF_CM_HERE`). The real wiring, read from the running
+AMF on 2026-08-02, is:
+
+- volume `amf-config-fixed` → configMap `open5gs-oai-prep`
+- volumeMount `amf-config-fixed` → mountPath `/opt/open5gs/etc/open5gs/amf.yaml`, subPath `amf.yaml`
+
+Note that the AMF reads `open5gs-oai-prep`, **not** the chart's own `open5gs-amf`
+ConfigMap (which also exists and is mounted at volumes `config` and `amf-config`
+but reaches no container). This is OPERATING-RULES.md rule 9. Verify on a
+throwaway target first.
 
 **Likely failure (hit in March)**: AMF/UPF CrashLoopBackOff after N2/N3 preparation — bind
 params pointing at `eth0`/missing in mounted files. Fix = exactly this step: rebuild
@@ -253,8 +283,9 @@ CU-UP`, `Accepting DU 3584 (du-rfsim0)` and `... 3585 (du-rfsim1)`; every UE pod
 
 ## Step 9 — Monitoring
 
-TODO: the kube-prometheus-stack install (live in namespace `monitoring`) is recorded in
-neither source. Once installed, import the dashboards from
+Recovered from the live cluster 2026-08-02 (`helm list -A`): release
+`oran-monitoring`, namespace `monitoring`, chart `kube-prometheus-stack-84.5.0`,
+app version v0.90.1. Once installed, import the dashboards from
 `monitoring/grafana/dashboards/` (`oran-5g-lab-ops.improved.json` is the live one;
 Grafana NodePort 30300, Prometheus 30090).
 
@@ -290,3 +321,171 @@ bash tests/run-full-platform-acceptance.sh            # full 7-section suite
 | 8 | Subscribers | Mongo `db.subscribers.count()` | 5 IMSIs `999700000000001-005` |
 | 9 | Acceptance | `tests/run-full-platform-acceptance.sh` | all sections PASS |
 | 10 | Reboot survival | reboot host, re-check 1–7 | bridges persist (netplan), pods return |
+
+
+---
+
+## Annex — Helm values recovered from the live cluster (2026-08-02)
+
+These were read from the running platform with `helm -n oran-core get values open5gs`
+and `helm list -A`. They replace the values that were never captured in the March
+report. They are only readable while that cluster runs; treat this annex as the
+record of record.
+
+### Releases
+
+| Release | Namespace | Chart | App version |
+|---|---|---|---|
+| `open5gs` | `oran-core` | `open5gs-2.3.4` | 2.7.5 |
+| `multus` | `kube-system` | `rke2-multus-v4.2.401` | 4.2.4 |
+| `oran-monitoring` | `monitoring` | `kube-prometheus-stack-84.5.0` | v0.90.1 |
+
+### Open5GS user-supplied values
+
+```yaml
+amf:
+  config:
+    guamiList:
+      - amf_id: {region: 2, set: 1}
+        plmn_id: {mcc: "999", mnc: "70"}
+    plmnList:
+      - plmn_id: {mcc: "999", mnc: "70"}
+        s_nssai: [{sd: "0x111111", sst: 1}]
+    taiList:
+      - plmn_id: {mcc: "999", mnc: "70"}
+        tac: [1]
+nssf:
+  config:
+    nsiList: [{sd: "0x111111", sst: 1, uri: ""}]
+populate:
+  enabled: false
+  initCommands:
+    - open5gs-dbctl add_ue_with_slice 999700000000001 <K> <OPc> internet 1 111111
+    - open5gs-dbctl add_ue_with_slice 999700000000002 <K> <OPc> internet 1 111111
+smf:
+  config: {pcrf: {enabled: false}}
+  image: {tag: 2.7.2}
+upf:
+  image: {tag: 2.7.6}
+hss:   {enabled: false}
+mme:   {enabled: false}
+pcrf:  {enabled: false}
+sgwc:  {enabled: false}
+sgwu:  {enabled: false}
+webui: {ingress: {enabled: false}}
+```
+
+`<K>` and `<OPc>` are the standard OAI public test credentials; see
+`manifests/ran/nrue.lab.conf` for the values actually in use.
+
+**Important**: these Helm values describe the *install-time* slice configuration
+(a single S-NSSAI, `sst: 1 / sd: 0x111111`). The running platform was
+subsequently reconfigured to four slices. See "Slice configuration — install
+state versus running state" below before rebuilding.
+
+
+---
+
+## Slice configuration — install state versus running state
+
+**Read this before running `scripts/deploy-core.sh` on a live platform.**
+
+The AMF reads `amf.yaml` from the ConfigMap `open5gs-oai-prep`. Two different
+slice configurations exist:
+
+| Source | S-NSSAI declared |
+|---|---|
+| `manifests/core/amf.yaml` (this repo) | `sst 1` only, `sd 0x111111` — the original Helm install state |
+| ConfigMap `open5gs-oai-prep` (running, measured 2026-08-02) | `sst 1/2/3/4`, all `sd 0xffffff` |
+
+The multi-slice configuration was applied to the running platform and never
+written back to the repository. `scripts/deploy-core.sh` rebuilds the ConfigMap
+from the repo file, so running it against the current platform reverts the AMF to
+a single slice.
+
+**This is the blocking part.** The platform's three slices are eMBB (SST 1),
+URLLC (SST 2) and mMTC (SST 3). With `manifests/core/amf.yaml` as it stands, only
+eMBB survives a rebuild: URLLC and mMTC stop being grantable, and
+`scripts/slicing/switch-ue-slice.sh 2` fails its own AMF-granted assertion. The
+`sst 4` entry in the live config is retired residue (see below) and can be kept or
+dropped; **SST 1, 2 and 3 must all be present.**
+
+To capture the running configuration into the repository:
+
+```bash
+kubectl -n oran-core get cm open5gs-oai-prep -o jsonpath='{.data.amf\.yaml}' \
+  > manifests/core/amf.yaml
+git diff manifests/core/amf.yaml     # review before committing
+```
+
+### Configuration not held in this repository
+
+| Component | ConfigMap actually mounted | In repo? |
+|---|---|---|
+| AMF | `open5gs-oai-prep` (key `amf.yaml`) | yes, but stale — see above |
+| SMF | `open5gs-smf` | **no** — the running SMF declares DNN `oai` for SST 1/2/3/4 |
+| NSSF | `open5gs-nssf` | **no** — the running NSSF declares four `nsi` entries |
+| UPF | `open5gs-oai-prep` (key `upf.yaml`) | yes, matches |
+
+The `smf.yaml` that `deploy-core.sh` writes into `open5gs-oai-prep` is never read
+by the SMF, which mounts `open5gs-smf` instead. Capture both missing configs
+before rebuilding:
+
+```bash
+kubectl -n oran-core get cm open5gs-smf  -o jsonpath='{.data.smf\.yaml}'  > /tmp/smf-live.yaml
+kubectl -n oran-core get cm open5gs-nssf -o jsonpath='{.data.nssf\.yaml}' > /tmp/nssf-live.yaml
+```
+
+## RAN slice lists — SST 4 residue
+
+The platform runs **three slices**: eMBB (SST 1), URLLC (SST 2), mMTC (SST 3).
+These are the profiles the dashboard exposes (`REAL_SLICE_PROFILES` in
+`web-dashboard/app.py`) and the only ones any validated scenario uses.
+
+SST 4 is a retired value. It was written into the core and RAN configs by
+`scripts/slicing/apply-real-snssai-slicing.sh` (now gated), then removed from the
+subscriber baseline in commit `bc9158d`. See `docs/reference/SLICING-TRUTH.md`,
+which documents this and notes that the `1|2|3|4` guard in `switch-ue-slice.sh`
+is stale.
+
+Residue measured on the running platform 2026-08-02:
+
+| Component | `snssaiList` (running) | `snssaiList` (repo) |
+|---|---|---|
+| CU-CP | `sst 1, 2, 3` | `sst 1, 2, 3` |
+| DU0 | `sst 1, 2, 3, 4` | `sst 1, 2, 3` |
+| DU1 | `sst 1, 2, 3, 4` | `sst 1, 2, 3` |
+
+**Nothing to decide here.** Since no subscriber carries SST 4, the Allowed NSSAI
+can never contain it, so the extra entry on the DUs is unreachable. The repo's
+`sst 1, 2, 3` is the correct description of what the platform actually does.
+
+## Carrier baseline
+
+The documented baseline carrier is profile `n78-current`
+(`absoluteFrequencySSB = 621312`, `dl_absoluteFrequencyPointA = 620040`), which is
+what `manifests/ran/f1/du0.conf` and `du1.conf` declare.
+
+The frequency-retune scenarios leave the DU on the last profile applied. Before
+any demonstration or measurement campaign, restore the baseline and confirm it:
+
+```bash
+bash scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh n78-current
+curl -s http://127.0.0.1:18080/api/real-frequency/status | grep active_profile
+```
+
+## Throughput ceiling
+
+`scripts/frequency/apply-fspl-band-profile.sh` and
+`scripts/slicing/apply-slice-resource-profile.sh` read the measured TCP ceiling
+from `~/oran-proof/ceiling-mbit.txt`, falling back to a hardcoded **33 Mbit/s**
+when that file is absent. `~/oran-proof/` is local evidence and is not part of
+the repository, so a fresh installation falls back to 33 while the published
+results are calibrated on 35.
+
+The ceiling is host-specific. Measure it once before running the frequency or
+slicing scenarios:
+
+```bash
+bash scripts/traffic/measure-ceiling.sh    # writes ~/oran-proof/ceiling-mbit.txt
+```

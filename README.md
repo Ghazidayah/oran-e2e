@@ -3,10 +3,25 @@
 Single-node 5G SA testbed: Open5GS core + OAI E1/F1-split RAN (CU-CP + CU-UP + DU0 + DU1) + 5 UEs, RFsim.
 Dashboard at **http://oran-lab:18080** (Flask, port 18080).
 
+> **Do not run `kubectl apply -f manifests/` directly.**
+> The RAN manifests (`ran/f1/f1-ran.yaml`, `ran/e1/e1-split.yaml`,
+> `ran/multi-ue/*.yaml`) declare `replicas: 0` on purpose — the bring-up order
+> matters (CU-CP → CU-UP → DU → UEs). Applying them directly scales the running
+> components to zero. Use `scripts/bootstrap-platform.sh` (fresh host) or
+> `scripts/platform-start.sh` (restart), which apply and then scale up in order.
+> Several files under `manifests/core/` are Open5GS config fragments or Helm
+> values, not Kubernetes objects, and will be rejected by `kubectl apply` — this
+> is expected.
+>
+> Before running `scripts/deploy-core.sh` on a live platform, read
+> "Slice configuration — install state versus running state" in
+> `docs/reference/DEPLOYMENT-GUIDE.md`.
+
 Run artefacts (logs, verdicts, KPI summaries) are written **outside this repo**, under
 `$HOME/oran-proof/` — the evidence root used by the dashboard actions and every
-validation script (`web-dashboard/actions/common.sh`, `RUN_ROOT` in
-`web-dashboard/run-dashboard.sh`). The repo holds only curated evidence, under `docs/`.
+validation script (`web-dashboard/actions/common.sh`). Note that the `RUN_ROOT`
+export in `web-dashboard/run-dashboard.sh` is inert — no Python module reads it;
+the evidence root is derived from `$HOME` in code. The repo holds only curated evidence, under `docs/`.
 
 ---
 

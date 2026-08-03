@@ -17,8 +17,9 @@ Total size: ~24 KB. Open with Wireshark or `tshark -r <file>`.
 | CU-UP | E1 | `10.10.0.140` |
 | CU-UP | N3 (GTP-U) | `10.20.0.120` |
 | DU0 | F1-C | `10.10.0.121` |
+| DU1 | F1-C | `10.10.0.132` |
 | UPF | N3 (GTP-U) | `10.20.0.101:2152` |
-| UE subnet | — | `10.45.0.0/24` |
+| UE subnet | — | `10.45.0.0/16` |
 
 PLMN **999/70** (`99f907` on the wire), DNN `oai`.
 

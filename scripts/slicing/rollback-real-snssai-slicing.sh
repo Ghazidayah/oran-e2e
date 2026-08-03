@@ -1,4 +1,35 @@
 #!/usr/bin/env bash
+
+# OBSOLETE — pre-E1-split rollback. Disabled by default.
+#
+# This script restores a ConfigMap snapshot taken on 2026-05-26, before the
+# CU was split into CU-CP / CU-UP. It cannot work as written:
+#
+#   * it hardcodes /home/ghazi/oran-proof/..., a path outside this repository
+#     that is not part of any delivery;
+#   * it applies oai-cu-f1-config-cm.yaml, and the ConfigMap oai-cu-f1-config
+#     no longer exists (the current names are oai-cucp-config / oai-cuup-config);
+#   * the snapshots carry a stale resourceVersion, so 6 of the 7 kubectl apply
+#     calls fail with "Error from server (Conflict)" (verified 2026-08-02 with
+#     kubectl apply --dry-run=server);
+#   * line 59 restarts only oai-du0 and oai-nr-ue — neither DU1 nor UE2-UE5.
+#
+# With `set -euo pipefail` it therefore aborts on its first apply. It is kept
+# for traceability only. To roll slicing back today, re-apply the intended
+# S-NSSAI configuration through the normal path instead:
+#
+#   scripts/slicing/switch-ue-slice.sh 1 0xffffff
+#
+# To run this legacy script anyway (it will almost certainly fail), set:
+#   ALLOW_LEGACY_SNSSAI_ROLLBACK=1
+if [ "${ALLOW_LEGACY_SNSSAI_ROLLBACK:-0}" != "1" ]; then
+  echo "BLOCKED: this rollback predates the E1 split and depends on a local"
+  echo "snapshot that is not part of the repository. It cannot succeed."
+  echo "Use scripts/slicing/switch-ue-slice.sh 1 0xffffff instead."
+  echo "VERDICT=LEGACY_SNSSAI_ROLLBACK_BLOCKED"
+  exit 0
+fi
+
 set -euo pipefail
 
 echo "===== ROLLBACK REAL S-NSSAI SLICING ====="

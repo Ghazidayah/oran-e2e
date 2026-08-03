@@ -45,10 +45,16 @@ Namespaces:
 | AMF (NGAP) | `10.10.0.101` | 38412 | SCTP (N2) |
 | AMF (SBI) | `10.10.0.101` | 7777 | HTTP/2 |
 | UPF (GTP-U) | `10.20.0.101` | 2152 | UDP (N3) |
-| CU-CP (F1-C + NGAP src) | `10.10.0.120` | 2152 / 38462 | SCTP |
-| CU-CP E1 | `10.10.0.120` | 38462 | SCTP |
-| DU0 (F1 local) | `10.10.0.121` | 2152 | SCTP |
-| DU1 (F1 local) | `10.10.0.132` | 2152 | SCTP |
+| CU-CP F1-C (listen) | `10.10.0.120` | 38472 | SCTP |
+| CU-CP E1 (listen) | `10.10.0.120` | 38462 | SCTP |
+| CU-CP NGAP (source) | `10.10.0.120` | ephemeral → AMF 38412 | SCTP |
+| DU0 F1-U (GTP-U) | `10.10.0.121` | 2152 | UDP |
+| DU1 F1-U (GTP-U) | `10.10.0.132` | 2152 | UDP |
+| DU0/DU1 F1-C (source) | `10.10.0.121` / `10.10.0.132` | ephemeral → CU-CP 38472 | SCTP |
+| DU0/DU1 RFsim (listen) | pod network | 4043 | TCP |
+
+F1-C is SCTP on **38472**; E1AP is SCTP on **38462**. Port 2152 on the DUs is
+**UDP** (F1-U user plane), not SCTP. Verify with `ss -lnpa` inside any RAN pod.
 
 CU-UP has no fixed Multus IP; it connects outward to CU-CP E1 at `10.10.0.120:38462`.
 

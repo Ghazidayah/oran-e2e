@@ -172,3 +172,36 @@ profiles. A future extension would map each frequency band to a parameterised ch
 throughput variation rather than a traffic-layer cap. This would also capture effects that FSPL
 alone does not represent, such as diffraction loss, coherence bandwidth differences between
 sub-3 GHz and mid-band carriers, and beam management overhead.
+
+## 8. E2 interface: agent configured, no Near-RT RIC deployed
+
+**What is in place.** `manifests/ran/f1/du0.conf` carries an `e2_agent` block pointing at
+`127.0.0.1` with `sm_dir = /usr/local/lib/flexric/`. The OAI image ships the service models
+(`libkpm_sm.so`, `libmac_sm.so`, `librc_sm.so`, `libslice_sm.so`, and others), and they are
+present in the running DU0 container.
+
+**What is not.** No Near-RT RIC runs anywhere in the cluster. Verified 2026-08-02:
+
+```bash
+kubectl get all -A | grep -iE 'ric|flexric|e2term|e2mgr'    # no RIC workload
+kubectl -n oran-ran logs <du0-pod> | grep -c 'E2 SETUP REQUEST timeout'
+```
+
+The agent re-sends its E2 Setup Request in a loop and never receives a response; no
+`E2 SETUP RESPONSE` appears in the logs at any point. **The E2 interface is therefore
+configured but not functional on this platform.**
+
+`manifests/ran/f1/du1.conf` has no `e2_agent` block at all, so DU1 is silent. The asymmetry
+between the two DUs is not deliberate.
+
+**Consequence for scope.** This platform implements the O-RAN *functional split* (CU-CP /
+CU-UP / DU over E1 and F1) with real 3GPP protocol stacks. It does **not** implement the
+O-RAN *RIC control loop*: there is no xApp, no E2 subscription, and no closed-loop RAN
+control. Anything the platform does that resembles RAN control — slice switching, MCS
+forcing, carrier retune — is driven from Kubernetes and the dashboard, not through E2.
+
+**Future work.** Deploying FlexRIC (or the O-RAN SC Near-RT RIC) in the cluster, pointing
+`near_ric_ip_addr` at its service address, and adding the same `e2_agent` block to
+`du1.conf` would activate the interface. A KPM-based monitoring xApp is the natural first
+step, since the service model is already shipped in the image. Until then, the recurring
+`E2 SETUP REQUEST timeout` lines in the DU0 log are expected and are not a fault.

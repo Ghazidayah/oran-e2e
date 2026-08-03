@@ -2,7 +2,19 @@
 
 ## Baseline state (out of the box)
 
-AMF, SMF, NSSF, CU-CP, DU0, and DU1 are all configured with **SST=1 only** at cold start.
+AMF, SMF, NSSF, CU-CP, DU0, and DU1 ship with **SST=1 only** in this repository's
+manifests. That is no longer what the running platform holds: measured 2026-08-02, the
+live AMF advertises SST 1/2/3/4, the SMF declares DNN `oai` for SST 1/2/3/4, the NSSF
+carries four NSI entries, and DU0/DU1 list SST 1/2/3/4 (CU-CP still lists 1/2/3). Those
+changes live in ConfigMaps and persist across restarts, so a cold start does **not**
+revert them.
+
+What still holds is the part that matters: **admission is gated by the subscriber
+record, not by these lists.** Allowed NSSAI equals the MongoDB default, which is
+SST=1. The platform is therefore at SST=1 at rest regardless of what the core
+advertises, and slice diversity is still demonstrated by switching the subscriber
+default. See "Slice configuration — install state versus running state" in
+`DEPLOYMENT-GUIDE.md`.
 The subscriber DB (MongoDB) also has a single slice entry: `sst=1, sd=FFFFFF, default_indicator=true`.
 
 Static audit tools that read the ConfigMaps without running any script will always see SST=1.

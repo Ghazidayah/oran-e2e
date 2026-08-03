@@ -254,6 +254,15 @@ apply_stripped "$REPO/manifests/ran/mixed-du-live/deploy-oai-nr-ue.yaml" oran-ra
 bash "$REPO/scripts/ue/generate-5ue-manifests.sh"
 kubectl apply -f "$REPO/manifests/ran/multi-ue/"
 
+# The generated UE manifests also ship with replicas=0 (same convention as the
+# RAN manifests above). Without this, UE2-UE5 stay at zero after a bootstrap and
+# only UE1 attaches.
+kubectl -n oran-ran scale deploy/oai-nr-ue-2 deploy/oai-nr-ue-3 \
+                          deploy/oai-nr-ue-4 deploy/oai-nr-ue-5 --replicas=1
+for d in oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
+  kubectl -n oran-ran rollout status "deploy/$d" --timeout=180s || true
+done
+
 MANUAL "Verify RAN bring-up (CU-CP log):" \
   "  'Received NGSetupResponse from AMF', 'Accepting new CU-UP'," \
   "  'Accepting DU 3584 (du-rfsim0)' and '... 3585 (du-rfsim1)'" \
