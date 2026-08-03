@@ -40,9 +40,14 @@ amf:
         mcc: "999"
         mnc: "70"
       s_nssai:
-      - sd: "0x111111"
-        sst: 1
       - sst: 1
+        sd: "0xffffff"
+      - sst: 2
+        sd: "0xffffff"
+      - sst: 3
+        sd: "0xffffff"
+      - sst: 4
+        sd: "0xffffff"
   security:
     integrity_order: [NIA2, NIA1, NIA0]
     ciphering_order: [NEA0, NEA1, NEA2]

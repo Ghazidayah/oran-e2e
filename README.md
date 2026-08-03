@@ -13,9 +13,10 @@ Dashboard at **http://oran-lab:18080** (Flask, port 18080).
 > values, not Kubernetes objects, and will be rejected by `kubectl apply` — this
 > is expected.
 >
-> Before running `scripts/deploy-core.sh` on a live platform, read
-> "Slice configuration — install state versus running state" in
-> `docs/reference/DEPLOYMENT-GUIDE.md`.
+> `scripts/deploy-core.sh` is safe to run: the files under `manifests/core/` are
+> byte-identical to the live cluster configuration. See "Core configuration —
+> where each function reads from" in `docs/reference/DEPLOYMENT-GUIDE.md` for
+> which ConfigMap each network function actually mounts.
 
 Run artefacts (logs, verdicts, KPI summaries) are written **outside this repo**, under
 `$HOME/oran-proof/` — the evidence root used by the dashboard actions and every

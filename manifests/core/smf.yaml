@@ -34,6 +34,25 @@ smf:
       dnn: oai
       gateway: 10.45.0.1
       subnet: 10.45.0.0/16
+
+  info:
+    - s_nssai:
+        - sst: 1
+          sd: 0xffffff
+          dnn:
+            - oai
+        - sst: 2
+          sd: 0xffffff
+          dnn:
+            - oai
+        - sst: 3
+          sd: 0xffffff
+          dnn:
+            - oai
+        - sst: 4
+          sd: 0xffffff
+          dnn:
+            - oai
   dns:
     -
       8.8.8.8
@@ -328,9 +347,9 @@ smf:
 #   (If the UE has unknown DNN/APN(not internet/ims), SMF/UPF will crash.)
 #  session:
 #    - subnet: 10.45.0.1/16
-#      dnn: oai
+#      dnn: internet
 #    - subnet: 2001:db8:cafe::1/48
-#      dnn: oai
+#      dnn: internet
 #    - subnet: 10.46.0.1/16
 #      dnn: ims
 #    - subnet: 2001:db8:babe::1/48

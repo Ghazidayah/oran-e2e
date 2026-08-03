@@ -49,7 +49,13 @@ at the end of this document.
   Captured/live UPF deployment manifest used to freeze the validated baseline.
 
 - `manifests/core/smf.yaml`  
-  Open5GS SMF configuration.
+  SMF configuration as it runs: DNN `oai` on 10.45.0.0/16, and the `info:` block
+  advertising S-NSSAI SST 1/2/3/4 to the NRF. Mounted from the ConfigMap
+  `open5gs-smf`, not `open5gs-oai-prep`.
+
+- `manifests/core/nssf.yaml`  
+  NSSF configuration as it runs: four NSI entries (SST 1-4, SD 0xffffff) all
+  pointing at `open5gs-nrf-sbi:7777`. Mounted from the ConfigMap `open5gs-nssf`.
 
 - `manifests/core/upf.yaml`  
   Open5GS UPF configuration.

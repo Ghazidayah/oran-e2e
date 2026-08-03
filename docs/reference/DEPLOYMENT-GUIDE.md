@@ -386,55 +386,40 @@ state versus running state" below before rebuilding.
 
 ---
 
-## Slice configuration — install state versus running state
+## Core configuration — where each function reads from
 
-**Read this before running `scripts/deploy-core.sh` on a live platform.**
+Captured from the running cluster on 2026-08-03 and committed. The four files
+under `manifests/core/` are **byte-identical to the live configuration**, so
+`scripts/deploy-core.sh` is a no-op on content against the current platform.
 
-The AMF reads `amf.yaml` from the ConfigMap `open5gs-oai-prep`. Two different
-slice configurations exist:
+The ConfigMap mapping is not uniform — this is OPERATING-RULES.md rule 9:
 
-| Source | S-NSSAI declared |
-|---|---|
-| `manifests/core/amf.yaml` (this repo) | `sst 1` only, `sd 0x111111` — the original Helm install state |
-| ConfigMap `open5gs-oai-prep` (running, measured 2026-08-02) | `sst 1/2/3/4`, all `sd 0xffffff` |
+| Function | ConfigMap actually mounted | Key | Repo file |
+|---|---|---|---|
+| AMF | `open5gs-oai-prep` | `amf.yaml` | `manifests/core/amf.yaml` |
+| UPF | `open5gs-oai-prep` | `upf.yaml` | `manifests/core/upf.yaml` |
+| SMF | `open5gs-smf` | `smf.yaml` | `manifests/core/smf.yaml` |
+| NSSF | `open5gs-nssf` | `nssf.yaml` | `manifests/core/nssf.yaml` |
 
-The multi-slice configuration was applied to the running platform and never
-written back to the repository. `scripts/deploy-core.sh` rebuilds the ConfigMap
-from the repo file, so running it against the current platform reverts the AMF to
-a single slice.
+The AMF mounts `open5gs-oai-prep` at
+`/opt/open5gs/etc/open5gs/amf.yaml` through the volume `amf-config-fixed`. The
+chart's own `open5gs-amf` ConfigMap also exists and is bound to the volumes
+`config` and `amf-config`, but neither reaches a container — **editing
+`open5gs-amf` has no effect.** The `smf.yaml` key inside `open5gs-oai-prep` is
+likewise inert: the SMF reads `open5gs-smf`.
 
-**This is the blocking part.** The platform's three slices are eMBB (SST 1),
-URLLC (SST 2) and mMTC (SST 3). With `manifests/core/amf.yaml` as it stands, only
-eMBB survives a rebuild: URLLC and mMTC stop being grantable, and
-`scripts/slicing/switch-ue-slice.sh 2` fails its own AMF-granted assertion. The
-`sst 4` entry in the live config is retired residue (see below) and can be kept or
-dropped; **SST 1, 2 and 3 must all be present.**
+`deploy-core.sh` handles both shapes. It rebuilds `open5gs-oai-prep` wholesale,
+and patches only the `data` key of `open5gs-smf` and `open5gs-nssf` so the Helm
+labels and annotations on those two survive.
 
-To capture the running configuration into the repository:
+### History
 
-```bash
-kubectl -n oran-core get cm open5gs-oai-prep -o jsonpath='{.data.amf\.yaml}' \
-  > manifests/core/amf.yaml
-git diff manifests/core/amf.yaml     # review before committing
-```
-
-### Configuration not held in this repository
-
-| Component | ConfigMap actually mounted | In repo? |
-|---|---|---|
-| AMF | `open5gs-oai-prep` (key `amf.yaml`) | yes, but stale — see above |
-| SMF | `open5gs-smf` | **no** — the running SMF declares DNN `oai` for SST 1/2/3/4 |
-| NSSF | `open5gs-nssf` | **no** — the running NSSF declares four `nsi` entries |
-| UPF | `open5gs-oai-prep` (key `upf.yaml`) | yes, matches |
-
-The `smf.yaml` that `deploy-core.sh` writes into `open5gs-oai-prep` is never read
-by the SMF, which mounts `open5gs-smf` instead. Capture both missing configs
-before rebuilding:
-
-```bash
-kubectl -n oran-core get cm open5gs-smf  -o jsonpath='{.data.smf\.yaml}'  > /tmp/smf-live.yaml
-kubectl -n oran-core get cm open5gs-nssf -o jsonpath='{.data.nssf\.yaml}' > /tmp/nssf-live.yaml
-```
+Until 2026-08-03 the repository carried the *install-time* configuration from the
+Helm values (a single S-NSSAI, `sst 1 / sd 0x111111`), while the running platform
+had been reconfigured to `sst 1/2/3/4` with `sd 0xffffff`. The SMF and NSSF
+configurations were absent from the repository entirely. Rebuilding from the repo
+would therefore have left only eMBB working, with URLLC and mMTC no longer
+grantable. That gap is now closed.
 
 ## RAN slice lists — SST 4 residue
 
