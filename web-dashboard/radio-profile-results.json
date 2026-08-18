@@ -1,0 +1,42 @@
+[
+  {
+    "profile": "scheduler-auto",
+    "max_mcs": "none",
+    "modulation": "adaptive AMC (reaches 64QAM under load)",
+    "tcp_mbps": "\u2014",
+    "retransmits": "\u2014",
+    "ping_avg_ms": "75.943",
+    "image_mbps": "\u2014",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "qam64-throughput",
+    "max_mcs": "28",
+    "modulation": "64QAM (forced)",
+    "tcp_mbps": "55.478",
+    "retransmits": "14",
+    "ping_avg_ms": "7.727",
+    "image_mbps": "14.516244",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "qam16-balanced",
+    "max_mcs": "13",
+    "modulation": "16QAM (forced)",
+    "tcp_mbps": "26.232",
+    "retransmits": "0",
+    "ping_avg_ms": "7.228",
+    "image_mbps": "14.875145",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "qpsk-robust",
+    "max_mcs": "4",
+    "modulation": "QPSK (forced)",
+    "tcp_mbps": "10.090",
+    "retransmits": "0",
+    "ping_avg_ms": "7.448",
+    "image_mbps": "14.180649",
+    "verdict": "PASS"
+  }
+]

@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "232"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"name":"oai-nr-ue-2","namespace":"oran-ran"},"spec":{"replicas":0,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"oai-nr-ue-2"}},"strategy":{"type":"Recreate"},"template":{"metadata":{"labels":{"app":"oai-nr-ue-2","oran-ue":"true","ue-index":"2"}},"spec":{"containers":[{"args":["-O","/opt/oai-nr-ue/etc/nr-ue.conf","-E","--rfsim","-r","106","--numerology","1","-C","3319680000","--ssb","516","--rfsimulator.serveraddr","oai-du1-rfsim","--rfsimulator.serverport","4043","--log_config.global_log_options","level,nocolor,time"],"command":["/opt/oai-nr-ue/bin/nr-uesoftmodem"],"image":"oaisoftwarealliance/oai-nr-ue:2025.w45","imagePullPolicy":"IfNotPresent","lifecycle":{"postStart":{"exec":{"command":["/bin/sh","-lc","for i in $(seq 1 120); do\n  if ip link show oaitun_ue1 \u003e/dev/null 2\u003e\u00261; then\n    ip route add 10.43.0.0/16 via 10.42.0.1 dev eth0 2\u003e/dev/null || true\n    if ip route replace default dev oaitun_ue1 2\u003e/dev/null; then\n      ip route | grep -q '^default dev oaitun_ue1' \u0026\u0026 exit 0\n    fi\n  fi\n  sleep 2\ndone\necho '[WARN] UE postStart could not enforce oaitun_ue1 default route' \u003e\u00262"]}}},"name":"oai-nr-ue-2","resources":{"limits":{"cpu":"4","memory":"4Gi"},"requests":{"cpu":"2","memory":"2Gi"}},"securityContext":{"capabilities":{"add":["NET_ADMIN","NET_RAW","SYS_NICE"]}},"volumeMounts":[{"mountPath":"/opt/oai-nr-ue/etc/nr-ue.conf","name":"nrue-config","subPath":"nr-ue.conf"},{"mountPath":"/dev/net/tun","name":"tun-device"}]}],"restartPolicy":"Always","volumes":[{"configMap":{"name":"oai-nrue-config-2"},"name":"nrue-config"},{"hostPath":{"path":"/dev/net/tun","type":"CharDevice"},"name":"tun-device"}]}}}}
+  creationTimestamp: "2026-05-07T09:11:18Z"
+  generation: 591
+  name: oai-nr-ue-2
+  namespace: oran-ran
+  resourceVersion: "958821"
+  uid: 1fb09840-4753-41ca-8763-a1a7a631d839
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: oai-nr-ue-2
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-08-18T03:48:20+01:00"
+      labels:
+        app: oai-nr-ue-2
+        oran-ue: "true"
+        ue-index: "2"
+    spec:
+      containers:
+      - args:
+        - -O
+        - /opt/oai-nr-ue/etc/nr-ue.conf
+        - -E
+        - --rfsim
+        - -r
+        - "106"
+        - --numerology
+        - "1"
+        - -C
+        - "3319680000"
+        - --ssb
+        - "516"
+        - --rfsimulator.serveraddr
+        - oai-du0-rfsim
+        - --rfsimulator.serverport
+        - "4043"
+        - --log_config.global_log_options
+        - level,nocolor,time
+        command:
+        - /opt/oai-nr-ue/bin/nr-uesoftmodem
+        image: oaisoftwarealliance/oai-nr-ue:2025.w45
+        imagePullPolicy: IfNotPresent
+        name: oai-nr-ue-2
+        resources:
+          limits:
+            cpu: "4"
+            memory: 4Gi
+          requests:
+            cpu: "2"
+            memory: 2Gi
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+            - SYS_NICE
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /opt/oai-nr-ue/etc/nr-ue.conf
+          name: nrue-config
+          subPath: nr-ue.conf
+        - mountPath: /dev/net/tun
+          name: tun-device
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: oai-nrue-config-2
+        name: nrue-config
+      - hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+        name: tun-device
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2026-08-18T02:48:22Z"
+    lastUpdateTime: "2026-08-18T02:48:22Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2026-05-07T09:11:18Z"
+    lastUpdateTime: "2026-08-18T02:48:22Z"
+    message: ReplicaSet "oai-nr-ue-2-f6cf474b6" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 591
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

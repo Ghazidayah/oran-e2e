@@ -1,0 +1,53 @@
+[
+  {
+    "profile": "n78-3500",
+    "band": "n78",
+    "freq_mhz": 3499.68,
+    "ssb": "633312",
+    "pointa": "632040",
+    "du_deploy": "oai-du0",
+    "retune_verdict": "E2E_UE1_VALIDATION_OK",
+    "tunnel_ready": "yes",
+    "netem": "rate 19mbit (55% du plafond \u2014 FSPL K depuis la porteuse)",
+    "ping_avg": "13.509 ms",
+    "ping_loss": "0%",
+    "tcp_mbps": "16.093",
+    "retransmits": "81",
+    "timestamp": "2026-07-27 17:11:07",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "n77-4174",
+    "band": "n77",
+    "freq_mhz": 4173.6,
+    "ssb": "678240",
+    "pointa": "676968",
+    "du_deploy": "oai-du0",
+    "retune_verdict": "E2E_UE1_VALIDATION_OK",
+    "tunnel_ready": "yes",
+    "netem": "rate 13mbit (39% du plafond \u2014 FSPL K depuis la porteuse)",
+    "ping_avg": "10.298 ms",
+    "ping_loss": "0%",
+    "tcp_mbps": "12.466",
+    "retransmits": "0",
+    "timestamp": "2026-07-21 03:38:22",
+    "verdict": "PASS"
+  },
+  {
+    "profile": "n41-2600",
+    "band": "n41",
+    "freq_mhz": 2593.35,
+    "ssb": "518670",
+    "pointa": "514854",
+    "du_deploy": "oai-du0",
+    "retune_verdict": "E2E_UE1_VALIDATION_OK",
+    "tunnel_ready": "yes",
+    "netem": "rate 35mbit (100% du plafond \u2014 FSPL K depuis la porteuse)",
+    "ping_avg": "11.278 ms",
+    "ping_loss": "0%",
+    "tcp_mbps": "28.226",
+    "retransmits": "124",
+    "timestamp": "2026-07-21 03:35:43",
+    "verdict": "PASS"
+  }
+]
