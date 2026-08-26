@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Platform shutdown, with a state snapshot beforehand.
+#
+# Role     : photograph the current state before stopping, to keep a record
+#            of what was running at shutdown time.
+# Captures : deployments, pods, services, endpoints and volumes, for each of
+#            the three namespaces.
+# Then     : workloads are stopped in the reverse order of startup.
+# Usage    : bash scripts/platform-stop.sh
+# ---------------------------------------------------------------------------
 set -euo pipefail
 
 STATE_DIR="${HOME}/.oran-lab"

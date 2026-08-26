@@ -47,7 +47,7 @@ oran-e2e/
 │       ├── multi-ue/   # Generated UE2-5 manifests (output of scripts/ue/generate-5ue-manifests.sh)
 │       └── nrue.lab.conf    # UE1 config + key/opc source for generate-5ue-manifests.sh
 ├── monitoring/
-│   └── grafana/dashboards/  # Grafana dashboard JSON (oran-5g-lab-ops.improved.json = live one)
+│   └── grafana/dashboards/  # Grafana dashboard JSON
 ├── scripts/
 │   ├── bootstrap-platform.sh    # Fresh-host full build (Steps 1-10, interactive)
 │   ├── platform-start.sh / platform-stop.sh   # Restart path (state file in ~/.oran-lab)

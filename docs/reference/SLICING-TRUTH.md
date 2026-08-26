@@ -69,8 +69,8 @@ Rate is computed as a **percentage of the auto-measured ceiling** stored in
 | Profile | Rate (% of ceiling) | Burst | netem delay | 3GPP target |
 |---|---|---|---|---|
 | `embb` | 100% (uncapped) | 256kb | 2ms | eMBB |
-| `urllc` | 60% | 64kb | 0ms | URLLC (RFsim floor ~11ms RTT) |
-| `mmtc` | 6% | 32kb | 1000ms | mMTC |
+| `urllc` | 3% | 64kb | 0ms | URLLC (RFsim floor ~11ms RTT) |
+| `mmtc` | 0.1% | 32kb | 1000ms | mMTC |
 | `clear` | — | — | — | Remove all shaping |
 
 QoS differentiation is **emulated via software tc**, not 5QI scheduling — RFsim has no radio

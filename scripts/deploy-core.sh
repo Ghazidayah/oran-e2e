@@ -18,6 +18,16 @@ set -euo pipefail
 # The four files under manifests/core/ are byte-identical to the live cluster
 # configuration as captured on 2026-08-03, so running this script against the
 # current platform is a no-op on content. It still restarts the pods.
+# ---------------------------------------------------------------------------
+# Deployment and reload of the Open5GS 5G core.
+#
+# Role     : rebuild the core configuration from manifests/core/ and restart
+#            the affected functions.
+# Scope    : PLMN 999/70, oai DNN, 10.45.0.0/16 address pool, slice list,
+#            N2 (AMF) and N3 (UPF) endpoints.
+# Run from the repo root.
+# Usage    : bash scripts/deploy-core.sh
+# ---------------------------------------------------------------------------
 
 REPO="${REPO:-$PWD}"
 

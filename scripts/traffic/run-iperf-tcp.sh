@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Measuring upstream TCP throughput from a terminal.
+#
+# Role     : measure a terminal's sustained throughput across the full 5G
+#            chain, and extract retransmissions.
+# Logic    : the iperf3 server runs on the host; the client runs inside the
+#            terminal pod and BINDS to its session address (-B flag). Traffic
+#            therefore cannot take the pod's own network path: it goes
+#            through tunnel -> DU -> CU-UP -> UPF -> ogstun.
+# Output   : archived iperf3 JSON report, plus a summary line
+#            "Throughput Mbps:" consumed by calling scripts.
+# Variables: NS, UE_DEP, DURATION (default 15 s)
+# Usage    : bash scripts/traffic/run-iperf-tcp.sh
+# ---------------------------------------------------------------------------
 set -euo pipefail
 
 REPO="${REPO:-$HOME/oran-e2e}"

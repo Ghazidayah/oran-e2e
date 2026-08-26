@@ -1,4 +1,28 @@
 #!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Applying and removing per-slice quality-of-service profiles.
+#
+# Role     : emulate the service differentiation between slices that the
+#            radio simulator doesn't implement (no 5QI prioritization).
+# Profiles : embb   100% of ceiling, burst 256kb, latency 50ms,  delay 2ms
+#            urllc   3%,            burst  64kb, latency  5ms,  delay 0ms
+#            mmtc     0.1%,            burst  32kb, latency 100ms, delay 1000ms
+#            clear  full removal, fq_codel restored
+# Rate     : never absolute. rate = PCT x calibrated_ceiling / 100, the
+#            ceiling being re-read on every run from
+#            ~/oran-proof/ceiling-mbit.txt.
+# Mechanism: stack applied in BOTH directions.
+#            - upstream  : netem (delay) at the root on the tunnel, tbf
+#                          (rate) as a child
+#            - downstream: Linux only shapes traffic OUTBOUND from an
+#                          interface. Inbound traffic is therefore redirected
+#                          via a mirred filter to a mirror interface ifb_ue1,
+#                          where the same stack is rebuilt.
+# Note     : the netem delay is ONE-WAY. The observed round-trip time is
+#            therefore floor + 2 x delay (mMTC: 10 + 2000 = 2010 ms).
+# Output   : VERDICT=UE1_RESOURCE_PROFILE_APPLIED or _CLEARED
+# Usage    : bash scripts/slicing/apply-slice-resource-profile.sh <profile|clear>
+# ---------------------------------------------------------------------------
 set +e; set +u
 PROFILE="${1:-embb}"
 NS="${NS:-oran-ran}"; DEP="${DEP:-oai-nr-ue}"
@@ -7,7 +31,7 @@ source "$REPO/scripts/ue/ue-common.sh"
 
 # Plafond = débit UL TCP non-capped, AUTO-MESURE par scripts/traffic/measure-ceiling.sh
 # (UE1 isolé, ~36 le 2026-06-30). rate = PCT % du plafond. eMBB 100% (~plafond, non
-# façonné) ; URLLC 60% et mMTC 6% MORDENT. Fallback 33 = filet de sécurité seulement.
+# façonné) ; URLLC 3% et mMTC 0.1% MORDENT. Fallback 33 = filet de sécurité seulement.
 CEILING_MBIT="${CEILING_MBIT:-$(cat $HOME/oran-proof/ceiling-mbit.txt 2>/dev/null || echo 33)}"
 
 # Profils par slice:  PCT = % du plafond (débit, ÉMULÉ via tbf)
@@ -17,8 +41,8 @@ case "$PROFILE" in
   # DELAY proche des cibles 3GPP (URLLC ~1ms limite par le plancher RFsim ~11ms ;
   # eMBB ~4ms ; mMTC = plusieurs secondes). One-way ; RTT ~ base(~11ms) + 2xDELAY.
   embb|eMBB)   PCT=100; BURST="256kb"; LATENCY="50ms";  DELAY="${DELAY:-2ms}"    ;;
-  urllc|URLLC) PCT=60;  BURST="64kb";  LATENCY="5ms";   DELAY="${DELAY:-0ms}"    ;;
-  mmtc|mMTC)   PCT=6;   BURST="32kb";  LATENCY="100ms"; DELAY="${DELAY:-1000ms}" ;;
+  urllc|URLLC) PCT=3;  BURST="64kb";  LATENCY="5ms";   DELAY="${DELAY:-0ms}"    ;;
+  mmtc|mMTC)   PCT=0.1;   BURST="32kb";  LATENCY="100ms"; DELAY="${DELAY:-1000ms}" ;;
   clear)       PCT="" ;;
   *) echo "Unknown profile: $PROFILE"; echo "VERDICT=UNKNOWN_RESOURCE_PROFILE"; exit 0 ;;
 esac

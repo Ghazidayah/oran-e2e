@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
-# apply-fspl-band-profile.sh — emulate frequency-band path loss as a throughput cap.
-# Reuses the SAME netem+tbf+ifb mechanism as scripts/slicing/apply-slice-resource-profile.sh.
-# Rate source: K = 10^(-dPL/10), dPL = 20*log10(f_target/f_ref)  -> PCT = round(K*100).
-# Usage: apply-fspl-band-profile.sh <band n41|n78|n77 | f_target_MHz> [clear]
-#        apply-fspl-band-profile.sh clear
+# ---------------------------------------------------------------------------
+# Applying the FSPL-model-derived throughput ceiling, per band.
+#
+# Role     : reintroduce, by computation, the throughput degradation that a
+#            band change would produce physically -- since the simulated
+#            channel is idealized, it doesn't produce it on its own.
+# Mechanism: REUSES the same netem + tbf + ifb stack as
+#            scripts/slicing/apply-slice-resource-profile.sh. One engine, two
+#            uses, never stacked together.
+# Calculation: K = 10^(-dPL/10), dPL = 20 x log10(f_target/f_ref), then
+#            PCT = round(K x 100) applied to the calibrated ceiling.
+# Inputs   : a band (n41, n78, n77) or a target frequency in MHz
+# Usage    : bash scripts/frequency/apply-fspl-band-profile.sh <band|MHz>
+#            bash scripts/frequency/apply-fspl-band-profile.sh clear
+# ---------------------------------------------------------------------------
 set +e; set +u
 NS="${NS:-oran-ran}"; DEP="${DEP:-oai-nr-ue}"
 REPO="${REPO:-$HOME/oran-e2e}"

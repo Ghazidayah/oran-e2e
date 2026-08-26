@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Provisioning the five subscribers in the MongoDB database.
+#
+# Role     : register the subscriber profiles without which no terminal can
+#            register.
+# Profile contents: IMSI, K and OPC security keys, allowed DNN, and S-NSSAI
+#            slices with their default-slice indicator.
+# Method   : the first subscriber serves as a template, the other four are
+#            derived from it by changing the IMSI.
+# Variables: SRC_IMSI (template), IMSIS (full list)
+# Warning  : this data must match the terminal configuration EXACTLY. Any
+#            mismatch in IMSI, keys, DNN, or slice causes a registration
+#            rejection.
+# Usage    : bash scripts/ue/provision-5ue-subscribers.sh
+# ---------------------------------------------------------------------------
 set -euo pipefail
 
 SRC_IMSI="${SRC_IMSI:-999700000000001}"

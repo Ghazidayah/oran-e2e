@@ -12,6 +12,19 @@
 #
 # Companion doc: docs/reference/DEPLOYMENT-GUIDE.md (same steps, success
 # criteria, failure/fix table per step).
+# ---------------------------------------------------------------------------
+# Rebuilds the entire platform on a clean host.
+#
+# Role     : starts from a machine with only k3s installed and brings up the
+#            whole platform: namespaces, 5G core, Multus networks.
+# Steps    : checks the cluster responds -> creates oran-core, oran-ran and
+#            monitoring -> installs Open5GS via Helm -> waits for the
+#            functions to be ready -> applies the 4 NetworkAttachmentDefinition
+#            (N2 and N3 planes, core side and RAN side).
+# Output   : list of created networks, for visual confirmation.
+# Usage    : bash scripts/bootstrap-platform.sh
+# Run once. Day-to-day startup goes through platform-start.sh.
+# ---------------------------------------------------------------------------
 # =============================================================================
 set -euo pipefail
 

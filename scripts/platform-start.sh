@@ -1,4 +1,22 @@
 #!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Ordered platform startup.
+#
+# Role     : bring the chain up in a strict dependency order, so that a cold
+#            start produces a working platform without manual intervention.
+# Why this order: in a service-based architecture, the AMF discovers the
+#            authentication functions via the NRF. If the AMF starts before
+#            they're registered, it rejects ALL terminals (5GMM cause #9)
+#            until it hits CrashLoopBackOff. The fix is ordering, not
+#            detection.
+# Tiers    : 1) mongodb, nrf, scp
+#            2) udr, udm, ausf, bsf, nssf, pcf, upf, sepp, webui
+#            3) profile-registration settle delay
+#            4) amf and smf LAST, against an already-populated NRF
+#            5) CU plane, then DU, then the terminal fleet
+# Variables: ORAN_CORE_GATE, ORAN_CORE_REGISTER_SETTLE
+# Usage    : bash scripts/platform-start.sh
+# ---------------------------------------------------------------------------
 set -euo pipefail
 
 ROOT_DIR="${ORAN_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"

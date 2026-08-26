@@ -1,4 +1,16 @@
 #!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Generating the terminal fleet manifests.
+#
+# Role     : produce the four additional terminal deployments from a
+#            reference configuration, rather than writing them by hand.
+# Input    : manifests/ran/nrue.lab.conf
+# Output   : manifests/ran/multi-ue/
+# What varies between terminals: IMSI, the RFsim server address of its
+#            serving DU, and the deployment name. Radio parameters stay
+#            identical (106 blocks, numerology 1).
+# Usage    : bash scripts/ue/generate-5ue-manifests.sh
+# ---------------------------------------------------------------------------
 set -euo pipefail
 
 SRC_CONF="manifests/ran/nrue.lab.conf"

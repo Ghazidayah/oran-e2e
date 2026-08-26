@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
-# compute-fspl-k.sh — derive relative degradation coefficient K from FSPL model
-# K = 10^(-ΔPL/10), where ΔPL = 20*log10(f_target/f_ref)  (distance cancels)
-# Usage: compute-fspl-k.sh <f_ref_MHz> <f_target_MHz>
+# ---------------------------------------------------------------------------
+# Deriving the attenuation coefficient between two frequencies.
+#
+# Role     : compute, at runtime, the free-space path-loss difference between
+#            a reference frequency and a target frequency.
+# Formulas : dPL = 20 x log10(f_target / f_ref)      in dB
+#            K   = 10^(-dPL/10)                      power ratio
+# Key point: distance and the constant CANCEL OUT by difference. The
+#            coefficient therefore contains no arbitrary parameter, not even
+#            a distance assumption -- which is what lets you claim it is
+#            derived rather than chosen.
+# Inputs   : two frequencies, in MHz
+# Output   : dPL and K, consumed by apply-fspl-band-profile.sh
+# Usage    : bash scripts/frequency/compute-fspl-k.sh <f_ref_MHz> <f_target_MHz>
+# ---------------------------------------------------------------------------
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then

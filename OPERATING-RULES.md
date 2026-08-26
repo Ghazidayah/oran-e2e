@@ -11,7 +11,7 @@ Read the Safety Rules before running anything.
 - Host `oran-lab`: Ubuntu 22.04.5, **k3s** single-node, Helm.
 - Core: **Open5GS 5G SA** (namespace `oran-core`).
 - RAN: **OpenAirInterface**, **F1 split** = CU + DU0 + DU1 (namespace `oran-ran`), **RFsim** (no radio HW).
-- Monitoring: kube-prometheus-stack (namespace `monitoring`). Note: an empty `oran-monitoring` ns also exists; the live stack is in `monitoring`.
+- Monitoring: kube-prometheus-stack (namespace `monitoring`).
 - Repo root: `~/oran-e2e`.
 
 ## Identity / addressing (do not change casually)

@@ -2,6 +2,24 @@
 # ==========================================================================
 # Auto-calibration du PLAFOND de débit (UL TCP non-capé, UE1 isolé).
 # Écrit la MÉDIANE entière dans ~/oran-proof/ceiling-mbit.txt + preuve JSON.
+# ---------------------------------------------------------------------------
+# Calibrating the reference throughput ceiling.
+#
+# Role     : establish the value that all percentages in the project are
+#            relative to (slice profiles and frequency ceilings).
+# Logic    : first clears any residual tunnel shaping -- otherwise the
+#            measurement would be taken on an already-capped throughput --
+#            then runs several unconstrained upstream TCP measurements and
+#            keeps the MEDIAN.
+# Output   : ~/oran-proof/ceiling-mbit.txt, plus a timestamped JSON record
+#            (samples, median, duration, conditions).
+# Variables: SAMPLES (number of measurements), DURATION (seconds per
+#            measurement)
+# Note     : this ceiling is not a radio characteristic but the host's
+#            compute capacity across the RFsim chains. It varies from one
+#            session to another, hence recalibrating before every campaign.
+# Usage    : bash scripts/traffic/measure-ceiling.sh
+# ---------------------------------------------------------------------------
 # ==========================================================================
 set -uo pipefail
 REPO="${REPO:-$HOME/oran-e2e}"

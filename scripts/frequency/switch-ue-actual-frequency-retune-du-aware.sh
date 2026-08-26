@@ -1,4 +1,28 @@
 #!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Real reconfiguration of the radio carrier, with automatic restoration.
+#
+# Role     : actually change the cell's band and resynchronize the terminal.
+#            A real, complete operation on the radio chain, not to be
+#            confused with the (emulated) throughput degradation that
+#            accompanies it.
+# Steps    : 1) fix the DU ConfigMap: absoluteFrequencySSB,
+#               absoluteFrequencyPointA, frequencyBand
+#            2) realign the terminal's arguments (band, carrier, SSB)
+#            3) restart both deployments
+#            4) wait for the tunnel to come back up
+#            5) validate end to end
+# Safeguard: if any step fails on a profile other than the reference
+#            carrier, the reference carrier is restored AUTOMATICALLY, with
+#            no manual intervention.
+# DU-aware : the serving unit is never assumed. It's derived from the RFsim
+#            server address registered in the terminal's ConfigMap, and the
+#            matching F1 ConfigMap is then fixed. The script therefore works
+#            the same before or after a DU handover.
+# Note     : the number of resource blocks (106) and the numerology (1)
+#            NEVER change. Only the frequency varies.
+# Usage    : bash scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh <profile>
+# ---------------------------------------------------------------------------
 set -u
 set -o pipefail
 

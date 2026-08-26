@@ -990,11 +990,6 @@ REAL_SLICE_PROFILES = {
     "mmtc":  {"sst": 3, "label": "mMTC",  "desc": "SST=3 — IoT-style small UDP"},
 }
 
-SLICE_TC_PROFILE = {
-    "embb":  "15mbit / 256kb / 50ms",
-    "urllc": "20mbit / 64kb / 5ms",
-    "mmtc":  "2mbit / 32kb / 100ms",
-}
 
 REAL_SLICE_RESULTS_FILE = BASE_DIR / "web-dashboard" / "real-slice-results.json"
 
@@ -1032,7 +1027,6 @@ def _parse_slice_output(text, profile):
         "retransmits":  "—",
         "udp_loss_pct": "—",
         "udp_jitter_ms":"—",
-        "tc_profile":   SLICE_TC_PROFILE.get(profile, "—"),
         "verdict":      "UNKNOWN",
         "time":         datetime.now().isoformat(timespec="seconds"),
     }
