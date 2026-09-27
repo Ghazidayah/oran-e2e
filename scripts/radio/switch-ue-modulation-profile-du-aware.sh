@@ -63,6 +63,14 @@ print("dl_max_mcs="+v)'
 if [ "$PROFILE" = "status" ]; then
   echo "ACTIVE_DU_DEPLOY=$DU_DEPLOY"
   current_cap
+
+  # read the actual slice from the UE config (same logic as scripts/ue/ue-common.sh)
+  UE_CONF="$(kubectl -n "$RAN_NS" get cm "$UE_CM" -o jsonpath='{.data.nr-ue\.conf}' 2>/dev/null || true)"
+  SST="$(echo "$UE_CONF" | sed -n 's/.*nssai_sst[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' | head -1)"
+  SD="$(echo "$UE_CONF" | sed -n 's/.*nssai_sd[[:space:]]*=[[:space:]]*\([^;]*\).*/\1/p' | head -1)"
+  echo "nssai_sst=${SST:-unknown}"
+  echo "nssai_sd=${SD:-unknown}"
+
   echo "VERDICT=MODULATION_STATUS_DONE"
   exit 0
 fi
