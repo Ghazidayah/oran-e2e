@@ -4,8 +4,7 @@ set -euo pipefail
 # Rebuilds the Open5GS core configuration from manifests/core/ and restarts the
 # affected network functions. Run from the repository root.
 #
-# Which ConfigMap each function actually reads (verified on the live cluster,
-# 2026-08-03) — this mapping is not uniform, see OPERATING-RULES.md rule 9:
+# Which ConfigMap each function actually reads (this mapping is not uniform):
 #
 #   AMF  → open5gs-oai-prep, key amf.yaml   (volume amf-config-fixed)
 #   UPF  → open5gs-oai-prep, key upf.yaml
@@ -16,8 +15,8 @@ set -euo pipefail
 # but is read by nothing.
 #
 # The four files under manifests/core/ are byte-identical to the live cluster
-# configuration as captured on 2026-08-03, so running this script against the
-# current platform is a no-op on content. It still restarts the pods.
+# configuration, so running this script against the current platform is a no-op
+# on content. It still restarts the pods.
 # ---------------------------------------------------------------------------
 # Deployment and reload of the Open5GS 5G core.
 #

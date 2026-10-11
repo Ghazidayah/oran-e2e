@@ -150,7 +150,7 @@ print("on_du0=", du0)
 print("on_du1=", du1)
 if other:
     print("on_other=", other)
-# Honest check: every UE must be attached SOMEWHERE. The DU split is reported, not forced.
+# Check: every UE must be attached SOMEWHERE. The DU split is reported, not forced.
 if attached == 5 and expected == 5:
     print("[PASS] all 5 UEs attached on their current DUs")
 else:

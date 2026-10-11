@@ -1,23 +1,5 @@
-// Remaining dashboard logic after status/live split
-async function runAction(action) {
-  const out = document.getElementById("actionOutput");
-  out.textContent = "Running " + action + "...";
-
-  try {
-    let res = await fetch("/api/action/" + action, { method: "POST" });
-
-    if (!res.ok) {
-      res = await fetch("/api/run/" + action, { method: "POST" });
-    }
-
-    const data = await res.json();
-    const sanitize = typeof sanitizeTunnelState === "function" ? sanitizeTunnelState : function(t) { return t; };
-    out.textContent = sanitize(data.output || JSON.stringify(data, null, 2));
-    reloadStatus();
-  } catch (err) {
-    out.textContent = "Action failed: " + err;
-  }
-}
+// Dashboard actions, UE scenarios, traffic/slice runs and result tables.
+// Shared helpers (fallbackValue, reloadStatus, loadMetrics) live in dashboard-status-live.js.
 
 reloadStatus();
 loadMetrics();
@@ -25,8 +7,7 @@ loadMetrics();
 setInterval(reloadStatus, 10000);
 setInterval(loadMetrics, 2000);
 
-
-// Extracted from index.html script block 2
+// ===== Action buttons: run /api/action/<name> with live button feedback =====
 (function () {
   const ACTION_LABELS = {
     ownership: "Serving gNB Check",
@@ -41,78 +22,9 @@ setInterval(loadMetrics, 2000);
   };
 
   let activeAction = null;
-  let timerHandle = null;
-  let startedAt = null;
 
   function labelFor(action) {
     return ACTION_LABELS[action] || action;
-  }
-
-  function ensurePanel() {
-    let panel = document.getElementById("action-feedback-panel");
-    if (panel) return panel;
-
-    panel = document.createElement("section");
-    panel.id = "action-feedback-panel";
-    panel.className = "idle";
-    panel.innerHTML = `
-      <div class="feedback-row">
-        <div>
-          <div class="feedback-title">Action Status</div>
-          <div id="action-feedback-detail" class="feedback-detail">
-            Ready. Select an action to start.
-          </div>
-        </div>
-        <div class="feedback-actions">
-          <button class="feedback-report-button" type="button" data-action="report">Generate Evidence Report</button>
-        </div>
-      </div>
-      <div class="feedback-progress">
-        <div id="action-feedback-progress-bar" class="feedback-progress-bar"></div>
-      </div>
-    `;
-
-    const header = document.querySelector("header");
-    if (header && header.parentNode) {
-      header.parentNode.insertBefore(panel, header.nextSibling);
-    } else {
-      document.body.insertBefore(panel, document.body.firstChild);
-    }
-
-    const reportButton = panel.querySelector('[data-action="report"]');
-    if (reportButton) {
-      reportButton.addEventListener("click", function (ev) {
-        ev.preventDefault();
-        runActionEnhanced("report", reportButton);
-      });
-    }
-
-    return panel;
-  }
-
-  function setPanel(state, action, detail) {
-    const panel = ensurePanel();
-    const pill = document.getElementById("action-feedback-pill");
-    const detailEl = document.getElementById("action-feedback-detail");
-    const bar = document.getElementById("action-feedback-progress-bar");
-
-    panel.className = state;
-
-    if (pill) {
-      if (state === "running") pill.textContent = "RUNNING";
-      else if (state === "success") pill.textContent = "SUCCESS";
-      else if (state === "failed") pill.textContent = "FAILED";
-      else pill.textContent = "IDLE";
-    }
-
-    if (detailEl) {
-      detailEl.textContent = detail || "Ready. Select an action to start.";
-    }
-
-    if (bar && state !== "running") {
-      bar.style.width = state === "success" ? "100%" : "0%";
-      bar.style.transform = "none";
-    }
   }
 
   function getActionFromButton(button) {
@@ -152,14 +64,14 @@ setInterval(loadMetrics, 2000);
     if (state === "success") {
       button.disabled = true;
       button.classList.add("action-success");
-      button.textContent = "Done ✓";
+      button.textContent = "Done";
       return;
     }
 
     if (state === "failed") {
       button.disabled = true;
       button.classList.add("action-failed");
-      button.textContent = "Failed ✗";
+      button.textContent = "Failed";
       return;
     }
 
@@ -219,8 +131,7 @@ setInterval(loadMetrics, 2000);
   function setLatestOutput(text) {
     const output = findOutputElement();
     if (!output) return;
-    const sanitize = typeof sanitizeTunnelState === "function" ? sanitizeTunnelState : function(t) { return t; };
-    output.textContent = sanitize(text) || "(no output returned)";
+    output.textContent = sanitizeTunnelState(text) || "(no output returned)";
     output.scrollTop = output.scrollHeight;
   }
 
@@ -244,39 +155,15 @@ setInterval(loadMetrics, 2000);
     }
   }
 
-  function startTimer(action) {
-    startedAt = Date.now();
-    if (timerHandle) clearInterval(timerHandle);
-
-    timerHandle = setInterval(function () {
-      if (!startedAt) return;
-      const seconds = Math.round((Date.now() - startedAt) / 1000);
-      setPanel("running", action, `${labelFor(action)} is running... ${seconds}s elapsed`);
-    }, 1000);
-  }
-
-  function stopTimer() {
-    if (timerHandle) clearInterval(timerHandle);
-    timerHandle = null;
-    startedAt = null;
-  }
-
   async function runActionEnhanced(action, button) {
     if (!action) return;
-
-    if (activeAction) {
-      setPanel("running", activeAction, `${labelFor(activeAction)} is already running. Wait for it to finish.`);
-      return;
-    }
 
     const activeButton = button || document.querySelector(`[data-action="${action}"]`) || document.querySelector(`[onclick*="${action}"]`);
 
     activeAction = action;
     setButtonState(activeButton, "running");
     disableOtherButtons(activeButton);
-    setPanel("running", action, `${labelFor(action)} is running...`);
     setLatestOutput(`Running ${labelFor(action)}...\n\nWaiting for backend response.`);
-    startTimer(action);
 
     try {
       const response = await fetch(`/api/action/${encodeURIComponent(action)}`, {
@@ -304,37 +191,28 @@ setInterval(loadMetrics, 2000);
 
       if (ok) {
         setButtonState(activeButton, "success");
-        setPanel("success", action, `${labelFor(action)} completed successfully. Run: ${summary.run_dir || "n/a"}`);
       } else {
         setButtonState(activeButton, "failed");
-        setPanel("failed", action, `${labelFor(action)} failed. Exit: ${fallbackValue(summary.exit, "unknown")}`);
       }
 
       await refreshDashboard();
 
       setTimeout(function () {
         restoreButtons();
-        if (ok) {
-          setPanel("idle", action, `${labelFor(action)} finished successfully. Ready for next action.`);
-        }
       }, 2500);
     } catch (err) {
       setLatestOutput(`ERROR while running ${labelFor(action)}:\n${err.message || err}`);
       setButtonState(activeButton, "failed");
-      setPanel("failed", action, `${labelFor(action)} failed before completion: ${err.message || err}`);
 
       setTimeout(function () {
         restoreButtons();
       }, 3000);
     } finally {
-      stopTimer();
       activeAction = null;
     }
   }
 
   function installButtonHandlers() {
-    ensurePanel();
-
     actionButtons().forEach(function (button) {
       const action = getActionFromButton(button);
       if (!action) return;
@@ -359,61 +237,9 @@ setInterval(loadMetrics, 2000);
   };
 
   document.addEventListener("DOMContentLoaded", installButtonHandlers);
-  window.addEventListener("load", installButtonHandlers);
-  setTimeout(installButtonHandlers, 1000);
 })();
 
-
-// Extracted from index.html script block 3
-
-// Scenario labels and remaining dashboard logic
-const ueScenarioLabels = {
-    attach_pdu: "UE Attach + PDU Session",
-    connectivity: "UE Connectivity Test",
-    stability: "UE Stability Traffic",
-    throughput: "UE Throughput KPI",
-    video: "UE Video-like Stream",
-    stress: "UE Stress Traffic",
-    stop: "Stop UE Traffic"
-  };
-
-  async function runUeScenario(scenario) {
-    const countEl = document.getElementById('desiredUeCount');
-    const count = countEl ? Number(countEl.value || 1) : 1;
-    const label = ueScenarioLabels[scenario] || scenario;
-
-    if (typeof setMultiUeOutput === 'function') {
-      setMultiUeOutput(`${label} running on selected UE count: ${count}...\n`);
-    }
-
-    try {
-      const response = await fetch(`/api/ues/scenario/${scenario}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count })
-      });
-
-      const data = await response.json();
-
-      if (typeof setMultiUeOutput === 'function') {
-        renderMultiUeScenarioResult(data);
-        setMultiUeOutput(formatScenarioSummary(data), true);
-      }
-
-      if (typeof refreshMultiUes === 'function') {
-        await refreshMultiUes();
-      }
-    } catch (error) {
-      if (typeof setMultiUeOutput === 'function') {
-        setMultiUeOutput(`${label} failed: ${error}`);
-      } else {
-        alert(`${label} failed: ${error}`);
-      }
-    }
-  }
-
-
-// Extracted from index.html script block 5
+// ===== Per-UE scenario buttons =====
 const ueScenarioInteractiveLabels = {
     attach_pdu: "UE Attach + PDU Session",
     connectivity: "UE Connectivity Test",
@@ -443,7 +269,7 @@ const ueScenarioInteractiveLabels = {
     if (state === "success") {
       button.classList.add("ue-btn-success");
       button.disabled = false;
-      button.textContent = text || "Done ✓";
+      button.textContent = text || "Done";
       setTimeout(() => restoreUeButton(button), 2200);
       return;
     }
@@ -451,7 +277,7 @@ const ueScenarioInteractiveLabels = {
     if (state === "failed") {
       button.classList.add("ue-btn-failed");
       button.disabled = false;
-      button.textContent = text || "Failed ✗";
+      button.textContent = text || "Failed";
       setTimeout(() => restoreUeButton(button), 3000);
       return;
     }
@@ -476,11 +302,6 @@ const ueScenarioInteractiveLabels = {
     });
   }
 
-  function extractLine(text, pattern) {
-    const match = text.match(pattern);
-    return match ? match[0] : "";
-  }
-
   function extractValue(text, pattern) {
     const match = text.match(pattern);
     return match ? match[1] : "";
@@ -492,9 +313,6 @@ const ueScenarioInteractiveLabels = {
     lines.push(`Scenario: ${data.label || data.scenario || "UE scenario"}`);
     lines.push(`Status: ${data.ok ? "SUCCESS" : "FAILED"}`);
     lines.push(`Requested UE count: ${fallbackValue(data.requested_count, "-")}`);
-    lines.push(`Selected UE count: ${fallbackValue(data.selected_count, "-")}`);
-    lines.push(`Parallel execution: ${data.parallel ? "yes" : "no"}`);
-    lines.push(`Selected UEs: ${(data.selected_ues || []).join(", ") || "-"}`);
     lines.push("");
 
     if (Array.isArray(data.results)) {
@@ -560,15 +378,15 @@ const ueScenarioInteractiveLabels = {
       }
 
       if (!response.ok || !data.ok) {
-        setUeButtonState(button, "failed", "Failed ✗");
+        setUeButtonState(button, "failed", "Failed");
       } else {
-        setUeButtonState(button, "success", "Done ✓");
+        setUeButtonState(button, "success", "Done");
       }
     } catch (error) {
       if (typeof setMultiUeOutput === "function") {
         setMultiUeOutput(`${label} failed: ${error}`);
       }
-      setUeButtonState(button, "failed", "Failed ✗");
+      setUeButtonState(button, "failed", "Failed");
     } finally {
       setScenarioButtonsDisabled(false, button);
     }
@@ -587,44 +405,37 @@ const ueScenarioInteractiveLabels = {
 
       await runAction(action);
 
-      setUeButtonState(button, "success", "Done ✓");
+      setUeButtonState(button, "success", "Done");
     } catch (error) {
       if (typeof setMultiUeOutput === "function") {
         setMultiUeOutput(`${label} failed: ${error}`);
       }
-      setUeButtonState(button, "failed", "Failed ✗");
+      setUeButtonState(button, "failed", "Failed");
     } finally {
       setScenarioButtonsDisabled(false, button);
     }
   }
 
-
-// PHASE2_TRAFFIC_JS_START
-// Traffic API runs as a separate host process on port 5055. Derive the host from
-// the page so the dashboard works over localhost, the lab IP, or any hostname the
-// platform is reached by. Falls back to the lab IP only for file:// origins.
-const PHASE2_TRAFFIC_API = (function () {
-  const h = window.location.hostname;
-  return h ? window.location.protocol + "//" + h + ":5055" : "http://192.168.1.142:5055";
-})();
+// The traffic API is served by this same dashboard server (same origin), so the
+// base URL is empty and requests stay relative, like every other /api call.
+const TRAFFIC_API = "";
 
 function setPhase2TrafficOutput(text) {
   const el = document.getElementById("actionOutput");
   if (el) {
-    const sanitize = typeof sanitizeTunnelState === "function" ? sanitizeTunnelState : function(t) { return t; };
-    el.textContent = sanitize(text) || "";
+    el.textContent = sanitizeTunnelState(text) || "";
   }
 }
 
 function setPhase2TrafficButtons(disabled, activeButton) {
-  document.querySelectorAll('button[onclick*="runPhase2Traffic"]').forEach((button) => {
+  document.querySelectorAll('button[onclick*="runTrafficScenario"]').forEach((button) => {
     if (button !== activeButton) {
       button.disabled = disabled;
     }
   });
 }
 
-async function runPhase2Traffic(scenario, button) {
+async function runTrafficScenario(scenario, button) {
   const originalText = button ? button.textContent : "Run";
   if (button) {
     button.disabled = true;
@@ -635,7 +446,7 @@ async function runPhase2Traffic(scenario, button) {
   setPhase2TrafficOutput("Starting realistic traffic scenario: " + scenario);
 
   try {
-    const startRes = await fetch(PHASE2_TRAFFIC_API + "/api/traffic/run/" + encodeURIComponent(scenario), {
+    const startRes = await fetch(TRAFFIC_API + "/api/traffic/run/" + encodeURIComponent(scenario), {
       method: "POST"
     });
 
@@ -656,7 +467,7 @@ async function runPhase2Traffic(scenario, button) {
     for (let i = 0; i < 300; i++) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      const jobRes = await fetch(PHASE2_TRAFFIC_API + "/api/traffic/jobs/" + encodeURIComponent(jobId));
+      const jobRes = await fetch(TRAFFIC_API + "/api/traffic/jobs/" + encodeURIComponent(jobId));
       const jobData = await jobRes.json();
 
       if (!jobData.ok) {
@@ -679,7 +490,7 @@ async function runPhase2Traffic(scenario, button) {
 
       if (["ok", "failed", "timeout", "error"].includes(status)) {
         if (button) {
-          button.textContent = status === "ok" ? "Done ✓" : "Failed ✗";
+          button.textContent = status === "ok" ? "Done" : "Failed";
         }
         loadE2eKpiResults();
         break;
@@ -688,7 +499,7 @@ async function runPhase2Traffic(scenario, button) {
   } catch (error) {
     setPhase2TrafficOutput("Traffic scenario failed: " + error);
     if (button) {
-      button.textContent = "Failed ✗";
+      button.textContent = "Failed";
     }
   } finally {
     setPhase2TrafficButtons(false, button);
@@ -700,15 +511,10 @@ async function runPhase2Traffic(scenario, button) {
     }
   }
 }
-// PHASE2_TRAFFIC_JS_END
-
-
-// PHASE3_REAL_SLICE_JS_START
 
 function setPhase3RealSliceOutput(text) {
-  const el = document.getElementById("phase3RealSliceOutput");
-  const sanitize = typeof sanitizeTunnelState === "function" ? sanitizeTunnelState : function(t) { return t; };
-  if (el) el.textContent = sanitize(text) || "";
+  const el = document.getElementById("sliceOutput");
+  if (el) el.textContent = sanitizeTunnelState(text) || "";
 }
 
 function setPhase3RealSliceButtons(disabled, activeButton) {
@@ -719,24 +525,24 @@ function setPhase3RealSliceButtons(disabled, activeButton) {
 
 async function runRealSliceTraffic(profile, button) {
   const originalText = button ? button.textContent : "Run";
-  if (button) { button.disabled = true; button.textContent = "Running…"; }
+  if (button) { button.disabled = true; button.textContent = "Running..."; }
   setPhase3RealSliceButtons(true, button);
   setPhase3RealSliceOutput(
     "Starting real S-NSSAI slice traffic: " + profile + "\n" +
     "This will switch UE1 slice, validate the tunnel, run traffic, then restore SST=1.\n" +
-    "Please wait (may take several minutes)…"
+    "Please wait (may take several minutes)..."
   );
 
   try {
     const res = await fetch("/api/real-slice/" + encodeURIComponent(profile), { method: "POST" });
     const data = await res.json();
-    const verdict = data.ok ? "✅ PASS" : "❌ FAIL (exit " + data.exit + ")";
+    const verdict = data.ok ? "PASS" : "FAIL (exit " + data.exit + ")";
     setPhase3RealSliceOutput(verdict + "\n\n" + (data.output || JSON.stringify(data, null, 2)));
-    if (button) button.textContent = data.ok ? "Done ✓" : "Failed ✗";
+    if (button) button.textContent = data.ok ? "Done" : "Failed";
     loadSliceResults();
   } catch (err) {
     setPhase3RealSliceOutput("Error: " + err);
-    if (button) button.textContent = "Failed ✗";
+    if (button) button.textContent = "Failed";
   } finally {
     setPhase3RealSliceButtons(false, button);
     if (button) setTimeout(() => { button.textContent = originalText; button.disabled = false; }, 3000);
@@ -748,8 +554,9 @@ async function loadSliceResults() {
     const res = await fetch("/api/real-slice/results");
     const data = await res.json();
     renderSliceResults(data.rows || []);
+    pollOk("slice-results");
   } catch (e) {
-    // fail silently — table just stays at "No runs yet"
+    pollFail("slice-results");
   }
 }
 
@@ -761,36 +568,33 @@ function renderSliceResults(rows) {
     return;
   }
   body.innerHTML = rows.map(function(r) {
-    const granted = (r.granted_sst && r.granted_sst !== "—")
+    const granted = (r.granted_sst && r.granted_sst !== "-")
       ? "SST:" + r.granted_sst + " SD:" + (r.sd || "0xffffff")
-      : (r.granted_sst || "—");
-    const v = r.verdict || "—";
+      : (r.granted_sst || "-");
+    const v = r.verdict || "-";
     const vStyle = (v === "PASS" || v === "REAL_SLICE_SWITCH_OK")
-      ? "color:#4caf50;font-weight:bold"
+      ? "color:#15803d;font-weight:bold"
       : (v.includes("FAIL") || v.includes("MISMATCH"))
-      ? "color:#f44336;font-weight:bold"
+      ? "color:#b91c1c;font-weight:bold"
       : "";
     const mbps = parseFloat(r.tcp_mbps) || 0;
-    const mbpsStyle = mbps > 20 ? "color:#4caf50;font-weight:bold"
-                    : mbps > 8  ? "color:#ff9800;font-weight:bold"
-                    : mbps > 0  ? "color:#f44336;font-weight:bold" : "";
+    const mbpsStyle = mbps > 20 ? "color:#15803d;font-weight:bold"
+                    : mbps > 8  ? "color:#b45309;font-weight:bold"
+                    : mbps > 0  ? "color:#b91c1c;font-weight:bold" : "";
     return "<tr>" +
       "<td><strong>" + (r.label || r.profile) + "</strong><br><small style='opacity:.7'>SST=" + r.sst + " SD=" + (r.sd || "0xffffff") + "</small></td>" +
       "<td style='font-weight:bold'>" + granted + "</td>" +
-      "<td>" + (r.tunnel_ip || "—") + "</td>" +
-      "<td>" + (r.ping_avg_ms || "—") + "</td>" +
-      "<td>" + (r.loss_pct || "—") + "</td>" +
-      "<td style='" + mbpsStyle + "'>" + (r.tcp_mbps || "—") + "</td>" +
+      "<td>" + (r.tunnel_ip || "-") + "</td>" +
+      "<td>" + (r.ping_avg_ms || "-") + "</td>" +
+      "<td>" + (r.loss_pct || "-") + "</td>" +
+      "<td style='" + mbpsStyle + "'>" + (r.tcp_mbps || "-") + "</td>" +
       "<td style='" + vStyle + "'>" + v + "</td>" +
       "<td style='font-size:11px;opacity:.8'>" + (r.time || "").replace("T", " ").split(".")[0] + "</td>" +
       "</tr>";
   }).join("");
 }
 
-document.addEventListener("DOMContentLoaded", function() { loadSliceResults(); });
-// PHASE3_REAL_SLICE_JS_END
-
-
+document.addEventListener("DOMContentLoaded", function() { loadSliceResults(); window.autoRefresh(loadSliceResults, 30000); });
 
 // ===== E2E Scenario KPI Results table (PHASE2_KPI_RESULTS) =====
 async function loadE2eKpiResults() {
@@ -798,8 +602,9 @@ async function loadE2eKpiResults() {
     const res = await fetch("/api/e2e-kpi/results");
     const data = await res.json();
     renderE2eKpiResults(data.rows || []);
+    pollOk("e2e-results");
   } catch (e) {
-    // traffic API may be down — table stays at "No runs yet"
+    pollFail("e2e-results");
   }
 }
 
@@ -813,19 +618,19 @@ function renderE2eKpiResults(rows) {
   body.innerHTML = rows.map(function(r) {
     const v = (r.verdict || r.status || "?").toUpperCase();
     const ok = (v === "OK" && r.status === "ok");
-    const vStyle = ok ? "color:#4caf50;font-weight:bold" : "color:#f44336;font-weight:bold";
-    const tput = (r.throughput_mbps === null || r.throughput_mbps === undefined) ? "\u2014" : r.throughput_mbps.toFixed(2);
-    const t = (r.time_s === null || r.time_s === undefined) ? "\u2014" : r.time_s.toFixed(2);
-    const b = (r.bytes === null || r.bytes === undefined) ? "\u2014" : r.bytes.toLocaleString();
+    const vStyle = ok ? "color:#15803d;font-weight:bold" : "color:#b91c1c;font-weight:bold";
+    const tput = (r.throughput_mbps === null || r.throughput_mbps === undefined) ? "-" : r.throughput_mbps.toFixed(2);
+    const t = (r.time_s === null || r.time_s === undefined) ? "-" : r.time_s.toFixed(2);
+    const b = (r.bytes === null || r.bytes === undefined) ? "-" : r.bytes.toLocaleString();
     return "<tr>" +
       "<td>" + (r.label || r.scenario) + "</td>" +
       "<td style=\"" + vStyle + "\">" + v + "</td>" +
       "<td>" + tput + "</td>" +
-      "<td>" + (r.integrity || "\u2014") + "</td>" +
+      "<td>" + (r.integrity || "-") + "</td>" +
       "<td>" + t + "</td>" +
       "<td>" + b + "</td>" +
-      "<td>" + (r.finished_at || "\u2014") + "</td>" +
+      "<td>" + (r.finished_at || "-") + "</td>" +
       "</tr>";
   }).join("");
 }
-document.addEventListener("DOMContentLoaded", function() { loadE2eKpiResults(); });
+document.addEventListener("DOMContentLoaded", function() { loadE2eKpiResults(); window.autoRefresh(loadE2eKpiResults, 30000); });

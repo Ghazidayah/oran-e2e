@@ -210,9 +210,9 @@ PY
   fi
   tail -80 "$OUT/validate-after-apply-${profile}.log"
 
-  tcp_mbps="—"
-  image_mbps="—"
-  ping_avg_ms="—"
+  tcp_mbps="-"
+  image_mbps="-"
+  ping_avg_ms="-"
   row_verdict="APPLY_ONLY"
 
   if [ "$RUN_KPI" = "1" ]; then
@@ -244,13 +244,13 @@ PY
       ping_avg_ms="$(awk -F= '/^ping_avg_ms=/{print $2}' "$OUT/kpi-row-${profile}.txt" | tail -1)"
       row_verdict="$(awk -F= '/^verdict=/{print $2}' "$OUT/kpi-row-${profile}.txt" | tail -1)"
 
-      if [ -n "$tcp_mbps" ] && [ "$tcp_mbps" != "—" ]; then
+      if [ -n "$tcp_mbps" ] && [ "$tcp_mbps" != "-" ]; then
         pass "$profile TCP KPI captured: $tcp_mbps Mbps"
       else
         warn "$profile TCP KPI not captured"
       fi
 
-      if [ -n "$image_mbps" ] && [ "$image_mbps" != "—" ]; then
+      if [ -n "$image_mbps" ] && [ "$image_mbps" != "-" ]; then
         pass "$profile image KPI captured: $image_mbps Mbps"
       else
         warn "$profile image KPI not captured"

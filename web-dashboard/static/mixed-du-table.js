@@ -27,48 +27,53 @@
     return data;
   }
 
+  function escapeText(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+
+  function toggleHalf(ue, du, current, switchable) {
+    var active = current === du;
+    var disabled = active || !switchable ? " disabled" : "";
+    return '<button type="button" class="du-toggle-btn' + (active ? " is-active" : "") + '"' +
+      ' aria-pressed="' + active + '"' + disabled +
+      ' data-ue="' + escapeText(ue) + '" data-target="' + du + '">' + du.toUpperCase() + "</button>";
+  }
+
   function renderUeRows(ues) {
-    var body = byId("mixedDuTableBody");
-    if (!body) return;
+    var grid = byId("mixedDuUeGrid");
+    if (!grid) return;
 
     if (!ues || !ues.length) {
-      body.innerHTML = '<tr><td colspan="6">No UE status returned.</td></tr>';
+      grid.innerHTML = '<p class="small">No UE status returned.</p>';
       return;
     }
 
-    body.innerHTML = ues.map(function (ue) {
+    grid.innerHTML = ues.map(function (ue) {
       var name = ue.name || "-";
-      var role = ue.protected ? "protected" : (ue.switchable ? "switchable" : "-");
-      var du = ue.du || "-";
-      var tunnel = ue.tunnel_ip || "-";
-      var pod = ue.pod || "-";
-
-      var disabled = ue.switchable ? "" : "disabled";
-      var actions =
-        '<button class="small-btn" ' + disabled + ' data-ue="' + name + '" data-target="du0">→ DU0</button> ' +
-        '<button class="small-btn" ' + disabled + ' data-ue="' + name + '" data-target="du1">→ DU1</button>';
-
+      var du = String(ue.du || "").toLowerCase();
+      var switchable = !!ue.switchable;
       return (
-        "<tr>" +
-        "<td>" + name + "</td>" +
-        "<td>" + role + "</td>" +
-        "<td>" + du + "</td>" +
-        "<td>" + tunnel + "</td>" +
-        "<td>" + pod + "</td>" +
-        "<td>" + actions + "</td>" +
-        "</tr>"
+        '<div class="du-card">' +
+        '<div class="du-card-name">' + escapeText(name) + "</div>" +
+        '<div class="du-toggle" role="group" aria-label="' + escapeText(name) + ' serving DU">' +
+        toggleHalf(name, "du0", du, switchable) +
+        toggleHalf(name, "du1", du, switchable) +
+        "</div></div>"
       );
     }).join("");
 
-    Array.prototype.forEach.call(body.querySelectorAll("button[data-ue]"), function (btn) {
+    Array.prototype.forEach.call(grid.querySelectorAll("button[data-ue]"), function (btn) {
       btn.addEventListener("click", function () {
         switchDu(btn.getAttribute("data-ue"), btn.getAttribute("data-target"));
       });
     });
   }
 
+  var hasData = false;
+
   async function refreshMixedDuStatus() {
-    setText("mixedDuOutput", "Refreshing Mixed-DU status...");
     try {
       var data = await jsonApi("/api/handover/mixed-du/status");
 
@@ -83,35 +88,29 @@
 
       setText("mixedDuOutput", lines.join("\n"));
       renderUeRows(data.ues || []);
+      hasData = true;
+      pollOk("du");
     } catch (e) {
-      setText("mixedDuOutput", "ERROR refreshing status:\n" + String(e));
+      pollFail("du");
+      if (!hasData) setText("mixedDuOutput", "ERROR refreshing status:\n" + String(e));
     }
-  }
-
-  // Grey out / re-enable every UE switch button (single-flight: one handover at a time).
-  function setSwitchButtonsDisabled(disabled) {
-    var btns = document.querySelectorAll("#mixedDuTableBody button[data-ue]");
-    Array.prototype.forEach.call(btns, function (b) {
-      // Keep buttons that are disabled for their own reason (non-switchable UE) disabled.
-      if (disabled) {
-        if (!b.hasAttribute("disabled")) { b.setAttribute("disabled", "disabled"); b.dataset.tempDisabled = "1"; }
-        b.style.opacity = "0.45";
-      } else {
-        if (b.dataset.tempDisabled === "1") { b.removeAttribute("disabled"); delete b.dataset.tempDisabled; }
-        b.style.opacity = "";
-      }
-    });
   }
 
   var _handoverInFlight = false;
 
+  // Single-flight: while one handover runs, the whole grid is greyed out and unclickable.
+  function setSwitching(on) {
+    var grid = byId("mixedDuUeGrid");
+    if (grid) grid.classList.toggle("is-switching", on);
+  }
+
   async function switchDu(ue, target) {
     if (_handoverInFlight) {
-      setText("mixedDuActionLog", "A handover is already in progress — please wait for it to finish.");
+      setText("mixedDuActionLog", "A handover is already in progress, please wait for it to finish.");
       return;
     }
     _handoverInFlight = true;
-    setSwitchButtonsDisabled(true);
+    setSwitching(true);
     setText("mixedDuActionLog", "Switching " + ue + " to " + target + " ... (other handovers disabled until this completes)");
     try {
       var data = await jsonApi("/api/handover/mixed-du/switch", {
@@ -136,38 +135,13 @@
       }
     } finally {
       _handoverInFlight = false;
-      setSwitchButtonsDisabled(false);
-    }
-  }
-
-  async function runMixedDuValidation() {
-    setText("mixedDuActionLog", "Running Mixed-DU validation...");
-    try {
-      var data = await jsonApi("/api/handover/mixed-du/run", {
-        method: "POST",
-        body: JSON.stringify({})
-      });
-
-      setText(
-        "mixedDuActionLog",
-        "Mixed-DU validation result:\n\n" + JSON.stringify(data, null, 2)
-      );
-
-      await refreshMixedDuStatus();
-    } catch (e) {
-      setText("mixedDuActionLog", "ERROR running validation:\n" + String(e));
+      setSwitching(false);
     }
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    var refreshBtn = byId("mixedDuRefreshBtn");
-    var runBtn = byId("mixedDuRunBtn");
-
-    if (refreshBtn) refreshBtn.addEventListener("click", refreshMixedDuStatus);
-    if (runBtn) runBtn.addEventListener("click", runMixedDuValidation);
-
-    if (byId("mixedDuTableBody")) {
-      refreshMixedDuStatus();
-    }
+    if (!byId("mixedDuUeGrid")) return;
+    refreshMixedDuStatus();
+    window.autoRefresh(refreshMixedDuStatus, 15000, function () { return _handoverInFlight; });
   });
 })();

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# recover-ue-sessions.sh — diagnose-first recovery after a core/CU event.
+# recover-ue-sessions.sh - diagnose-first recovery after a core/CU event.
 #
 # After an AMF/SMF/UPF/mongo/CU restart, PDU sessions are torn down. UEs usually
 # reattach on their own with NEW IPs, but some can strand a stale oaitun_ue1
@@ -65,13 +65,13 @@ smf_ip_for_imsi() {
 }
 
 echo "=================================================================="
-echo " UE SESSION RECOVERY — diagnose-first  (mode: $([ "$DO_FIX" = 1 ] && echo FIX || echo DRY-RUN))"
+echo " UE SESSION RECOVERY - diagnose-first  (mode: $([ "$DO_FIX" = 1 ] && echo FIX || echo DRY-RUN))"
 echo " RAN ns=$NS_RAN  CORE ns=$NS_CORE  DN gw=$DN_GW"
 echo "=================================================================="
 
 SMF_LOG="$(kubectl -n "$NS_CORE" logs "deploy/$SMF_DEPLOY" --tail="$SMF_LOG_TAIL" 2>/dev/null)"
 if [ -z "$SMF_LOG" ]; then
-  echo "WARN: could not read SMF log (deploy/$SMF_DEPLOY in $NS_CORE) — IP-match check will be skipped."
+  echo "WARN: could not read SMF log (deploy/$SMF_DEPLOY in $NS_CORE) - IP-match check will be skipped."
 fi
 
 UNHEALTHY=()
@@ -120,7 +120,7 @@ done
 
 echo
 if [ "${#UNHEALTHY[@]}" -eq 0 ]; then
-  echo "RESULT: all UEs healthy — no recovery needed."
+  echo "RESULT: all UEs healthy - no recovery needed."
   echo "VERDICT=ALL_HEALTHY"
   exit 0
 fi

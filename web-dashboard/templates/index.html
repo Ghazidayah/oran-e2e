@@ -17,14 +17,14 @@
     <a href="#radioProfileRoot">Radio/Mod</a>
     <a href="#realFrequencyRoot">Frequency</a>
     <a href="#section-e2e">E2E Scenarios</a>
-    <a href="#phase3RealSlicePanel">Slices</a>
+    <a href="#slicePanel">Slices</a>
     <a href="#section-pods">Pods</a>
     <a href="#section-live">Live Transfer</a>
     <a href="#mixedDuLowerHandoverSection">DU Handover</a>
     <a href="#section-multi-ue">Multi-UE</a>
   </div>
   <div class="topnav-actions">
-    <button onclick="reloadStatus()">Reload Status</button>
+    <button type="button" data-action="report">Evidence Report</button>
     <a id="grafanaLink" class="button secondary" target="_blank">Open Grafana</a>
   </div>
 </nav>
@@ -40,6 +40,7 @@
     <div class="card">
       <h3>RAN + UE</h3>
       <div id="ranMetric" class="metric">-</div>
+      <div class="small">CU-CP / CU-UP / DUs / UEs ready</div>
     </div>
 
     <div class="card">
@@ -55,61 +56,52 @@
     </div>
   </section>
 
-  
-<section class="panel handover-panel" id="radioProfileRoot">
-  <h3>Radio / Modulation Profile Control</h3>
-</section>
+<section class="panel handover-panel" id="radioProfileRoot"></section>
 
 <section class="panel" id="realFrequencyRoot">
-  <h2>Frequency Scenarios <span class="badge real">REAL carrier</span> <span class="badge emulated">EMULATED KPI</span></h2>
+  <h2>Frequency Scenarios <span class="badge real" title="The carrier frequency is actually retuned on the DU">REAL carrier</span> <span class="badge emulated" title="Throughput and latency are emulated with tc netem from the FSPL model, not measured over a real radio link">EMULATED KPI</span></h2>
 
-  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <div class="controls-row">
     <label for="realFreqSelect">Band profile:</label>
-    <select id="realFreqSelect" style="background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:var(--radius);padding:9px 10px;font-family:inherit;font-size:inherit;">
+    <select id="realFreqSelect">
+      <option value="n78-current">n78 3320 MHz (baseline)</option>
       <option value="n78-3500">n78 3500 MHz</option>
       <option value="n41-2600">n41 2600 MHz</option>
       <option value="n77-4174">n77 4174 MHz</option>
     </select>
     <button type="button" id="realFreqRunBtn">Run</button>
-    <button type="button" id="realFreqRefreshBtn">Refresh Status</button>
-    <button type="button" id="realFreqRestoreBtn">Restore n78-current</button>
   </div>
 
   <h4>Current DU Carrier Keys</h4>
   <pre id="realFreqSummary">Loading retune status...</pre>
 
-  <h3 style="margin-top:22px;">Scenario KPI Results <span class="badge real">REAL carrier</span> <span class="badge emulated">EMULATED KPI</span></h3>
+  <h3 class="mt-22">Scenario KPI Results <span class="badge real" title="The carrier frequency is actually retuned on the DU">REAL carrier</span> <span class="badge emulated" title="Throughput and latency are emulated with tc netem from the FSPL model, not measured over a real radio link">EMULATED KPI</span></h3>
   <div class="radio-table-wrap">
     <table class="radio-results">
       <thead>
         <tr>
           <th>Band</th>
-          <th>MHz <span class="badge real" style="font-size:9px;vertical-align:middle;">REAL</span></th>
-          <th>SSB / PointA <span class="badge real" style="font-size:9px;vertical-align:middle;">REAL</span></th>
-          <th>Attach <span class="badge real" style="font-size:9px;vertical-align:middle;">REAL</span></th>
+          <th>MHz <span class="badge real badge-xs" title="Real value applied to the DU">REAL</span></th>
+          <th>SSB / PointA <span class="badge real badge-xs" title="Real value applied to the DU">REAL</span></th>
+          <th>Attach <span class="badge real badge-xs" title="Real value applied to the DU">REAL</span></th>
           <th>ΔPL (dB)</th>
           <th>K</th>
           <th>Cap (Mbit)</th>
-          <th>Ping avg <span class="badge emulated" style="font-size:9px;vertical-align:middle;">EMU</span></th>
-          <th>Loss <span class="badge emulated" style="font-size:9px;vertical-align:middle;">EMU</span></th>
-          <th>TCP Mbps <span class="badge emulated" style="font-size:9px;vertical-align:middle;">EMU</span></th>
+          <th>Ping avg <span class="badge emulated badge-xs" title="Emulated with tc netem (FSPL model)">EMU</span></th>
+          <th>Loss <span class="badge emulated badge-xs" title="Emulated with tc netem (FSPL model)">EMU</span></th>
+          <th>TCP Mbps <span class="badge emulated badge-xs" title="Emulated with tc netem (FSPL model)">EMU</span></th>
           <th>Time</th>
         </tr>
       </thead>
       <tbody id="freqBandResultsBody">
-        <tr><td colspan="11">No runs yet — click a band button above to start.</td></tr>
+        <tr><td colspan="11">No runs yet. Click Run to start.</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h4 style="display:flex;align-items:center;gap:10px;">Logs
-    <button onclick="document.getElementById('realFreqLog').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
-  </h4>
+  <h4>Logs</h4>
   <pre id="realFreqLog">Ready.</pre>
 </section>
-
-
-
 
 <section class="card section" id="section-e2e">
   <h2>End-to-End UE Validation Scenarios</h2>
@@ -132,48 +124,46 @@
 
     <div>
       <h3>Image Download</h3>
-      <button onclick="runPhase2Traffic('image', this)">Run Image</button>
+      <button onclick="runTrafficScenario('image', this)">Run Image</button>
     </div>
 
     <div>
       <h3>iperf3 TCP Throughput</h3>
-      <button onclick="runPhase2Traffic('iperf-tcp', this)">Run TCP</button>
+      <button onclick="runTrafficScenario('iperf-tcp', this)">Run TCP</button>
     </div>
 
     <div>
       <h3>UDP Jitter / Loss</h3>
-      <button onclick="runPhase2Traffic('udp', this)">Run UDP</button>
+      <button onclick="runTrafficScenario('udp', this)">Run UDP</button>
     </div>
 
     <div>
       <h3>Video Download</h3>
-      <button onclick="runPhase2Traffic('video', this)">Run Video</button>
+      <button onclick="runTrafficScenario('video', this)">Run Video</button>
     </div>
 
     <div>
       <h3>Web Browsing</h3>
-      <button onclick="runPhase2Traffic('web', this)">Run Web</button>
+      <button onclick="runTrafficScenario('web', this)">Run Web</button>
     </div>
 
     <div>
       <h3>Streaming-like HLS</h3>
-      <button onclick="runPhase2Traffic('streaming', this)">Run Streaming</button>
+      <button onclick="runTrafficScenario('streaming', this)">Run Streaming</button>
     </div>
 
     <div>
       <h3>Run All Realistic Traffic</h3>
-      <button onclick="runPhase2Traffic('run-all', this)">Run All</button>
+      <button onclick="runTrafficScenario('run-all', this)">Run All</button>
     </div>
   </div>
 
-  <h4 style="display:flex;align-items:center;gap:10px;">Logs
-    <button onclick="document.getElementById('actionOutput').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
-  </h4>
+  <h4>Logs</h4>
   <pre id="actionOutput" class="multi-ue-output">Ready.</pre>
 
-  <h3 style="margin-top:22px">Scenario KPI Results <span class="badge real">REAL</span></h3>
+  <h3 class="mt-22">Scenario KPI Results <span class="badge real">REAL</span></h3>
   <div class="radio-table-wrap">
-    <table class="radio-results" id="e2eKpiTable">
+    <table class="radio-results">
       <thead>
         <tr>
           <th>Scenario</th>
@@ -190,12 +180,10 @@
       </tbody>
     </table>
   </div>
-  <button onclick="loadE2eKpiResults()" class="btn-sec">&#8634; Refresh Results</button>
 </section>
 
-<!-- PHASE3_REAL_SLICE_PANEL_START -->
-<section class="card section" id="phase3RealSlicePanel">
-  <h2>Real S-NSSAI Slice Traffic <span class="badge real">REAL admission</span> <span class="badge emulated">EMULATED QoS</span></h2>
+<section class="card section" id="slicePanel">
+  <h2>Real S-NSSAI Slice Traffic <span class="badge real" title="The S-NSSAI is really admitted by the core (AMF/SMF/UPF)">REAL admission</span> <span class="badge emulated" title="Per-slice throughput limits are emulated with tc, not scheduled by the RAN">EMULATED QoS</span></h2>
 
   <div class="grid cards">
     <div>
@@ -215,14 +203,12 @@
 
   </div>
 
-  <h4 style="display:flex;align-items:center;gap:10px;">Logs
-    <button onclick="document.getElementById('phase3RealSliceOutput').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
-  </h4>
-  <pre id="phase3RealSliceOutput" class="multi-ue-output">Ready.</pre>
+  <h4>Logs</h4>
+  <pre id="sliceOutput" class="multi-ue-output">Ready.</pre>
 
-  <h3 style="margin-top:22px">Slice Run Results <span class="badge real">REAL</span> <span class="badge emulated">EMULATED QoS</span></h3>
+  <h3 class="mt-22">Slice Run Results <span class="badge real">REAL</span> <span class="badge emulated">EMULATED QoS</span></h3>
   <div class="radio-table-wrap">
-    <table class="radio-results" id="sliceResultsTable">
+    <table class="radio-results">
       <thead>
         <tr>
           <th>Slice</th>
@@ -240,36 +226,36 @@
       </tbody>
     </table>
   </div>
-  <button onclick="loadSliceResults()" class="btn-sec">↺ Refresh Results</button>
 </section>
-<!-- PHASE3_REAL_SLICE_PANEL_END -->
-
-
 
   <section class="grid two section" id="section-pods">
     <div class="card">
       <h3>RAN Pods</h3>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr><th>Pod</th><th>Ready</th><th>IP</th><th>Restarts</th></tr>
         </thead>
         <tbody id="ranTable"></tbody>
       </table>
+      </div>
     </div>
 
     <div class="card">
       <h3>Core Pods</h3>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr><th>Pod</th><th>Ready</th><th>IP</th><th>Restarts</th></tr>
         </thead>
         <tbody id="coreTable"></tbody>
       </table>
+      </div>
     </div>
   </section>
   <section class="card section" id="section-live">
     <h2>Real-Time Multi-UE Data Transfer</h2>
-    <canvas id="trafficCanvas" width="1000" height="380"></canvas>
+    <canvas id="trafficCanvas" width="1000" height="220"></canvas>
     <div class="grid cards section">
       <div class="card">
         <h3>Total Download RX</h3>
@@ -290,59 +276,29 @@
     </div>
     <table class="live-metrics-table">
       <thead>
-        <tr><th>UE</th><th>Tunnel IP</th><th>RX Mbps</th><th>TX Mbps</th><th>RX/TX bytes</th></tr>
+        <tr><th>UE</th><th>RX Mbps</th><th>TX Mbps</th></tr>
       </thead>
       <tbody id="liveMetricsTableBody">
-        <tr><td colspan="5">Waiting for metrics...</td></tr>
+        <tr><td colspan="3">Waiting for metrics...</td></tr>
       </tbody>
     </table>
   </section>
 
-
-
-<!-- MULTI_UE_UI_BLOCK_START -->
-
-
-
 <section class="card section" id="mixedDuLowerHandoverSection">
   <h2>DU Continuity / Handover</h2>
 
-  <div class="buttons" style="margin: 12px 0;">
-    <button type="button" id="mixedDuRefreshBtn">Refresh DU Status</button>
-    <button type="button" id="mixedDuRunBtn">Run Mixed-DU Validation</button>
-  </div>
+  <pre id="mixedDuOutput" class="handover-output handover-summary">Ready.</pre>
 
-  <pre id="mixedDuOutput" class="handover-output" style="min-height:0;max-height:none;">Ready.</pre>
+  <div id="mixedDuUeGrid" class="du-grid"><p class="small">Loading...</p></div>
 
-  <div style="overflow-x:auto; margin-top: 12px;">
-    <table style="width:100%; border-collapse: collapse;">
-      <thead>
-        <tr>
-          <th style="text-align:left; padding:8px;">UE</th>
-          <th style="text-align:left; padding:8px;">Role</th>
-          <th style="text-align:left; padding:8px;">DU</th>
-          <th style="text-align:left; padding:8px;">Tunnel</th>
-          <th style="text-align:left; padding:8px;">Pod</th>
-          <th style="text-align:left; padding:8px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="mixedDuTableBody">
-        <tr><td colspan="6">Loading...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <h4 style="display:flex;align-items:center;gap:10px;margin-top:14px;">Logs
-    <button onclick="document.getElementById('mixedDuActionLog').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
-  </h4>
+  <h4 class="mt-14">Logs</h4>
   <pre id="mixedDuActionLog" class="handover-output">Ready.</pre>
 </section>
-
 
 <section class="multi-ue-card" id="section-multi-ue">
   <div class="multi-ue-header">
     <div>
-      <h2>Multi-UE Control — eMBB Parallel Realistic Scenarios</h2>
+      <h2>Multi-UE Control: eMBB Parallel Realistic Scenarios</h2>
       <div id="multiUeSummary">Loading UE status...</div>
     </div>
 
@@ -356,7 +312,6 @@
         <option value="5">5 UEs</option>
       </select>
       <button type="button" data-multi-ue-button="true" data-multi-ue-mode-control="true" onclick="applyDesiredUes()">Apply</button>
-      <button type="button" data-multi-ue-button="true" data-multi-ue-refresh="true" onclick="refreshMultiUes()">Refresh</button>
       <button type="button" data-multi-ue-button="true" onclick="runSelectedUeScenarios()">Run selected scenarios</button>
     </div>
   </div>
@@ -385,37 +340,20 @@
   </table>
 
   <div id="multiUeScenarioSummary" class="multi-ue-scenario-summary"></div>
-  <h4 style="display:flex;align-items:center;gap:10px;margin-top:18px;">Per-UE Logs
-    <button onclick="document.getElementById('multiUeOutput').textContent='Ready.'" class="btn-sec btn-sec-sm">Clear Logs</button>
-  </h4>
+  <h4 class="mt-18">Per-UE Logs</h4>
   <pre id="multiUeOutput" class="multi-ue-output">Ready.</pre>
 </section>
-<!-- MULTI_UE_UI_BLOCK_END -->
 
 </main>
 <!-- dashboard-action-feedback-script:start -->
 <!-- dashboard-action-feedback-script:end -->
 
-
-
-
-
-<!-- UE_SCENARIO_FRONTEND_START -->
-<!-- UE_SCENARIO_FRONTEND_END -->
-
-
-<!-- UE_SCENARIO_LAYOUT_INTERACTION_START -->
-<!-- UE_SCENARIO_LAYOUT_INTERACTION_END -->
-
-
-<!-- UE_SCENARIO_INTERACTIVE_BUTTONS_START -->
-<!-- UE_SCENARIO_INTERACTIVE_BUTTONS_END -->
-
+  <script src="{{ url_for('static', filename='auto-refresh.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-status-live.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-multi-ue.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-inline.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-ui-feedback.js') }}"></script>
-  <script src="{{ url_for('static', filename='mixed-du-handover.js') }}"></script>
+  <script src="{{ url_for('static', filename='radio-profile.js') }}"></script>
   <script src="{{ url_for('static', filename='mixed-du-table.js') }}"></script>
   <script src="{{ url_for('static', filename='real-frequency.js') }}"></script>
 </body>

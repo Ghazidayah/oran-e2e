@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# test-all-scenarios.sh — run every Phase-2 realistic-traffic scenario in sequence
-# against the traffic API (:5055) and print each result. Read-only w.r.t. the
+# test-traffic-scenarios.sh - run every Phase-2 realistic-traffic scenario in sequence
+# against the traffic API (dashboard :18080) and print each result. Read-only w.r.t. the
 # cluster (scenarios only generate traffic through the UE tunnel). Safe to re-run.
 #
 # Usage:
-#   scripts/traffic/test-all-scenarios.sh            # individual scenarios (skip run-all)
-#   scripts/traffic/test-all-scenarios.sh --with-all # also run the bundled run-all suite
-#   scripts/traffic/test-all-scenarios.sh --only run-all
+#   tools/test-traffic-scenarios.sh            # individual scenarios (skip run-all)
+#   tools/test-traffic-scenarios.sh --with-all # also run the bundled run-all suite
+#   tools/test-traffic-scenarios.sh --only run-all
 
 set -uo pipefail
 
-API="${TRAFFIC_API:-http://127.0.0.1:5055}"
+API="${TRAFFIC_API:-http://127.0.0.1:18080}"
 REPO="${REPO:-$HOME/oran-e2e}"
 POLL_MAX="${POLL_MAX:-120}"
 POLL_INT=3
@@ -29,14 +29,12 @@ done
 [ -n "$ONLY" ] && SCENARIOS=("$ONLY")
 
 if ! curl -s -o /dev/null --max-time 3 "$API/api/traffic/health"; then
-  echo ">> Traffic API not responding at $API — starting it..."
-  "$REPO/scripts/traffic/start-traffic-api.sh" >/dev/null 2>&1
-  sleep 4
+  echo ">> Traffic API not responding at $API (it is served by the dashboard)."
 fi
 health="$(curl -s --max-time 5 "$API/api/traffic/health")"
 if [ -z "$health" ]; then
-  echo "FATAL: traffic API still not reachable at $API. Start it manually:"
-  echo "  ./scripts/traffic/start-traffic-api.sh"
+  echo "FATAL: traffic API not reachable at $API. Start the dashboard:"
+  echo "  ./scripts/run-web-dashboard.sh"
   exit 1
 fi
 echo "Traffic API health: $health"
@@ -84,7 +82,7 @@ print('\n'.join('  '+l for l in out.strip().splitlines()[-25:]))" 2>/dev/null
     esac
   done
   RESULT_STATUS[$s]="still-running"
-  echo "  STILL RUNNING after poll window — check $API/api/traffic/jobs/$jid"
+  echo "  STILL RUNNING after poll window - check $API/api/traffic/jobs/$jid"
   echo
 }
 

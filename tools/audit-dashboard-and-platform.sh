@@ -4,7 +4,7 @@ set -u
 REPO="${REPO:-$HOME/oran-e2e}"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 BASE="http://127.0.0.1:${PORT}"
-TRAFFIC_API="${TRAFFIC_API:-http://127.0.0.1:5055}"
+TRAFFIC_API="${TRAFFIC_API:-http://127.0.0.1:18080}"
 
 TS="$(date +%Y%m%d-%H%M%S)"
 OUT="$HOME/oran-proof/full-platform-dashboard-audit/$TS"
@@ -76,11 +76,11 @@ required_files=(
   "web-dashboard/radio_profile_api.py"
   "web-dashboard/mixed_du_handover_api.py"
   "web-dashboard/multi_ue_api.py"
-  "web-dashboard/static/mixed-du-handover.js"
+  "web-dashboard/static/radio-profile.js"
   "web-dashboard/static/mixed-du-table.js"
   "web-dashboard/static/dashboard-multi-ue.js"
   "scripts/validate-e2e.sh"
-  "scripts/traffic/traffic_api_server.py"
+  "web-dashboard/traffic_scenarios_api.py"
   "scripts/handover/switch-ue-du-target.sh"
 )
 
@@ -101,7 +101,7 @@ run_check "Python dashboard modules compile" python3 -m py_compile \
 
 if command -v node >/dev/null 2>&1; then
   for js in \
-    web-dashboard/static/mixed-du-handover.js \
+    web-dashboard/static/radio-profile.js \
     web-dashboard/static/mixed-du-table.js \
     web-dashboard/static/dashboard-multi-ue.js \
     web-dashboard/static/dashboard-inline.js \
@@ -115,8 +115,6 @@ fi
 
 for sh in \
   scripts/validate-e2e.sh \
-  scripts/traffic/start-traffic-api.sh \
-  scripts/traffic/stop-traffic-api.sh \
   scripts/handover/switch-ue-du-target.sh
 do
   [ -f "$sh" ] && run_check "bash syntax: $sh" bash -n "$sh"
@@ -162,7 +160,7 @@ else
   if [ -n "${PIDS:-}" ]; then
     fail "Port $PORT is already used by PID(s): $PIDS, but dashboard did not answer correctly"
   else
-    nohup env ORAN_DASHBOARD_PORT="$PORT" ./run-web-dashboard.sh > "$OUT/dashboard-start.log" 2>&1 &
+    nohup env ORAN_DASHBOARD_PORT="$PORT" ./scripts/run-web-dashboard.sh > "$OUT/dashboard-start.log" 2>&1 &
     sleep 5
     if curl -fsS --max-time 10 "$BASE/" > "$OUT/page.html"; then
       pass "Dashboard started and reachable"
@@ -181,13 +179,13 @@ from pathlib import Path
 html = Path(sys.argv[1]).read_text(errors="ignore")
 
 checks = [
-    ("Radio / Modulation Profile Control", ["Radio / Modulation Profile Control", "Radio Profile Results / Comparison", "Radio Profile Logs"]),
+    ("Radio / Modulation Profile", ["radioProfileRoot", "Radio / Modulation Profile Control"]),
+    ("Frequency scenarios", ["realFrequencyRoot", "Frequency Scenarios", "Run"]),
     ("End-to-End UE Validation Scenarios", ["End-to-End UE Validation Scenarios", "Run Connectivity", "Run All"]),
-    ("Real S-NSSAI Slice Traffic - Phase 3", ["Real S-NSSAI Slice Traffic - Phase 3", "Run eMBB Slice", "Run URLLC Slice", "Run mMTC Slice"]),
+    ("Slice traffic", ["slicePanel", "Run eMBB Slice", "Run URLLC Slice", "Run mMTC Slice"]),
     ("RAN/Core pods tables", ["RAN Pods", "Core Pods"]),
     ("Real-Time Multi-UE Data Transfer", ["Real-Time Multi-UE Data Transfer", "Total Download RX", "Active UE Metrics"]),
-    ("Evidence panels", ["Latest Action Output", "Recent Evidence Runs"]),
-    ("Lower Mixed-DU handover table", ["mixedDuLowerHandoverSection", "Refresh DU Status", "Run Mixed-DU Validation", "mixedDuTableBody"]),
+    ("Lower Mixed-DU handover grid", ["mixedDuLowerHandoverSection", "mixedDuUeGrid"]),
     ("Multi-UE Control eMBB", ["Multi-UE Control", "eMBB Parallel Realistic Scenarios", "Run selected scenarios"]),
 ]
 
@@ -229,7 +227,7 @@ else
 fi
 
 section "6. STATIC FILES SERVED"
-curl_save "mixed-du-handover.js served" "$BASE/static/mixed-du-handover.js" "$OUT/mixed-du-handover.js" || true
+curl_save "radio-profile.js served" "$BASE/static/radio-profile.js" "$OUT/radio-profile.js" || true
 curl_save "mixed-du-table.js served" "$BASE/static/mixed-du-table.js" "$OUT/mixed-du-table.js" || true
 curl_save "dashboard-multi-ue.js served" "$BASE/static/dashboard-multi-ue.js" "$OUT/dashboard-multi-ue.js" || true
 
@@ -320,7 +318,7 @@ if curl -fsS --max-time 8 "$TRAFFIC_API/api/traffic/health" > "$OUT/traffic-api-
   pass "Traffic API reachable at $TRAFFIC_API"
   cat "$OUT/traffic-api-health.json"
 else
-  warn "Traffic API not reachable at $TRAFFIC_API; traffic buttons may fail until scripts/traffic/start-traffic-api.sh is running"
+  warn "Traffic API not reachable at $TRAFFIC_API; traffic buttons may fail until the dashboard is running (./scripts/run-web-dashboard.sh)"
 fi
 
 section "10. KUBERNETES READ-ONLY PLATFORM CHECKS"
@@ -356,7 +354,7 @@ fi
 section "11. OPTIONAL VALIDATE-E2E"
 echo "Skipped by default to keep this first audit light."
 echo "To run it later:"
-echo "  RUN_E2E=1 scripts/dashboard/audit-dashboard-and-platform.sh"
+echo "  RUN_E2E=1 tools/audit-dashboard-and-platform.sh"
 
 if [ "${RUN_E2E:-0}" = "1" ]; then
   section "11B. RUNNING validate-e2e.sh"

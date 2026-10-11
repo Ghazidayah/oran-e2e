@@ -148,9 +148,7 @@ fi
 for marker in \
   "mixedDuLowerHandoverSection" \
   "DU Continuity / Handover" \
-  "Refresh DU Status" \
-  "Run Mixed-DU Validation" \
-  "mixedDuTableBody"
+  "mixedDuUeGrid"
 do
   if grep -q "$marker" "$OUT/dashboard.html"; then
     pass "handover UI marker present: $marker"

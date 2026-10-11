@@ -48,7 +48,7 @@ for i in $(seq 1 "$SAMPLES"); do
   fi
 done
 
-[ "${#vals[@]}" -ge 1 ] || { echo "[FAIL] aucune mesure valide — plafond non mis à jour."; exit 1; }
+[ "${#vals[@]}" -ge 1 ] || { echo "[FAIL] aucune mesure valide - plafond non mis à jour."; exit 1; }
 
 CEIL="$(printf '%s\n' "${vals[@]}" | sort -n | awk '{a[NR]=$1} END{print int(a[int((NR+1)/2)])}')"
 [ "$CEIL" -ge 1 ] 2>/dev/null || { echo "[FAIL] médiane invalide ($CEIL)."; exit 1; }

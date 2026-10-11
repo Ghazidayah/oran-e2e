@@ -11,7 +11,7 @@
 #   B. Infrastructure     - pods Running, 5GC SBI health (the cold-start gremlins:
 #                           reject[9], SCP "No route", AMF NF discovery),
 #                           NGAP (CU-CP<->AMF), E1 (CU-CP<->CU-UP), F1 (DU<->CU-CP),
-#                           5/5 UE tunnels, dashboard :18080, traffic API :5055
+#                           5/5 UE tunnels, dashboard + traffic API :18080
 #   C. Capabilities       - the repo's own 7 dashboard test-sections (01..07):
 #                           baseline e2e, realistic traffic, real slices,
 #                           radio/modulation profiles, multi-UE eMBB,
@@ -35,7 +35,7 @@ REPO="${REPO:-$HOME/oran-e2e}"
 CORE_NS="oran-core"
 RAN_NS="oran-ran"
 DASH_PORT="${ORAN_DASHBOARD_PORT:-18080}"
-TRAFFIC_PORT="${ORAN_TRAFFIC_API_PORT:-5055}"
+TRAFFIC_PORT="${ORAN_TRAFFIC_API_PORT:-$DASH_PORT}"   # served by the dashboard itself
 SECTION_TIMEOUT="${SECTION_TIMEOUT:-1800}"
 FREQ_TIMEOUT="${FREQ_TIMEOUT:-420}"
 SKIP_SECTIONS="${SKIP_SECTIONS:-}"
@@ -82,13 +82,13 @@ say "============================================================"
 hr; say "A. PREFLIGHT"
 if ! command -v kubectl >/dev/null 2>&1; then
   record "preflight: kubectl present" FAIL "kubectl not found in PATH"
-  say "FATAL: kubectl missing — cannot continue."; exit 2
+  say "FATAL: kubectl missing - cannot continue."; exit 2
 fi
 record "preflight: kubectl present" PASS ""
 
 if ! kubectl get ns "$CORE_NS" >/dev/null 2>&1 || ! kubectl get ns "$RAN_NS" >/dev/null 2>&1; then
   record "preflight: namespaces exist" FAIL "missing $CORE_NS or $RAN_NS"
-  say "FATAL: core/ran namespaces missing — is the platform deployed?"; exit 2
+  say "FATAL: core/ran namespaces missing - is the platform deployed?"; exit 2
 fi
 record "preflight: namespaces exist" PASS ""
 
@@ -101,7 +101,7 @@ record "preflight: repo dir" PASS "$REPO"
 # platform must be up; we test, we do not start it
 if ! ready "$CORE_NS" open5gs-amf || ! ready "$RAN_NS" oai-cu-cp; then
   record "preflight: platform up" FAIL "AMF or CU-CP not Ready"
-  say "FATAL: platform is not up. Run: bash scripts/platform-start.sh  (then re-run this test)."
+  say "FATAL: platform is not up. Run: bash ./platform-start.sh  (then re-run this test)."
   exit 2
 fi
 record "preflight: platform up" PASS ""
@@ -185,8 +185,8 @@ fi
 # B8. dashboard + traffic API reachable
 if command -v curl >/dev/null 2>&1; then
   curl -fsS --max-time 6 "http://127.0.0.1:${DASH_PORT}/" >/dev/null 2>&1 \
-    && record "infra: dashboard :$DASH_PORT" PASS "" || record "infra: dashboard :$DASH_PORT" WARN "not reachable (start with run-web-dashboard.sh)"
-  # The traffic API has no route at "/"; probe its real health endpoint. Also accept any HTTP
+    && record "infra: dashboard :$DASH_PORT" PASS "" || record "infra: dashboard :$DASH_PORT" WARN "not reachable (start with scripts/run-web-dashboard.sh)"
+  # The traffic API is a dashboard blueprint; probe its real health endpoint. Also accept any HTTP
   # response (even 404) as "listening", since a reply means the service is up.
   t_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 6 "http://127.0.0.1:${TRAFFIC_PORT}/api/traffic/health" 2>/dev/null)
   if [ "${t_code:-000}" != "000" ]; then
@@ -238,7 +238,7 @@ run_section() {
   elif [ -n "$verdict" ]; then
     record "$label" FAIL "$detail ($verdict)"
   else
-    record "$label" FAIL "no VERDICT line (rc=$rc, $detail) — see $log"
+    record "$label" FAIL "no VERDICT line (rc=$rc, $detail) - see $log"
   fi
 }
 
@@ -263,12 +263,12 @@ else
     if grep -qE "VERDICT=ACTUAL_FREQUENCY_RETUNE_.*_PASS" "$log"; then
       record "frequency: $band" PASS "$(grep -E '^PASS=' "$log" | tail -1)"
     else
-      record "frequency: $band" FAIL "no PASS verdict — see $log"
+      record "frequency: $band" FAIL "no PASS verdict - see $log"
     fi
   done
   # restore baseline carrier
   ( cd "$REPO" && timeout "$FREQ_TIMEOUT" bash "$FREQ" n78-current ) >"$OUT/freq-restore.log" 2>&1 \
-    && say "   (restored baseline n78-current)" || say "   [warn] baseline restore had issues — see freq-restore.log"
+    && say "   (restored baseline n78-current)" || say "   [warn] baseline restore had issues - see freq-restore.log"
 fi
 
 # =============================================================================
@@ -288,7 +288,7 @@ say "------------------------------------------------------------"
 say " TOT|  PASS=$np  FAIL=$nf  WARN=$nw  SKIP=$ns"
 say "------------------------------------------------------------"
 if [ "$nf" -gt 0 ]; then
-  say " OVERALL: FAIL  ($nf failing checks — see logs in $OUT)"
+  say " OVERALL: FAIL  ($nf failing checks - see logs in $OUT)"
   say ""
   say " Failing items:"
   for i in "${!RESULT_NAMES[@]}"; do
@@ -296,10 +296,10 @@ if [ "$nf" -gt 0 ]; then
   done
   RC=1
 elif [ "$nw" -gt 0 ]; then
-  say " OVERALL: PASS WITH WARNINGS ($nw warnings — usually mid-attach timing or optional services)"
+  say " OVERALL: PASS WITH WARNINGS ($nw warnings - usually mid-attach timing or optional services)"
   RC=0
 else
-  say " OVERALL: PASS — every layer and capability green."
+  say " OVERALL: PASS - every layer and capability green."
   RC=0
 fi
 say ""

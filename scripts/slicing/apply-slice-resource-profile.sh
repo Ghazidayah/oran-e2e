@@ -30,7 +30,7 @@ REPO="${REPO:-$HOME/oran-e2e}"
 source "$REPO/scripts/ue/ue-common.sh"
 
 # Plafond = débit UL TCP non-capped, AUTO-MESURE par scripts/traffic/measure-ceiling.sh
-# (UE1 isolé, ~36 le 2026-06-30). rate = PCT % du plafond. eMBB 100% (~plafond, non
+# (UE1 isolé, ~36). rate = PCT % du plafond. eMBB 100% (~plafond, non
 # façonné) ; URLLC 3% et mMTC 0.1% MORDENT. Fallback 33 = filet de sécurité seulement.
 CEILING_MBIT="${CEILING_MBIT:-$(cat $HOME/oran-proof/ceiling-mbit.txt 2>/dev/null || echo 33)}"
 

@@ -11,7 +11,6 @@ radio_bp = Blueprint("radio_profile", __name__)
 
 REPO = Path(os.environ.get("ORAN_REPO", Path.home() / "oran-e2e"))
 RESULTS_FILE = REPO / "web-dashboard" / "radio-profile-results.json"
-LOG_ROOT = Path.home() / "oran-proof"
 
 PROFILE_MCS = {
     "scheduler-auto":   {"max_mcs": "none", "qm": "adaptive", "mod": "adaptive AMC (reaches 64QAM under load)"},
@@ -21,7 +20,7 @@ PROFILE_MCS = {
 }
 
 REFERENCE_ROWS = [
-    {"profile": "scheduler-auto",   "max_mcs": "none", "modulation": "adaptive → 64QAM",        "tcp_mbps": "~30",  "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
+    {"profile": "scheduler-auto",   "max_mcs": "none", "modulation": "adaptive (up to 64QAM)",        "tcp_mbps": "~30",  "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
     {"profile": "qpsk-robust",      "max_mcs": "4",    "modulation": "QPSK (Qm 2, forced)",      "tcp_mbps": "~6.7", "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
     {"profile": "qam16-balanced",   "max_mcs": "13",   "modulation": "16QAM (Qm 4, forced)",     "tcp_mbps": "~17.7","ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
     {"profile": "qam64-throughput", "max_mcs": "28",   "modulation": "64QAM (Qm 6, forced)",     "tcp_mbps": "~30",  "ping_avg_ms": "~71", "retransmits": "low", "verdict": "VALIDATED", "source": "modulation-scenarios-validation.md"},
@@ -90,10 +89,10 @@ def _parse_kpis(text, profile):
         "profile": profile,
         "max_mcs": PROFILE_MCS.get(profile, {}).get("max_mcs", "unknown"),
         "modulation": PROFILE_MCS.get(profile, {}).get("mod", "unknown"),
-        "tcp_mbps": "—",
-        "retransmits": "—",
-        "ping_avg_ms": "—",
-        "image_mbps": "—",
+        "tcp_mbps": "-",
+        "retransmits": "-",
+        "ping_avg_ms": "-",
+        "image_mbps": "-",
         "verdict": "UNKNOWN",
     }
 
@@ -200,7 +199,7 @@ def radio_kpi_test():
         return jsonify({"ok": False, "error": f"Only ue1 is supported, got: {ue}"}), 400
 
     # Clean in-network KPI ping to the UPF DN gateway (validate-e2e.sh pings
-    # 8.8.8.8 over the internet, ~70-300ms noise — useless for comparing
+    # 8.8.8.8 over the internet, ~70-300ms noise - useless for comparing
     # profiles). The headline throughput is the DOWNLINK image transfer, since
     # the forced-MCS effect is on DL (the validated 7/17.7/30 ladder is DL);
     # iperf UL stays ~17 regardless of profile and is kept as a secondary col.
@@ -231,22 +230,6 @@ def radio_restore():
     _save_row(row)
 
     return jsonify({"ok": r["ok"], "profile": "scheduler-auto", "row": row, "log": r["output"]})
-
-
-@radio_bp.get("/logs")
-def radio_logs():
-    r = _run(
-        """
-LATEST="$(find "$HOME/oran-proof" -maxdepth 2 -type f \\( -name 'run.log' -o -name 'verdict.txt' -o -name 'summary.txt' -o -name 'output.txt' \\) 2>/dev/null | sort | tail -n 10)"
-for f in $LATEST; do
-  echo "===== $f ====="
-  tail -n 100 "$f"
-  echo
-done
-""",
-        timeout=80,
-    )
-    return jsonify({"ok": r["ok"], "log": r["output"]})
 
 
 @radio_bp.get("/results")

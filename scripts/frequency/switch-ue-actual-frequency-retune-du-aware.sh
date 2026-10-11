@@ -127,7 +127,7 @@ profile_values(){
       ;;
 
     n41-2600)
-      # VALIDATED 2026-06-04.
+      # Validated carrier.
       # 2600 MHz-class Band 41 profile using OAI known 106PRB values.
       # SSB = 2593.35 MHz, PointA = 2574.27 MHz.
       # Requires UE --band 41 + -C 2593350000 + --ssb 516.
@@ -221,6 +221,16 @@ status_report(){
   echo "--- UE1 args ---"
   kubectl -n "$NS" get deploy "$UE_DEPLOY" -o jsonpath='{.spec.template.spec.containers[0].args}' || true
   echo
+
+  echo
+  echo "--- UE1 tunnel ---"
+  local ue_pod
+  ue_pod="$(kubectl -n "$NS" get pod -l app=oai-nr-ue --field-selector=status.phase=Running -o jsonpath='{.items[-1:].metadata.name}' 2>/dev/null || true)"
+  if [ -n "${ue_pod:-}" ] && kubectl -n "$NS" exec "$ue_pod" -- ip addr show oaitun_ue1 >/dev/null 2>&1; then
+    echo "TUNNEL_READY=yes"
+  else
+    echo "TUNNEL_READY=no"
+  fi
 }
 
 patch_du_cm(){
@@ -353,6 +363,7 @@ wait_ue_tunnel(){
       echo "UE_POD=$pod" | tee "$PROOF_DIR/after/ue-pod.txt"
       kubectl -n "$NS" exec "$pod" -- ip addr show oaitun_ue1 | tee "$PROOF_DIR/after/oaitun_ue1.txt"
       kubectl -n "$NS" exec "$pod" -- ip route | tee "$PROOF_DIR/after/ip-route.txt"
+      echo "TUNNEL_READY=yes"
       pass "UE1 tunnel ready"
       return 0
     fi

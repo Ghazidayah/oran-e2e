@@ -142,28 +142,21 @@ let desiredUeCountUserEdited = false;
             </tr>
           `;
         }).join('')
-      : '<tr><td colspan="9">No scenario runs yet — run scenarios to populate.</td></tr>';
+      : '<tr><td colspan="9">No scenario runs yet. Run scenarios to populate.</td></tr>';
 
     const rawBlocks = results.map((result) =>
       `===== ${result.ue || '-'} | ${scenarioNameForRow(data, result)} | ${result.ok ? 'OK' : 'FAILED'} =====\n${result.output || ''}`
     ).join('\n\n');
 
-    const skipped = Array.isArray(data.skipped) && data.skipped.length
-      ? `<span>Skipped: ${escapeHtml(data.skipped.length)}</span>`
-      : '';
+    const skippedCount = Array.isArray(data.skipped) ? data.skipped.length : 0;
+    const skipped = skippedCount ? `<p class="warn">Skipped: ${escapeHtml(skippedCount)} UE(s)</p>` : '';
 
     const headerMeta = results.length ? `
       <div class="scenario-result-title">
         <h3>${escapeHtml(scenarioTitle)}</h3>
         <span class="scenario-status ${statusClass}">${statusText}</span>
       </div>
-      <div class="scenario-result-meta">
-        <span>Mode: ${escapeHtml(data.mode || 'global')}</span>
-        <span>Parallel: ${data.parallel ? 'yes' : 'no'}</span>
-        <span>Selected UEs: ${escapeHtml((data.selected_ues || []).join(', ') || '-')}</span>
-        <span>Selected count: ${escapeHtml(fallbackValue(data.selected_count, results.length))}</span>
-        ${skipped}
-      </div>` : '';
+      ${skipped}` : '';
 
     panel.innerHTML = `
       ${headerMeta}
@@ -195,6 +188,8 @@ let desiredUeCountUserEdited = false;
     return n + ' B';
   }
 
+  let hasMultiUeData = false;
+
   async function refreshMultiUes(isRetry = false) {
     try {
       const response = await fetch('/api/ues');
@@ -209,10 +204,9 @@ let desiredUeCountUserEdited = false;
         return;
       }
 
-      const updatedAt = new Date().toLocaleTimeString();
       summary.textContent = f1ModeActiveForMultiUe
-        ? `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running - Multi-UE disabled in F1 mode — updated ${updatedAt}`
-        : `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running — updated ${updatedAt}`;
+        ? `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running - Multi-UE disabled in F1 mode`
+        : `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running`;
 
       const desiredSelect = document.getElementById('desiredUeCount');
       if (
@@ -244,7 +238,7 @@ let desiredUeCountUserEdited = false;
             <td>${bytes}</td>
             <td>
               <div class="multi-ue-actions">
-                <button data-multi-ue-button="true" data-locked="${ue.ready ? "true" : "false"}" ${startDisabled} onclick="startUe('${ue.name}')">${ue.ready ? "Running" : "Start"}</button>
+                <button data-multi-ue-button="true" data-locked="${ue.ready ? "true" : "false"}" ${startDisabled} onclick="startUe('${ue.name}')">Start</button>
                 <button data-multi-ue-button="true" data-locked="${(ue.name === "ue1" || !ue.ready) ? "true" : "false"}" ${stopDisabled} title="${ue.name === "ue1" ? "UE1 is the baseline UE; stop is disabled in the UI." : "Scale this UE deployment to zero."}" onclick="stopUe('${ue.name}')">Stop</button>
                 <button data-multi-ue-button="true" data-locked="${ue.attached ? "false" : "true"}" ${pingDisabled} title="Test this UE PDU tunnel." onclick="pingUe('${ue.name}')">Ping</button>
               </div>
@@ -254,19 +248,24 @@ let desiredUeCountUserEdited = false;
       }).join('');
 
       setMultiUeBusy(false);
+      hasMultiUeData = true;
+      pollOk("multi-ue");
 
-      // A previous transient failure may have left an error in the output box — clear it.
+      // A previous transient failure may have left an error in the output box - clear it.
       const outEl = document.getElementById('multiUeOutput');
       if (outEl && outEl.textContent.startsWith('Failed to refresh UEs')) {
         setMultiUeOutput('Ready.');
       }
     } catch (error) {
-      // Transient failures happen during dashboard restarts — retry once before alarming.
+      // Transient failures happen during dashboard restarts - retry once before alarming.
       if (!isRetry) {
         await new Promise((r) => setTimeout(r, 2000));
         return refreshMultiUes(true);
       }
-      setMultiUeOutput(`Failed to refresh UEs: ${error} — retried once; is the dashboard up?`);
+      pollFail("multi-ue");
+      if (!hasMultiUeData) {
+        setMultiUeOutput(`Failed to refresh UEs: ${error}, retried once. Is the dashboard up?`);
+      }
     }
   }
 
@@ -310,11 +309,6 @@ let desiredUeCountUserEdited = false;
         scenario: select.value
       }))
       .filter((job) => job.ue && job.scenario && job.scenario !== 'none');
-  }
-
-  function extractScenarioValue(text, pattern) {
-    const match = String(text || '').match(pattern);
-    return match ? match[1] : '';
   }
 
   async function runSelectedUeScenarios() {
@@ -397,5 +391,3 @@ let desiredUeCountUserEdited = false;
     .then((data) => { if (!data.empty) renderMultiUeScenarioResult(data, false); })
     .catch(() => {});
 
-
-// Extracted from index.html script block 4

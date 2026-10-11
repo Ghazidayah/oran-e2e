@@ -40,7 +40,7 @@ make_one() {
   app="oai-nr-ue-${n}"
   out="$OUT_DIR/${dep}.yaml"
 
-  # Home DU per UE — encode it here so a cold deploy lands the UE on the
+  # Home DU per UE - encode it here so a cold deploy lands the UE on the
   # right DU's RFsim server without relying on the runtime recover step.
   # DU0 = oai-du0-rfsim, DU1 = oai-du1-rfsim. UE2-5 currently home on DU1.
   case "$n" in
@@ -74,7 +74,7 @@ data:
 
     rfsimulator = (
       {
-        serveraddr = "server";
+        serveraddr = "${home_rfsim}";
       }
     );
 

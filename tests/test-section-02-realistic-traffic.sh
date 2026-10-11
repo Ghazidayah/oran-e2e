@@ -4,7 +4,7 @@ set -u
 REPO="${REPO:-$HOME/oran-e2e}"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 BASE="http://127.0.0.1:${PORT}"
-TRAFFIC_API="${TRAFFIC_API:-http://127.0.0.1:5055}"
+TRAFFIC_API="${TRAFFIC_API:-http://127.0.0.1:18080}"
 
 # Set RUN_ALL=0 if you want to skip the final Run All button test.
 RUN_ALL="${RUN_ALL:-1}"

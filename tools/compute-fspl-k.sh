@@ -12,7 +12,7 @@
 #            derived rather than chosen.
 # Inputs   : two frequencies, in MHz
 # Output   : dPL and K, consumed by apply-fspl-band-profile.sh
-# Usage    : bash scripts/frequency/compute-fspl-k.sh <f_ref_MHz> <f_target_MHz>
+# Usage    : bash tools/compute-fspl-k.sh <f_ref_MHz> <f_target_MHz>
 # ---------------------------------------------------------------------------
 set -euo pipefail
 

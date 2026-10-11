@@ -4,7 +4,7 @@ set -u
 REPO="${REPO:-$HOME/oran-e2e}"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 BASE="http://127.0.0.1:${PORT}"
-TRAFFIC_API="${TRAFFIC_API:-http://127.0.0.1:5055}"
+TRAFFIC_API="${TRAFFIC_API:-http://127.0.0.1:18080}"
 
 TS="$(date +%Y%m%d-%H%M%S)"
 OUT="$HOME/oran-proof/full-platform-functional-tests/section-07-final-regression-$TS"
@@ -94,7 +94,7 @@ section "2. STATIC ASSETS FINAL CHECK"
 for asset in \
   dashboard-inline.js \
   dashboard-multi-ue.js \
-  mixed-du-handover.js \
+  radio-profile.js \
   mixed-du-table.js \
   dashboard-status-live.js
 do
@@ -179,7 +179,7 @@ check(frequency.get("active_profile") is not None, "frequency active profile is 
 _ue1_h = next((u for u in handover.get("ues", []) if u.get("name") == "ue1"), {})
 check(bool(_ue1_h.get("tunnel_ip")), "UE1 has an active tunnel (authoritative, via handover status)", f"UE1 tunnel missing: {_ue1_h.get('tunnel_ip')}  (frequency.tunnel_ready field reflects frequency-run context, set in section D)")
 check(bool(frequency.get("carrier_keys")), "frequency carrier keys present (real retune)", "frequency carrier_keys missing")
-# (removed: old netem qdisc check — real-frequency uses real OAI carrier retune, no tc/netem)
+# (removed: old netem qdisc check - real-frequency uses real OAI carrier retune, no tc/netem)
 
 check(handover.get("ok") is True, "handover API ok=true", "handover API not ok")
 check(handover.get("attached_count") == 5, "handover attached_count=5", f"handover attached_count={handover.get('attached_count')}")

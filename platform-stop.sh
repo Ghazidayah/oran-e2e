@@ -7,10 +7,11 @@
 # Captures : deployments, pods, services, endpoints and volumes, for each of
 #            the three namespaces.
 # Then     : workloads are stopped in the reverse order of startup.
-# Usage    : bash scripts/platform-stop.sh
+# Usage    : bash ./platform-stop.sh
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+ROOT_DIR="${ORAN_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 STATE_DIR="${HOME}/.oran-lab"
 STATE_FILE="${STATE_DIR}/platform-replicas.tsv"
 SNAP_DIR="${HOME}/oran-proof/platform-power"
@@ -36,8 +37,8 @@ namespace_exists() {
 stop_dashboard() {
   section "Stopping local dashboard on port ${PORT}"
 
-  if [ -x "./stop-web-dashboard.sh" ]; then
-    ORAN_DASHBOARD_PORT="$PORT" ./stop-web-dashboard.sh || true
+  if [ -x "$ROOT_DIR/scripts/stop-web-dashboard.sh" ]; then
+    ORAN_DASHBOARD_PORT="$PORT" "$ROOT_DIR/scripts/stop-web-dashboard.sh" || true
     return 0
   fi
 

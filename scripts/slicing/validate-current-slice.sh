@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Validate protected UE1's CURRENT slice (v2, 2026-06-10).
-# v1 only checked the requested config + tunnel + ping — which let a silent
+# Validate protected UE1's CURRENT slice (v2).
+# v1 only checked the requested config + tunnel + ping - which let a silent
 # fallback to the default slice pass as "validated". v2 additionally asserts the
 # slice the core actually GRANTED (AMF S_NSSAI log line) matches the request.
 set +e

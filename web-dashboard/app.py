@@ -1,7 +1,6 @@
 import os
 import re
 import json
-import time
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -11,6 +10,7 @@ from handover_api import handover_bp
 from radio_profile_api import radio_bp
 from real_frequency_api import real_freq_bp
 from traffic_kpi_api import traffic_kpi_bp
+from traffic_scenarios_api import traffic_bp
 
 BASE_DIR = Path.home() / "oran-e2e"
 PROOF_DIR = Path.home() / "oran-proof"
@@ -25,6 +25,7 @@ app = Flask(__name__)
 app.register_blueprint(real_freq_bp, url_prefix="/api/real-frequency")
 app.register_blueprint(handover_bp)
 app.register_blueprint(traffic_kpi_bp)
+app.register_blueprint(traffic_bp)
 
 
 def run_cmd(cmd, timeout=20):
@@ -165,7 +166,7 @@ def latest_ownership_details():
 
     text = ownership_logs[0].read_text(errors="ignore")
 
-    # New F1-split format: "Active serving DU : oai-du0" / "oai-du1"
+    # Ownership output reports "Active serving DU : oai-du0" / "oai-du1"
     du_match = re.search(r"Active serving DU\s*:\s*(oai-du[01]|unknown)", text)
     if du_match:
         du_name = du_match.group(1)
@@ -178,27 +179,6 @@ def latest_ownership_details():
             "source": str(ownership_logs[0]),
         })
         return details
-
-    # Legacy format fallback (gNB-A / gNB-B)
-    sections = {
-        "gNB-A": re.search(r"===== gnb-a ownership check =====(.*?)(===== gnb-b ownership check =====|===== UE tunnel =====)", text, re.S),
-        "gNB-B": re.search(r"===== gnb-b ownership check =====(.*?)(===== UE tunnel =====|$)", text, re.S),
-    }
-    for name, match in sections.items():
-        if not match:
-            continue
-        block = match.group(1)
-        rnti = re.search(r"single UE RNTI\s+([0-9a-fA-F]+)", block)
-        du = re.search(r"gNB_DU_id\s+([0-9]+)\s+is connected to ue_id\s+([0-9]+)", block)
-        if rnti and du:
-            details.update({
-                "serving": name,
-                "active_ues": 1,
-                "rnti": rnti.group(1),
-                "du_id": du.group(1),
-                "source": str(ownership_logs[0]),
-            })
-            return details
 
     return details
 
@@ -235,16 +215,6 @@ def guess_serving_from_logs(pods):
     if du0_hit and du1_hit:
         return "DU0+DU1"
     return "unknown"
-
-
-def recent_runs():
-    rows = []
-    for f in sorted(RUNS_DIR.glob("*/summary.json"), reverse=True)[:12]:
-        try:
-            rows.append(json.loads(f.read_text()))
-        except Exception:
-            pass
-    return rows
 
 
 @app.route("/")
@@ -334,7 +304,6 @@ def api_status():
                 "grafana": GRAFANA_URL,
                 "prometheus": PROMETHEUS_URL,
             },
-            "recent_runs": recent_runs(),
         })
 
     except Exception as e:
@@ -343,56 +312,6 @@ def api_status():
             "error": str(e),
             "time": datetime.now().isoformat(timespec="seconds"),
         }), 500
-
-
-@app.route("/api/live_metrics")
-def api_live_metrics():
-    pods = get_pods()
-    ue = pods.get("ue", "")
-
-    if not ue:
-        return jsonify({"ok": False, "error": "UE pod not found"})
-
-    cmd = f"""
-kubectl -n oran-ran exec {ue} -- sh -c '
-ip=$(ip -4 addr show oaitun_ue1 2>/dev/null | awk "/inet /{{print \\$2; exit}}")
-rx=$(cat /sys/class/net/oaitun_ue1/statistics/rx_bytes 2>/dev/null || echo 0)
-tx=$(cat /sys/class/net/oaitun_ue1/statistics/tx_bytes 2>/dev/null || echo 0)
-echo "$ip $rx $tx"
-' 2>/dev/null || true
-"""
-
-    out1 = run_cmd(cmd, timeout=10)["output"].strip().split()
-    time.sleep(1)
-    out2 = run_cmd(cmd, timeout=10)["output"].strip().split()
-
-    if len(out2) < 3:
-        return jsonify({"ok": False, "error": "could not read oaitun_ue1 metrics", "ue": ue})
-
-    ip = out2[0]
-    rx2 = int(out2[1])
-    tx2 = int(out2[2])
-
-    rx_mbps = 0.0
-    tx_mbps = 0.0
-
-    if len(out1) >= 3:
-        rx1 = int(out1[1])
-        tx1 = int(out1[2])
-        rx_mbps = max(0, (rx2 - rx1) * 8 / 1_000_000)
-        tx_mbps = max(0, (tx2 - tx1) * 8 / 1_000_000)
-
-    return jsonify({
-        "ok": True,
-        "time": datetime.now().isoformat(timespec="seconds"),
-        "ue": ue,
-        "ip": ip,
-        "rx_bytes": rx2,
-        "tx_bytes": tx2,
-        "rx_mbps": round(rx_mbps, 3),
-        "tx_mbps": round(tx_mbps, 3),
-        "error": "",
-    })
 
 
 def action_ownership():
@@ -496,104 +415,6 @@ echo "VERDICT=SERVING_DU_CHECK_DONE"
     return save_run("ownership", cmd, timeout=90)
 
 
-def action_ping():
-    cmd = r'''
-set -u
-fail=0
-
-UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-echo "UE_POD=$UE_POD"
-
-kubectl -n oran-ran exec "$UE_POD" -- sh -c '
-ip addr show oaitun_ue1 || true
-echo "----- PING DN GW -----"
-ping -I oaitun_ue1 -c 5 10.45.0.1
-echo "----- PING INTERNET -----"
-ping -I oaitun_ue1 -c 4 8.8.8.8
-' || fail=1
-
-exit "$fail"
-'''
-    return save_run("ping", cmd, timeout=120)
-
-
-def action_stream():
-    cmd = r'''
-set -u
-
-UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-echo "UE_POD=$UE_POD"
-
-echo "===== before traffic ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip -s link show oaitun_ue1 || true' 2>/dev/null || true
-
-echo
-echo "===== video-like traffic simulation ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c '
-echo "----- large packet DN gateway ping -----"
-ping -I oaitun_ue1 -s 1200 -c 60 10.45.0.1 || true
-
-echo "----- large packet internet ping -----"
-ping -I oaitun_ue1 -s 1200 -c 40 8.8.8.8 || true
-
-echo "----- HTTP download attempt -----"
-if command -v curl >/dev/null 2>&1; then
-  curl --interface oaitun_ue1 -L --max-time 30 -o /tmp/oran-stream-test.bin http://speedtest.tele2.net/10MB.zip || true
-  ls -lh /tmp/oran-stream-test.bin 2>/dev/null || true
-elif command -v wget >/dev/null 2>&1; then
-  wget -T 30 -O /tmp/oran-stream-test.bin http://speedtest.tele2.net/10MB.zip || true
-  ls -lh /tmp/oran-stream-test.bin 2>/dev/null || true
-else
-  echo "No curl/wget in UE pod. Used ping traffic only."
-fi
-' 2>&1 || true
-
-echo
-echo "===== after traffic ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip -s link show oaitun_ue1 || true' 2>/dev/null || true
-
-exit 0
-'''
-    return save_run("stream", cmd, timeout=220)
-
-
-def action_e2e():
-    cmd = r'''
-set -u
-fail=0
-
-echo "===== Core pods ====="
-kubectl -n oran-core get pods -o wide | egrep 'open5gs-(amf|smf|upf)|NAME' || fail=1
-
-echo
-echo "===== RAN pods ====="
-kubectl -n oran-ran get pods -o wide | egrep 'oai-cu|oai-du|oai-gnb|oai-nr-ue|NAME' || fail=1
-
-UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-echo
-echo "UE_POD=$UE_POD"
-
-echo
-echo "===== UE tunnel ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip addr show oaitun_ue1; ip route' || fail=1
-
-echo
-echo "===== DN gateway ping ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -c 5 10.45.0.1' || fail=1
-
-echo
-echo "===== Internet ping ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -c 4 8.8.8.8' || fail=1
-
-exit "$fail"
-'''
-    return save_run("e2e", cmd, timeout=180)
-
-
-def action_stop_traffic():
-    return save_run("stop_traffic", "echo 'No background traffic process active.'; exit 0", timeout=10)
-
-
 def action_report():
     cmd = r'''
 set -u
@@ -602,7 +423,7 @@ CORE_NS="oran-core"
 SEP="─────────────────────────────────────────────────────────"
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║      O-RAN F1-Split Lab — Platform Analysis          ║"
+echo "║      O-RAN F1-Split Lab - Platform Analysis          ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo "Generated : $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "Host      : $(hostname)  /  kernel $(uname -r)"
@@ -676,7 +497,7 @@ print(v)' 2>/dev/null || echo "?")
 echo "DU1 : ${DU1_POD:-NOT FOUND}  [$DU1_PHASE]  dl_max_mcs=$DU1_MCS"
 echo ""
 
-echo "Control-plane associations (CU-CP log — NG / E1 / F1):"
+echo "Control-plane associations (CU-CP log - NG / E1 / F1):"
 if [ -n "$CUCP_POD" ]; then
   NG=$(kubectl -n "$RAN_NS" logs "$CUCP_POD" 2>/dev/null \
     | grep -E "Received NGSetupResponse|associated AMF" | tail -2)
@@ -693,7 +514,7 @@ fi
 echo ""
 
 echo "$SEP"
-echo "4. UE1 — SERVING DU + USER PLANE"
+echo "4. UE1 - SERVING DU + USER PLANE"
 echo "$SEP"
 
 SERVERADDR=$(kubectl -n "$RAN_NS" get cm oai-nrue-config \
@@ -725,12 +546,12 @@ if [ -n "$UE_POD" ]; then
   kubectl -n "$RAN_NS" exec "$UE_POD" -- \
     ping -I oaitun_ue1 -c 4 -W 2 8.8.8.8 2>/dev/null || echo "FAIL"
 else
-  echo "oaitun_ue1      : NO POD — skipping pings"
+  echo "oaitun_ue1      : NO POD - skipping pings"
 fi
 echo ""
 
 echo "$SEP"
-echo "5. ALL UE TUNNEL STATUS (UE1–UE5)"
+echo "5. ALL UE TUNNEL STATUS (UE1-UE5)"
 echo "$SEP"
 for app in oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-ue-5; do
   cm="oai-nrue-config${app#oai-nr-ue}"
@@ -756,7 +577,7 @@ done
 echo ""
 
 echo "$SEP"
-echo "6. SERVING DU — RECENT UE ACTIVITY"
+echo "6. SERVING DU - RECENT UE ACTIVITY"
 echo "$SEP"
 case "$SERVERADDR" in
   oai-du0-rfsim|server) ACTIVE_DU_APP="oai-du0"; ACTIVE_DU_POD="$DU0_POD" ;;
@@ -780,7 +601,7 @@ echo "$SEP"
 ESC=$(printf '\033')
 AMF_POD=$(kubectl -n "$CORE_NS" get pod -l app.kubernetes.io/name=amf \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-echo "--- AMF ($AMF_POD) — last registrations ---"
+echo "--- AMF ($AMF_POD) - last registrations ---"
 if [ -n "$AMF_POD" ]; then
   kubectl -n "$CORE_NS" logs "$AMF_POD" --tail=200 2>/dev/null \
     | sed "s/${ESC}\[[0-9;]*m//g" \
@@ -797,7 +618,7 @@ echo ""
 
 SMF_POD=$(kubectl -n "$CORE_NS" get pod -l app.kubernetes.io/name=smf \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-echo "--- SMF ($SMF_POD) — active PDU sessions ---"
+echo "--- SMF ($SMF_POD) - active PDU sessions ---"
 if [ -n "$SMF_POD" ]; then
   kubectl -n "$CORE_NS" logs "$SMF_POD" --tail=200 2>/dev/null \
     | sed "s/${ESC}\[[0-9;]*m//g" \
@@ -810,7 +631,7 @@ echo ""
 
 UPF_POD=$(kubectl -n "$CORE_NS" get pod -l app.kubernetes.io/name=upf \
   -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-echo "--- UPF ($UPF_POD) — GTP-U socket ---"
+echo "--- UPF ($UPF_POD) - GTP-U socket ---"
 if [ -n "$UPF_POD" ]; then
   kubectl -n "$CORE_NS" exec "$UPF_POD" -- \
     ss -lunp 2>/dev/null | grep -E '2152|8805' || echo "(GTP-U socket not found)"
@@ -893,83 +714,12 @@ echo "VERDICT=REPORT_DONE"
     return save_run("report", cmd, timeout=180)
 
 
-def action_traffic_profile(action_name, gw_count, internet_count, packet_size, http_timeout):
-    timeout = int(gw_count) + int(internet_count) + int(http_timeout) + 90
-
-    cmd = f'''
-set -u
-
-echo "PROFILE={action_name}"
-echo "GW_COUNT={gw_count}"
-echo "INTERNET_COUNT={internet_count}"
-echo "PACKET_SIZE={packet_size}"
-echo "HTTP_TIMEOUT={http_timeout}"
-echo
-
-UE_POD=$(kubectl -n oran-ran get pod -l app=oai-nr-ue -o jsonpath='{{.items[0].metadata.name}}' 2>/dev/null || true)
-echo "UE_POD=$UE_POD"
-
-if [ -z "$UE_POD" ]; then
-  echo "UE pod not found"
-  exit 1
-fi
-
-echo
-echo "===== before traffic ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip -s link show oaitun_ue1 || true' 2>/dev/null || true
-
-echo
-echo "===== DN gateway traffic ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -s {packet_size} -c {gw_count} 10.45.0.1' || true
-
-echo
-echo "===== internet traffic ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ping -I oaitun_ue1 -s {packet_size} -c {internet_count} 8.8.8.8' || true
-
-echo
-echo "===== HTTP download attempt ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c '
-if command -v curl >/dev/null 2>&1; then
-  timeout {http_timeout} curl --interface oaitun_ue1 -L --max-time {http_timeout} -o /tmp/oran-traffic-test.bin http://speedtest.tele2.net/10MB.zip || true
-  ls -lh /tmp/oran-traffic-test.bin 2>/dev/null || true
-elif command -v wget >/dev/null 2>&1; then
-  timeout {http_timeout} wget -T {http_timeout} -O /tmp/oran-traffic-test.bin http://speedtest.tele2.net/10MB.zip || true
-  ls -lh /tmp/oran-traffic-test.bin 2>/dev/null || true
-else
-  echo "No curl/wget in UE pod. Used ping traffic only."
-fi
-' 2>&1 || true
-
-echo
-echo "===== after traffic ====="
-kubectl -n oran-ran exec "$UE_POD" -- sh -c 'ip -s link show oaitun_ue1 || true' 2>/dev/null || true
-
-exit 0
-'''
-    return save_run(action_name, cmd, timeout=timeout)
-
-
 @app.route("/api/action/<action>", methods=["POST"])
-@app.route("/api/run/<action>", methods=["POST"])
 def api_action(action):
     if action == "ownership":
         return action_ownership()
-    if action == "ping":
-        return action_ping()
-    if action == "stream":
-        return action_stream()
-    if action == "light_traffic":
-        return action_traffic_profile("light_traffic", gw_count=10, internet_count=10, packet_size=300, http_timeout=8)
-    if action == "throughput":
-        return action_traffic_profile("throughput", gw_count=30, internet_count=30, packet_size=1200, http_timeout=15)
-    if action == "heavy_traffic":
-        return action_traffic_profile("heavy_traffic", gw_count=100, internet_count=80, packet_size=1200, http_timeout=30)
     if action == "report":
         return action_report()
-    if action == "e2e":
-        return action_e2e()
-    if action == "stop_traffic":
-        return action_stop_traffic()
 
     # Unknown action: return a 404 rather than composing a shell string from the
     # URL segment. The previous fallback interpolated <action> into a command run
@@ -977,17 +727,14 @@ def api_action(action):
     return jsonify({
         "ok": False,
         "error": "Unknown action",
-        "available": [
-            "ownership", "ping", "stream", "light_traffic", "throughput",
-            "heavy_traffic", "report", "e2e", "stop_traffic",
-        ],
+        "available": ["ownership", "report"],
     }), 404
 
 
 REAL_SLICE_PROFILES = {
-    "embb":  {"sst": 1, "label": "eMBB",  "desc": "SST=1 — image, video, web, streaming, iperf TCP"},
-    "urllc": {"sst": 2, "label": "URLLC", "desc": "SST=2 — UDP jitter/loss"},
-    "mmtc":  {"sst": 3, "label": "mMTC",  "desc": "SST=3 — IoT-style small UDP"},
+    "embb":  {"sst": 1, "label": "eMBB",  "desc": "SST=1 - image, video, web, streaming, iperf TCP"},
+    "urllc": {"sst": 2, "label": "URLLC", "desc": "SST=2 - UDP jitter/loss"},
+    "mmtc":  {"sst": 3, "label": "mMTC",  "desc": "SST=3 - IoT-style small UDP"},
 }
 
 
@@ -1019,14 +766,14 @@ def _parse_slice_output(text, profile):
         "label":        info.get("label", profile),
         "sst":          info.get("sst", "?"),
         "sd":           "0xffffff",
-        "granted_sst":  "—",
-        "tunnel_ip":    "—",
-        "ping_avg_ms":  "—",
-        "loss_pct":     "—",
-        "tcp_mbps":     "—",
-        "retransmits":  "—",
-        "udp_loss_pct": "—",
-        "udp_jitter_ms":"—",
+        "granted_sst":  "-",
+        "tunnel_ip":    "-",
+        "ping_avg_ms":  "-",
+        "loss_pct":     "-",
+        "tcp_mbps":     "-",
+        "retransmits":  "-",
+        "udp_loss_pct": "-",
+        "udp_jitter_ms":"-",
         "verdict":      "UNKNOWN",
         "time":         datetime.now().isoformat(timespec="seconds"),
     }

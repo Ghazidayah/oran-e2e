@@ -13,7 +13,7 @@
 #
 # RECOMMENDED ORDER (so KPIs are fresh & consistent):
 #   1) bash tests/run-full-platform-acceptance.sh 2>&1 | tee ~/acceptance-for-report.log
-#   2) bash gather-report-data.sh
+#   2) bash tools/gather-report-data.sh
 #   3) upload the printed .tar.gz
 # =============================================================================
 set -u
@@ -39,7 +39,7 @@ cp scripts/slicing/apply-slice-resource-profile.sh \
    scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh \
    scripts/handover/switch-ue-du-target.sh "$B/params/" 2>/dev/null
 # IP plan / PLMN / project memory
-cp OPERATING-RULES.md README.md "$B/params/" 2>/dev/null
+cp README.md "$B/params/" 2>/dev/null
 # AMF + SMF + NSSF config (PLMN, S-NSSAI, slices)
 kubectl -n "$CORE_NS" get cm -o name 2>/dev/null > "$B/params/core-configmaps-list.txt"
 for nf in amf smf nssf; do

@@ -14,51 +14,51 @@ SCRIPT = REPO / "scripts" / "frequency" / "switch-ue-actual-frequency-retune-du-
 RESULTS_FILE = Path(__file__).resolve().with_name("real-frequency-results.json")
 KPI_RESULTS_FILE = Path(__file__).resolve().with_name("freq-kpi-results.json")
 
-# Selectable retune profiles (n78-current kept internally for restore only)
+# Selectable retune profiles (n78-current is the baseline: retune only, no emulated KPI)
 PROFILES = {
     "n78-current": {
         "freq_mhz": 3319.68,
         "band": "n78",
-        "description": "Baseline n78 — SSB 621312, PointA 620040",
+        "description": "Baseline n78, SSB 621312, PointA 620040",
         "ssb": "621312",
         "pointa": "620040",
     },
     "n78-raster-high": {
         "freq_mhz": 3321.12,
         "band": "n78",
-        "description": "n78 raster-high — SSB 621408, PointA 620136",
+        "description": "n78 raster-high, SSB 621408, PointA 620136",
         "ssb": "621408",
         "pointa": "620136",
     },
     "n78-3500": {
         "freq_mhz": 3499.68,
         "band": "n78",
-        "description": "n78 3500 MHz — SSB 633312, PointA 632040",
+        "description": "n78 3500 MHz, SSB 633312, PointA 632040",
         "ssb": "633312",
         "pointa": "632040",
     },
     "n41-2600": {
         "freq_mhz": 2593.35,
         "band": "n41",
-        "description": "n41 2600 MHz — SSB 518670, PointA 514854 (validated 2026-06-04)",
+        "description": "n41 2600 MHz, SSB 518670, PointA 514854",
         "ssb": "518670",
         "pointa": "514854",
     },
     "n77-4174": {
         "freq_mhz": 4173.60,
         "band": "n77",
-        "description": "n77 4174 MHz — SSB 678240, PointA 676968 (validated 2026-06-19)",
+        "description": "n77 4174 MHz, SSB 678240, PointA 676968",
         "ssb": "678240",
         "pointa": "676968",
     },
 }
 
 
-# Representative tc netem profiles per band — EMULATED, not measured from RFsim
+# Representative tc netem profiles per band - EMULATED, not measured from RFsim
 def _ceiling_mbit():
     """Plafond reel = debit UL TCP non-capped (UE1 isole). AUTO-MESURE par
     scripts/traffic/measure-ceiling.sh, qui ecrit ~/oran-proof/ceiling-mbit.txt.
-    Ne PAS hardcoder. Mesure live 2026-06-30: ~36 (34-36). Fallback 33 = filet
+    Ne PAS hardcoder. Mesure live: ~36 (34-36). Fallback 33 = filet
     de securite seulement (si la calibration n'a jamais tourne)."""
     try:
         return int(open(os.path.expanduser("~/oran-proof/ceiling-mbit.txt")).read().strip())
@@ -97,7 +97,7 @@ BAND_NETEM = {
 # KPI measurement target: UPF DN gateway (in 5G data path, ~15ms RFsim base RTT).
 # Never use an internet target: ~60-90ms internet RTT swamps the emulated deltas.
 # Rate caps sit BELOW the measured uncapped RFsim UL TCP floor (~17 Mbps, baseline
-# 2026-06-10: 17.08-17.54 Mbps x3) AND below each band's real per-band rate, so the
+# 17.08-17.54 Mbps x3) AND below each band's real per-band rate, so the
 # netem cap is the binding constraint -> measured ~= cap and band ordering is a
 # reproducible monotone DESCENT (n41 > n78 > n77), not RFsim noise. Throughput is
 # UPLINK (UE=iperf3 client to host node); netem root qdisc shapes UE egress only.
@@ -135,7 +135,7 @@ def _save_results(data):
 
 
 def _run(profile, timeout=900):
-    if profile not in PROFILES and profile not in ("status", "restore"):
+    if profile not in PROFILES and profile != "status":
         return {"ok": False, "returncode": 2, "output": f"Unknown real-frequency profile: {profile}"}
 
     cmd = ["bash", str(SCRIPT), profile]
@@ -166,7 +166,8 @@ def _parse_carrier_keys(output):
     du_cm = re.search(r"DU_CM=(\S+)", output or "")
     ue_deploy = re.search(r"UE_DEPLOY=(\S+)", output or "")
     verdict = re.search(r"VERDICT=(\S+)", output or "")
-    tunnel = "yes" if "oaitun_ue1" in (output or "") else "no"
+    tunnel_flags = re.findall(r"TUNNEL_READY=(yes|no)", output or "")
+    tunnel = tunnel_flags[-1] if tunnel_flags else "no"
     return {
         "carrier_keys": keys,
         "du_deploy": du_deploy.group(1) if du_deploy else "",
@@ -175,15 +176,6 @@ def _parse_carrier_keys(output):
         "verdict": verdict.group(1) if verdict else "",
         "tunnel_ready": tunnel,
     }
-
-
-def _upsert_row(row):
-    data = _load_results()
-    rows = [r for r in data.get("rows", []) if r.get("profile") != row.get("profile")]
-    rows.insert(0, row)
-    data["rows"] = rows[:20]
-    data["active_profile"] = row.get("profile", data.get("active_profile"))
-    _save_results(data)
 
 
 @real_freq_bp.route("/profiles", methods=["GET"])
@@ -208,59 +200,6 @@ def status():
     })
 
 
-@real_freq_bp.route("/apply", methods=["POST"])
-def apply():
-    payload = request.get_json(silent=True) or {}
-    profile = payload.get("profile", "n78-current")
-    if profile not in PROFILES:
-        return jsonify({"ok": False, "error": f"Unknown profile: {profile}"}), 400
-
-    res = _run(profile, timeout=900)
-    parsed = _parse_carrier_keys(res.get("output", ""))
-    ok = res["ok"]
-
-    row = {
-        "profile": profile,
-        "freq_mhz": PROFILES[profile]["freq_mhz"],
-        "band": PROFILES[profile]["band"],
-        "description": PROFILES[profile]["description"],
-        "ssb": PROFILES[profile]["ssb"],
-        "pointa": PROFILES[profile]["pointa"],
-        "du_deploy": parsed["du_deploy"],
-        "verdict": parsed["verdict"] or ("PASS" if ok else "FAIL"),
-        "tunnel_ready": parsed["tunnel_ready"],
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-    }
-    _upsert_row(row)
-
-    return jsonify({
-        "ok": ok,
-        "profile": profile,
-        "row": row,
-        "log": res.get("output", "")[-18000:],
-    })
-
-
-@real_freq_bp.route("/restore", methods=["POST"])
-def restore():
-    data = _load_results()
-    res = _run("restore", timeout=900)
-
-    parsed = _parse_carrier_keys(res.get("output", ""))
-    ok = res["ok"]
-
-    if ok:
-        data["active_profile"] = "n78-current"
-        _save_results(data)
-
-    return jsonify({
-        "ok": ok,
-        "profile": "n78-current",
-        "log": res.get("output", "")[-18000:],
-        "verdict": parsed["verdict"],
-    })
-
-
 @real_freq_bp.route("/results", methods=["GET"])
 def results():
     data = _load_results()
@@ -274,7 +213,7 @@ def run_band():
     if profile not in PROFILES:
         return jsonify({"ok": False, "error": f"Unknown profile: {profile}"}), 400
 
-    # Step 1 — REAL carrier retune
+    # Step 1 - REAL carrier retune
     res = _run(profile, timeout=900)
     parsed = _parse_carrier_keys(res.get("output", ""))
     retune_log = res.get("output", "")
@@ -288,7 +227,20 @@ def run_band():
             "log": retune_log,
         })
 
-    # Step 2 — EMULATED netem KPI (only runs if retune succeeded)
+    # Baseline carrier: retune only, there is no emulated KPI profile for it.
+    if profile not in BAND_NETEM:
+        data = _load_results()
+        data["active_profile"] = profile
+        _save_results(data)
+        return jsonify({
+            "ok": True,
+            "profile": profile,
+            "row": None,
+            "retune_verdict": parsed["verdict"] or "PASS",
+            "log": retune_log,
+        })
+
+    # Step 2 - EMULATED netem KPI (only runs if retune succeeded)
     kpi = _run_kpi_test(profile)
     kpi_log = kpi.get("log", "")
 
@@ -390,7 +342,7 @@ def _run_kpi_test(profile):
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20,
         )
         log.append(f"netem applied: rate={netem['rate']} "
-                   f"({netem['pct']}% du plafond {_CEIL}mbit — FSPL K depuis la porteuse)")
+                   f"({netem['pct']}% du plafond {_CEIL}mbit - FSPL K depuis la porteuse)")
 
         show = subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--",
@@ -431,7 +383,7 @@ def _run_kpi_test(profile):
     return {
         "ok": True,
         "profile": profile,
-        "netem": f"rate {netem['rate']} ({netem['pct']}% du plafond — FSPL K depuis la porteuse)",
+        "netem": f"rate {netem['rate']} ({netem['pct']}% du plafond - FSPL K depuis la porteuse)",
         "ping_loss": (loss_m.group(1) + "%") if loss_m else "?",
         "ping_avg": (rtt_m.group(2) + " ms") if rtt_m else "?",
         "ping_rtt": (f"{rtt_m.group(1)}/{rtt_m.group(2)}/{rtt_m.group(3)}/{rtt_m.group(4)} ms") if rtt_m else "?",
@@ -439,32 +391,6 @@ def _run_kpi_test(profile):
         "retransmits": retrans_m.group(1) if retrans_m else "?",
         "log": "\n".join(log),
     }
-
-
-@real_freq_bp.route("/kpi-test", methods=["POST"])
-def kpi_test():
-    payload = request.get_json(silent=True) or {}
-    profile = payload.get("profile", "")
-    if profile not in BAND_NETEM:
-        return jsonify({"ok": False, "error": f"Unknown KPI profile: {profile}"}), 400
-
-    result = _run_kpi_test(profile)
-    if result.get("ok"):
-        row = {
-            "profile": profile,
-            "freq_mhz": PROFILES.get(profile, {}).get("freq_mhz", "?"),
-            "band": PROFILES.get(profile, {}).get("band", "?"),
-            "netem": result["netem"],
-            "ping_avg": result.get("ping_avg", "?"),
-            "ping_rtt": result.get("ping_rtt", "?"),
-            "ping_loss": result.get("ping_loss", "?"),
-            "tcp_mbps": result.get("tcp_mbps", "?"),
-            "retransmits": result.get("retransmits", "?"),
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        _save_kpi_result(row)
-
-    return jsonify(result)
 
 
 @real_freq_bp.route("/kpi-results", methods=["GET"])

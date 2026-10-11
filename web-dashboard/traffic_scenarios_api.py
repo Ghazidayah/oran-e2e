@@ -1,4 +1,9 @@
-#!/usr/bin/env python3
+"""Realistic-traffic scenario runner (blueprint).
+
+Runs the scenario scripts under scripts/traffic/ as background jobs and exposes
+them under /api/traffic/*. Previously a separate Flask process on port 5055;
+now served by the dashboard on the same port as everything else.
+"""
 import os
 import json
 import time
@@ -6,10 +11,11 @@ import uuid
 import subprocess
 import threading
 from pathlib import Path
-import pathlib
-from flask import Flask, jsonify, request
+from flask import Blueprint, jsonify
 
-REPO = Path.home() / "oran-e2e"
+traffic_bp = Blueprint("traffic_scenarios", __name__)
+
+REPO = Path(os.environ.get("ORAN_REPO", Path.home() / "oran-e2e"))
 PROOF = Path.home() / "oran-proof" / "phase2-traffic-api"
 PROOF.mkdir(parents=True, exist_ok=True)
 
@@ -47,18 +53,8 @@ SCENARIOS = {
 JOBS = {}
 LOCK = threading.Lock()
 
-app = Flask(__name__)
 
-
-@app.after_request
-def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    return response
-
-
-@app.route("/api/traffic/health", methods=["GET"])
+@traffic_bp.route("/api/traffic/health", methods=["GET"])
 def health():
     return jsonify({
         "ok": True,
@@ -69,7 +65,7 @@ def health():
     })
 
 
-@app.route("/api/traffic/scenarios", methods=["GET"])
+@traffic_bp.route("/api/traffic/scenarios", methods=["GET"])
 def scenarios():
     return jsonify({
         "ok": True,
@@ -163,11 +159,8 @@ def run_job(job_id, scenario_id, script_path, env_extra=None):
         JOBS[job_id].update(summary)
 
 
-@app.route("/api/traffic/run/<scenario_id>", methods=["POST", "OPTIONS"])
+@traffic_bp.route("/api/traffic/run/<scenario_id>", methods=["POST"])
 def run_scenario(scenario_id):
-    if request.method == "OPTIONS":
-        return jsonify({"ok": True})
-
     if scenario_id not in SCENARIOS:
         return jsonify({"ok": False, "error": f"Unknown scenario: {scenario_id}"}), 404
 
@@ -200,7 +193,7 @@ def run_scenario(scenario_id):
     })
 
 
-@app.route("/api/traffic/jobs", methods=["GET"])
+@traffic_bp.route("/api/traffic/jobs", methods=["GET"])
 def list_jobs():
     with LOCK:
         jobs = list(JOBS.values())
@@ -208,7 +201,7 @@ def list_jobs():
     return jsonify({"ok": True, "jobs": jobs[:30]})
 
 
-@app.route("/api/traffic/jobs/<job_id>", methods=["GET"])
+@traffic_bp.route("/api/traffic/jobs/<job_id>", methods=["GET"])
 def get_job(job_id):
     with LOCK:
         job = JOBS.get(job_id)
@@ -233,95 +226,8 @@ def get_job(job_id):
 
 
 
-# PHASE2_KPI_RESULTS_START
-import re as _re
 
 
-def _parse_job_kpis(text):
-    """Extract unified KPIs from a scenario output.log (real measurements, no shaping)."""
-    def last(pattern, cast=str):
-        m = _re.findall(pattern, text)
-        if not m:
-            return None
-        try:
-            return cast(m[-1])
-        except Exception:
-            return None
-
-    k = {}
-    k["verdict"] = last(r"(?:Verdict|\"verdict\"):\s*\"?([A-Za-z_]+)\"?")
-    k["throughput_mbps"] = last(r"(?:Average throughput|Throughput) Mbps:\s*([0-9.]+)", float)
-    k["loss_pct"] = last(r"Packet loss percent:\s*([0-9.]+)", float)
-    k["retransmits"] = last(r"TCP retransmits:\s*([0-9]+)", int)
-    k["jitter_ms"] = last(r"Estimated jitter ms:\s*([0-9.]+)", float)
-    checksum = last(r"(?:Checksum OK|\"checksum_ok\"):\s*(True|true|False|false)")
-    seg_ok = last(r"Segments OK:\s*([0-9]+)", int)
-    seg_req = last(r"Segments requested:\s*([0-9]+)", int)
-    res_ok = last(r"Resources OK:\s*([0-9]+)", int)
-    res_req = last(r"Resources requested:\s*([0-9]+)", int)
-    if seg_ok is not None and seg_req is not None:
-        k["integrity"] = "{}/{} segments".format(seg_ok, seg_req)
-    elif res_ok is not None and res_req is not None:
-        k["integrity"] = "{}/{} resources".format(res_ok, res_req)
-    elif checksum is not None:
-        k["integrity"] = "checksum " + ("OK" if checksum.lower() == "true" else "FAIL")
-    elif k["loss_pct"] is not None:
-        k["integrity"] = "{}% loss".format(k["loss_pct"])
-    elif k["retransmits"] is not None:
-        k["integrity"] = "{} retrans".format(k["retransmits"])
-    else:
-        k["integrity"] = "-"
-    k["time_s"] = last(
-        r"(?:Duration seconds|Transfer time seconds|Page load time seconds|Total time seconds):\s*([0-9.]+)",
-        float,
-    )
-    k["bytes"] = last(
-        r"(?:Bytes received|Downloaded bytes|Total bytes|Total segment bytes|Expected size):\s*([0-9]+)",
-        int,
-    )
-    return k
-
-
-@app.route("/api/traffic/results", methods=["GET"])
-def traffic_results():
-    """Latest result per scenario, parsed from persisted job logs (survives restarts)."""
-    latest = {}
-    try:
-        for d in sorted(PROOF.iterdir()):
-            sf = d / "summary.json"
-            if not sf.is_file():
-                continue
-            try:
-                job = json.loads(sf.read_text())
-            except Exception:
-                continue
-            scen = job.get("scenario", "")
-            if not scen:
-                continue
-            # dirs sort by timestamped job_id, so later iteration = newer run
-            latest[scen] = job
-    except Exception:
-        pass
-
-    rows = []
-    for scen, job in latest.items():
-        log_file = pathlib.Path(job.get("log_file", ""))
-        output = log_file.read_text(errors="ignore")[-30000:] if log_file.is_file() else ""
-        kpis = _parse_job_kpis(output)
-        rows.append({
-            "scenario": scen,
-            "label": SCENARIOS.get(scen, {}).get("label", scen),
-            "status": job.get("status", "?"),
-            "exit": job.get("exit"),
-            "finished_at": job.get("finished_at", ""),
-            **kpis,
-        })
-    rows.sort(key=lambda r: r.get("scenario", ""))
-    return jsonify({"ok": True, "rows": rows})
-# PHASE2_KPI_RESULTS_END
-
-
-# PHASE3_REAL_SLICE_API_START
 REAL_SLICE_PROFILES = {
     "embb": {
         "label": "eMBB Real Slice Traffic",
@@ -344,7 +250,7 @@ REAL_SLICE_PROFILES = {
 }
 
 
-@app.route("/api/traffic/real-slices", methods=["GET"])
+@traffic_bp.route("/api/traffic/real-slices", methods=["GET"])
 def real_slice_profiles():
     return jsonify({
         "ok": True,
@@ -362,11 +268,8 @@ def real_slice_profiles():
     })
 
 
-@app.route("/api/traffic/run-real-slice/<profile>", methods=["POST", "OPTIONS"])
+@traffic_bp.route("/api/traffic/run-real-slice/<profile>", methods=["POST"])
 def run_real_slice_traffic(profile):
-    if request.method == "OPTIONS":
-        return jsonify({"ok": True})
-
     if profile not in REAL_SLICE_PROFILES:
         return jsonify({
             "ok": False,
@@ -467,10 +370,3 @@ def run_real_slice_traffic(profile):
         "traffic": info["traffic"],
         "note": "This runs real slice traffic and restores UE to SST=1 at the end.",
     })
-# PHASE3_REAL_SLICE_API_END
-
-
-if __name__ == "__main__":
-    host = os.environ.get("TRAFFIC_API_HOST", "0.0.0.0")
-    port = int(os.environ.get("TRAFFIC_API_PORT", "5055"))
-    app.run(host=host, port=port)

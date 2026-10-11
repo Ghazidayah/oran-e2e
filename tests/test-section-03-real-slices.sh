@@ -4,7 +4,7 @@ set -u
 REPO="${REPO:-$HOME/oran-e2e}"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 BASE="http://127.0.0.1:${PORT}"
-TRAFFIC_API="${TRAFFIC_API:-http://127.0.0.1:5055}"
+TRAFFIC_API="${TRAFFIC_API:-http://127.0.0.1:18080}"
 
 TS="$(date +%Y%m%d-%H%M%S)"
 OUT="$HOME/oran-proof/full-platform-functional-tests/section-03-real-slices-$TS"

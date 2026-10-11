@@ -12,7 +12,7 @@ function fmtLiveBytes(n) {
   return n + " B";
 }
 
-// Extracted from index.html script block 1
+// ===== Live status, metrics and traffic chart =====
 let rxHistory = [];
 
 function fallbackValue(value, fallback) {
@@ -59,7 +59,8 @@ async function reloadStatus() {
     document.getElementById("monitoringMetric").textContent = `${fallbackValue(c.monitoring_ready, 0)}/${fallbackValue(c.monitoring_total, 0)}`;
     document.getElementById("monitoringMetric").className = "metric " + clsReady(fallbackValue(c.monitoring_ready, 0), fallbackValue(c.monitoring_total, 0));
 
-    document.getElementById("ueMetric").textContent = c.active_ues ? `${c.active_ues} UE` : "0 UE";
+    const ueTotal = (data.ran || []).filter(p => /oai-nr-ue/.test(p.name || "")).length;
+    document.getElementById("ueMetric").textContent = ueTotal ? `${fallbackValue(c.active_ues, 0)}/${ueTotal} UEs` : `${fallbackValue(c.active_ues, 0)} UE`;
     document.getElementById("ueMetric").className = c.active_ues > 0 ? "metric ok" : "metric warn";
 
     document.getElementById("ranTable").innerHTML = podRows(data.ran);
@@ -68,25 +69,9 @@ async function reloadStatus() {
     if (data.links) {
       document.getElementById("grafanaLink").href = data.links.grafana;
     }
-
-    const out = document.getElementById("actionOutput");
-    if (out && typeof out.textContent === "string" && out.textContent.startsWith("Status reload failed:")) {
-      out.textContent = "Ready.";
-    }
-
-    const runsTable = document.getElementById("runsTable");
-    if (data.recent_runs && runsTable) {
-      runsTable.innerHTML = data.recent_runs.map(r => `
-        <tr>
-          <td>${r.time || "-"}</td>
-          <td>${r.action || "-"}</td>
-          <td>${r.status || "-"}</td>
-          <td>${r.extra || "-"}</td>
-        </tr>
-      `).join("");
-    }
+    pollOk("status");
   } catch (err) {
-    console.warn("Status reload failed:", err);
+    pollFail("status");
   }
 }
 
@@ -122,10 +107,8 @@ async function loadMetrics() {
       return `
         <tr>
           <td><strong>${ue.name || "-"}</strong></td>
-          <td>${ue.tunnel_ip || "-"}</td>
           <td class="ok">${rxMbps.toFixed(3)}</td>
           <td>${txMbps.toFixed(3)}</td>
-          <td>${rxBytes} / ${txBytes}</td>
         </tr>
       `;
     }).join("");
@@ -146,7 +129,7 @@ async function loadMetrics() {
 
     const tableBody = document.getElementById("liveMetricsTableBody");
     if (tableBody) {
-      tableBody.innerHTML = rows || '<tr><td colspan="5">No attached UEs found for live metrics.</td></tr>';
+      tableBody.innerHTML = rows || '<tr><td colspan="3">No attached UEs found for live metrics.</td></tr>';
     }
 
     rxHistory.push(totalRxMbps);
@@ -156,8 +139,9 @@ async function loadMetrics() {
     if (txHistory.length > 60) txHistory.shift();
 
     drawGraph();
+    pollOk("metrics");
   } catch (err) {
-    console.log("multi-UE metrics error", err);
+    pollFail("metrics");
   }
 }
 
@@ -168,10 +152,10 @@ function drawGraph() {
   const h = canvas.height;
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#020617";
+  ctx.fillStyle = "#f1f4f8";
   ctx.fillRect(0, 0, w, h);
 
-  ctx.strokeStyle = "#1e293b";
+  ctx.strokeStyle = "#d3dae3";
   ctx.lineWidth = 1;
   for (let i = 0; i <= 5; i++) {
     const y = (h / 5) * i;
@@ -199,17 +183,17 @@ function drawGraph() {
     ctx.stroke();
   }
 
-  line(rxHistory, "#22c55e");
-  line(txHistory, "#60a5fa");
+  line(rxHistory, "#15803d");
+  line(txHistory, "#4f46e5");
 
-  ctx.fillStyle = "#94a3b8";
+  ctx.fillStyle = "#374151";
   ctx.font = "14px Arial";
   ctx.fillText("RX Mbps", 18, 24);
-  ctx.fillStyle = "#22c55e";
+  ctx.fillStyle = "#15803d";
   ctx.fillRect(88, 14, 18, 4);
 
-  ctx.fillStyle = "#94a3b8";
+  ctx.fillStyle = "#374151";
   ctx.fillText("TX Mbps", 130, 24);
-  ctx.fillStyle = "#60a5fa";
+  ctx.fillStyle = "#4f46e5";
   ctx.fillRect(200, 14, 18, 4);
 }

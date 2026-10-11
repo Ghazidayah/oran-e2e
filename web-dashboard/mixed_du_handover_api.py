@@ -150,14 +150,14 @@ def _serveraddr_for_configmap(cm):
 
 
 def _serveraddr_for_deployment_args(dep):
-    """Rule 10: deployment args override the ConfigMap. Read args first."""
-    r = _run(
-        "kubectl -n {} get deploy {} -o jsonpath='{{.spec.template.spec.containers[0].args}}'".format(NS, dep),
-        timeout=10,
+    """Deployment args override the ConfigMap. Read args first."""
+    r = _kubectl(
+        ["get", "deploy", dep, "-o", "jsonpath={.spec.template.spec.containers[0].args}"],
+        timeout=15,
     )
-    out = (r.get("output") or "")
-    import re as _re
-    m = _re.search(r'serveraddr[\"\s,]+([A-Za-z0-9_.-]+)', out)
+    if not r["ok"]:
+        return ""
+    m = re.search(r'serveraddr[",\s]+([A-Za-z0-9_.-]+)', r["stdout"])
     return m.group(1) if m else ""
 
 
@@ -182,7 +182,7 @@ def _status():
         cm = meta["configmap"]
         protected = meta["protected"]
 
-        # Rule 10: deployment args override the ConfigMap -> trust args first.
+        # Deployment args override the ConfigMap -> trust args first.
         serveraddr = _serveraddr_for_deployment_args(dep) or _serveraddr_for_configmap(cm)
         du = _du_from_serveraddr(serveraddr)
         pod = _pod_for_deployment(dep)

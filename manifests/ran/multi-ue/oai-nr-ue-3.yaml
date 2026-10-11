@@ -22,7 +22,7 @@ data:
 
     rfsimulator = (
       {
-        serveraddr = "server";
+        serveraddr = "oai-du1-rfsim";
       }
     );
 

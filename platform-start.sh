@@ -15,17 +15,15 @@
 #            4) amf and smf LAST, against an already-populated NRF
 #            5) CU plane, then DU, then the terminal fleet
 # Variables: ORAN_CORE_GATE, ORAN_CORE_REGISTER_SETTLE
-# Usage    : bash scripts/platform-start.sh
+# Usage    : bash ./platform-start.sh
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-ROOT_DIR="${ORAN_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+ROOT_DIR="${ORAN_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 STATE_DIR="${HOME}/.oran-lab"
 STATE_FILE="${STATE_DIR}/platform-replicas.tsv"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 START_DASHBOARD="${ORAN_START_DASHBOARD:-1}"
-START_TRAFFIC_API="${ORAN_START_TRAFFIC_API:-1}"
-TRAFFIC_API_PORT="${TRAFFIC_API_PORT:-5055}"
 # Mixed-DU recovery is a HANDOVER-DEMO routine, not a bootstrap step: it switches
 # UEs to DU1 and runs traffic tests. Running it on cold start (before UEs attach)
 # both wastes ~6 min and thrashes UEs out of attaching. OFF by default; the normal
@@ -142,8 +140,8 @@ start_dashboard() {
     return 0
   fi
 
-  if [ ! -x "$ROOT_DIR/run-web-dashboard.sh" ]; then
-    echo "[WARN] run-web-dashboard.sh not found or not executable"
+  if [ ! -x "$ROOT_DIR/scripts/run-web-dashboard.sh" ]; then
+    echo "[WARN] scripts/run-web-dashboard.sh not found or not executable"
     return 0
   fi
 
@@ -156,7 +154,7 @@ start_dashboard() {
       ORAN_DASHBOARD_PORT="$PORT" \
       ORAN_RAN_NS="${ORAN_RAN_NS:-oran-ran}" \
       ORAN_REPO="$ROOT_DIR" \
-      ./run-web-dashboard.sh > "$log" 2>&1 &
+      ./scripts/run-web-dashboard.sh > "$log" 2>&1 &
   )
 
   sleep 5
@@ -169,25 +167,9 @@ check_ifb_module() {
   if lsmod 2>/dev/null | grep -q '^ifb'; then
     echo "ifb module loaded."
   else
-    echo "[WARN] ifb module NOT loaded — downlink (download) slice QoS will NOT cap."
+    echo "[WARN] ifb module NOT loaded - downlink (download) slice QoS will NOT cap."
     echo "[WARN] Load now:     sudo modprobe ifb"
     echo "[WARN] Persist boot: echo ifb | sudo tee /etc/modules-load.d/ifb.conf"
-  fi
-}
-
-start_traffic_api() {
-  if [ "$START_TRAFFIC_API" != "1" ]; then echo "[SKIP] ORAN_START_TRAFFIC_API=$START_TRAFFIC_API"; return 0; fi
-  section "Starting Traffic API on port ${TRAFFIC_API_PORT}"
-  if ss -ltn 2>/dev/null | grep -q ":${TRAFFIC_API_PORT} "; then
-    echo "Traffic API port already listening: ${TRAFFIC_API_PORT}"; return 0
-  fi
-  local starter="$ROOT_DIR/scripts/traffic/start-traffic-api.sh"
-  if [ ! -x "$starter" ]; then echo "[WARN] start-traffic-api.sh missing/not executable"; return 0; fi
-  bash "$starter" || true
-  if curl -fsS "http://127.0.0.1:${TRAFFIC_API_PORT}/api/traffic/health" >/dev/null 2>&1; then
-    echo "Traffic API healthy on ${TRAFFIC_API_PORT}."
-  else
-    echo "[WARN] Traffic API not responding on ${TRAFFIC_API_PORT} — see ~/oran-proof/phase2-traffic-api/server.log"
   fi
 }
 
@@ -337,7 +319,7 @@ have_cmd kubectl || {
 if [ ! -s "$STATE_FILE" ]; then
   echo "ERROR: no saved replica state found."
   echo "Expected: $STATE_FILE"
-  echo "Run scripts/platform-stop.sh once while the platform is running."
+  echo "Run ./platform-stop.sh once while the platform is running."
   exit 1
 fi
 
@@ -384,7 +366,7 @@ ensure_core_amf_ready() {
   local seen
   seen=$(kubectl -n oran-core logs deploy/open5gs-amf --tail=200 2>/dev/null | grep -c "NF registered")
   if [ "${seen:-0}" -ge 1 ]; then
-    echo "AMF discovered ${seen} NF profile(s) via NRF — UE identity resolution ready."
+    echo "AMF discovered ${seen} NF profile(s) via NRF - UE identity resolution ready."
   else
     echo "[WARN] AMF shows no 'NF registered' yet; reconcile will restart UEs to retry."
   fi
@@ -411,7 +393,6 @@ for dep in prometheus grafana; do
 done
 
 start_dashboard
-start_traffic_api
 ensure_core_amf_ready
 ensure_cu_plane_healthy
 recover_mixed_du_if_available

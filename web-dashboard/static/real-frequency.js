@@ -5,11 +5,12 @@
     if (el) el.textContent = val == null ? "-" : String(val);
   }
 
+  var running = false;
+
   function setBusy(busy) {
-    ["realFreqRunBtn", "realFreqRefreshBtn", "realFreqRestoreBtn"].forEach(function (id) {
-      var el = byId(id);
-      if (el) el.disabled = !!busy;
-    });
+    running = !!busy;
+    var el = byId("realFreqRunBtn");
+    if (el) el.disabled = running;
   }
 
   async function api(path, opts) {
@@ -26,7 +27,7 @@
     var body = byId("freqBandResultsBody");
     if (!body) return;
     if (!rows || !rows.length) {
-      body.innerHTML = '<tr><td colspan="11">No runs yet — click a band button above to start.</td></tr>';
+      body.innerHTML = '<tr><td colspan="11">No runs yet. Click Run to start.</td></tr>';
       return;
     }
     var F_REF = 2593.35;
@@ -36,14 +37,14 @@
       var attachColor = attachOk ? "var(--ok)" : "var(--err)";
       var mbps = parseFloat(r.tcp_mbps) || 0;
       var mbpsColor = mbps > 10 ? "var(--ok)" : mbps > 5 ? "var(--warn)" : "var(--err)";
-      var mbpsDisplay = (r.tcp_mbps && r.tcp_mbps !== "?") ? r.tcp_mbps + " Mbps" : "—";
+      var mbpsDisplay = (r.tcp_mbps && r.tcp_mbps !== "?") ? r.tcp_mbps + " Mbps" : "-";
 
       var freqMhz = parseFloat(r.freq_mhz) || 0;
       var deltaPl = freqMhz > 0 ? 20 * Math.log10(freqMhz / F_REF) : 0;
       var K = Math.pow(10, -deltaPl / 10);
       var pct = Math.round(K * 100);
       var capMatch = (r.netem || "").match(/rate\s+(\d+(?:\.\d+)?)mbit/);
-      var capMbit = capMatch ? capMatch[1] : "—";
+      var capMbit = capMatch ? capMatch[1] : "-";
 
       return (
         "<tr>" +
@@ -51,11 +52,11 @@
         "<td>" + (r.freq_mhz || "-") + "</td>" +
         "<td style='font-size:0.85em;font-family:monospace'>" + (r.ssb ? r.ssb + " / " + (r.pointa || "-") : "-") + "</td>" +
         "<td style='color:" + attachColor + ";font-weight:bold'>" + (r.retune_verdict || r.verdict || "-") + "</td>" +
-        "<td>" + (freqMhz > 0 ? deltaPl.toFixed(2) : "—") + "</td>" +
-        "<td>" + (freqMhz > 0 ? K.toFixed(2) : "—") + "</td>" +
+        "<td>" + (freqMhz > 0 ? deltaPl.toFixed(2) : "-") + "</td>" +
+        "<td>" + (freqMhz > 0 ? K.toFixed(2) : "-") + "</td>" +
         "<td>" + capMbit + "</td>" +
-        "<td>" + (r.ping_avg || "—") + "</td>" +
-        "<td>" + (r.ping_loss || "—") + "</td>" +
+        "<td>" + (r.ping_avg || "-") + "</td>" +
+        "<td>" + (r.ping_loss || "-") + "</td>" +
         "<td style='font-weight:bold;color:" + mbpsColor + "'>" + mbpsDisplay + "</td>" +
         "<td style='font-size:0.85em'>" + (r.timestamp || "-") + "</td>" +
         "</tr>"
@@ -63,10 +64,9 @@
     }).join("");
   }
 
-  async function refreshStatus(writeLog) {
-    writeLog = (writeLog !== false);
-    setBusy(true);
-    if (writeLog) setText("realFreqLog", "Fetching real carrier retune status...");
+  var hasStatus = false;
+
+  async function refreshStatus() {
     try {
       var data = await api("/api/real-frequency/status");
       var keys = data.carrier_keys || {};
@@ -81,41 +81,36 @@
       ];
       Object.keys(keys).forEach(function (k) { lines.push("  " + k + " = " + keys[k]); });
       setText("realFreqSummary", lines.join("\n"));
-      if (writeLog) setText("realFreqLog", data.log || "Status OK.");
+      hasStatus = true;
+      pollOk("freq-status");
     } catch (e) {
-      if (writeLog) setText("realFreqLog", "ERROR: " + String(e));
-    } finally {
-      setBusy(false);
+      pollFail("freq-status");
+      if (!hasStatus) setText("realFreqSummary", "ERROR reading retune status:\n" + String(e));
     }
   }
 
-  async function restoreBaseline() {
-    setBusy(true);
-    setText("realFreqLog", "Restoring baseline n78-current...\n\nThis restarts DU + UE pods — may take several minutes...");
+  async function refreshResults() {
     try {
-      var data = await api("/api/real-frequency/restore", { method: "POST", body: JSON.stringify({}) });
-      setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + "restore n78-current\n\n" + (data.log || ""));
-      await refreshStatus(false);
+      var r = await api("/api/real-frequency/kpi-results");
+      renderBandResults(r.rows || []);
+      pollOk("freq-results");
     } catch (e) {
-      setText("realFreqLog", "ERROR: " + String(e));
-    } finally {
-      setBusy(false);
+      pollFail("freq-results");
     }
   }
 
   async function runBandFreq(profile, btn) {
     setBusy(true);
     setText("realFreqLog",
-      "Running " + profile + ": REAL carrier retune (restarts DU0+UE1, ~2-3 min) then EMULATED netem KPI...");
+      "Running " + profile + ": REAL carrier retune (restarts DU0+UE1, ~2-3 min), then EMULATED netem KPI where a band model exists...");
     try {
       var data = await api("/api/real-frequency/run-band", {
         method: "POST",
         body: JSON.stringify({ profile: profile }),
       });
       setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + profile + "\n\n" + (data.log || ""));
-      var res = await api("/api/real-frequency/kpi-results");
-      renderBandResults(res.rows || []);
-      await refreshStatus(false);
+      await refreshResults();
+      await refreshStatus();
     } catch (e) {
       setText("realFreqLog", "ERROR: " + String(e));
     } finally {
@@ -129,22 +124,16 @@
     var root = byId("realFrequencyRoot");
     if (!root) return;
 
-    var runBtn     = byId("realFreqRunBtn");
-    var refreshBtn = byId("realFreqRefreshBtn");
-    var restoreBtn = byId("realFreqRestoreBtn");
-
+    var runBtn = byId("realFreqRunBtn");
     if (runBtn) runBtn.addEventListener("click", function () {
       var sel = byId("realFreqSelect");
       if (sel) runBandFreq(sel.value, runBtn);
     });
-    if (refreshBtn) refreshBtn.addEventListener("click", refreshStatus);
-    if (restoreBtn) restoreBtn.addEventListener("click", restoreBaseline);
 
     setText("realFreqLog", "Ready.");
-    refreshStatus(false);
-
-    api("/api/real-frequency/kpi-results").then(function (r) {
-      renderBandResults(r.rows || []);
-    }).catch(function () {});
+    refreshStatus();
+    refreshResults();
+    window.autoRefresh(refreshStatus, 30000, function () { return running; });
+    window.autoRefresh(refreshResults, 30000, function () { return running; });
   });
 })();
