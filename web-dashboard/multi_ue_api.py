@@ -852,14 +852,18 @@ exit 0
     UDP_ECHO_CODE = (
         "import socket, sys\n"
         "s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\n"
-        "s.bind(('0.0.0.0', int(sys.argv[1])))\n"
+        "s.bind((sys.argv[2], int(sys.argv[1])))\n"
         "while True:\n"
         "    data, addr = s.recvfrom(65535)\n"
         "    s.sendto(data, addr)\n"
     )
 
-    def phase4_multi_ue_start_udp_echo():
-        """UDP echo server on the host: every UE sends its probes here and counts the echoes."""
+    def phase4_multi_ue_start_udp_echo(node_ip):
+        """UDP echo server on the host: every UE sends its probes here and counts the echoes.
+
+        It is bound to the node IP the UEs target, not to 0.0.0.0: with a wildcard bind the
+        kernel picks the reply source from the route to the UPF pod (the cni0 address), the
+        UPF NAT does not recognise that source and drops the echoes."""
         import socket
         import subprocess
         import time
@@ -870,7 +874,7 @@ exit 0
         sock.close()
 
         proc = subprocess.Popen(
-            ["python3", "-c", UDP_ECHO_CODE, str(port)],
+            ["python3", "-c", UDP_ECHO_CODE, str(port), node_ip],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -951,6 +955,29 @@ if scenario == "udp":
     avg_rtt = (sum(rtts) / len(rtts)) if rtts else 0.0
     mbps = (received * size * 8 / duration / 1000000) if duration > 0 else 0.0
     ok = received > 0 and loss <= 10
+
+    if not ok:
+        import subprocess
+
+        def probe(cmd):
+            try:
+                r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                return (r.stdout + r.stderr).strip() or "(no output)"
+            except Exception as exc:
+                return "(failed: {})".format(exc)
+
+        print("--- UDP diagnostics ---")
+        print("echo server: {}:{}  source: {}".format(udp_host, udp_port, bind_ip))
+        print("route: " + probe("ip route get {} from {}".format(udp_host, bind_ip)))
+        print("tunnel: " + probe("ip -4 -o addr show | grep {}".format(bind_ip)))
+        print("ping host: " + probe("ping -c 2 -W 2 -I {} {}".format(bind_ip, udp_host)))
+        if received == 0:
+            print("hint: nothing came back. Either the datagrams never reach the host "
+                  "(UPF/N6 route, host firewall INPUT udp) or the echoes do not return "
+                  "to the UE tunnel IP (host route to the UE subnet, rp_filter).")
+        else:
+            print("hint: partial loss ({}%). The RFsim link is saturated; lower the rate "
+                  "(count/interval) or run fewer UEs in parallel.".format(round(loss, 2)))
 
     print("Scenario: udp")
     print("Slice: eMBB")
@@ -1196,7 +1223,7 @@ sys.exit(0 if ok else 1)
                 server_procs.append(http_proc)
                 base_url = "http://{}:{}".format(node_ip, port)
             if needs_udp:
-                udp_proc, udp_port = phase4_multi_ue_start_udp_echo()
+                udp_proc, udp_port = phase4_multi_ue_start_udp_echo(node_ip)
                 server_procs.append(udp_proc)
                 udp_target = (node_ip, udp_port)
 
