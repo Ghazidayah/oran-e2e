@@ -3,7 +3,7 @@
 #
 # What this does (and what the previous version did not):
 #   1. Reads the TARGET DU carrier (absoluteFrequencySSB / band) from its F1 ConfigMap
-#      and re-aligns the UE "-C" (and "--band", if the UE already has one). A UE can only
+#      and re-aligns the UE "-C" and "--band" (added if missing: the UE defaults to band 78). A UE can only
 #      attach to a DU running on the same carrier; moving a UE without re-aligning "-C"
 #      is what left ue1 stuck on "Got NACK on ... SIB1" after a DU switch.
 #   2. Scales the UE to 0, waits for the old pod to be gone, patches, scales to 1 ONCE
@@ -137,6 +137,8 @@ for ci, c in enumerate(d.get("spec", {}).get("template", {}).get("spec", {}).get
     if not isinstance(arr, list):
         continue
     new = list(arr)
+    c_idx = None
+    has_band = False
     for i, v in enumerate(new):
         if not isinstance(v, str):
             continue
@@ -146,8 +148,14 @@ for ci, c in enumerate(d.get("spec", {}).get("template", {}).get("spec", {}).get
             new[i + 1] = target
         elif v in ("-C", "--carrier-frequency") and i + 1 < len(new):
             new[i + 1] = c_hz
+            c_idx = i + 1
         elif v in ("--band", "-b") and i + 1 < len(new):
             new[i + 1] = band
+            has_band = True
+    # Without --band the OAI UE assumes band 78: a -C outside it (e.g. DU0 on n77, 4173.6 MHz)
+    # aborts with "to_nrarfcn ... DL carrier frequency > dl_max". Add it when missing.
+    if not has_band and c_idx is not None:
+        new[c_idx + 1:c_idx + 1] = ["--band", band]
     if new != arr:
         ops.append({"op": "replace", "path": f"/spec/template/spec/containers/{ci}/args", "value": new})
         print(f"container[{ci}] args: {' '.join(arr)}", file=sys.stderr)
