@@ -15,7 +15,73 @@ mkdir -p "$OUT_DIR"
 
 section() { printf '\n==================== %s ====================\n' "$*"; }
 
+
+# Automatic checks: the three root causes found so far, evaluated in one place.
+auto_checks() {
+  section "AUTOMATIC CHECKS"
+
+  # (a) UE carrier (-C) must equal the carrier of the DU it points to
+  local du cm freq
+  declare -A DU_C
+  for du in du0 du1; do
+    cm="oai-$du-f1-config"
+    freq="$(kubectl -n "$NS" get cm "$cm" -o jsonpath='{.data.gnb\.conf}' 2>/dev/null | python3 -c '
+import re, sys
+t = sys.stdin.read()
+m = re.search(r"^\s*absoluteFrequencySSB\s*=\s*(\d+)\s*;", t, re.M)
+if m:
+    n = int(m.group(1))
+    print(n * 5000 if n < 600000 else 3000000000 + (n - 600000) * 15000)
+')"
+    DU_C[$du]="${freq:-?}"
+    echo "carrier $du: -C ${freq:-unknown}"
+  done
+  local i dep args c target_du
+  for i in "" -2 -3 -4 -5; do
+    dep="oai-nr-ue$i"
+    args="$(kubectl -n "$NS" get deploy "$dep" -o jsonpath='{.spec.template.spec.containers[0].args}' 2>/dev/null)"
+    c="$(echo "$args" | python3 -c 'import sys,json
+try:
+    a=json.load(sys.stdin); print(a[a.index("-C")+1])
+except Exception:
+    print("?")')"
+    target_du="$(echo "$args" | grep -o 'oai-du[01]-rfsim' | head -1 | sed 's/oai-\(du[01]\)-rfsim/\1/')"
+    if [ -z "$target_du" ] || [ "${DU_C[$target_du]:-?}" = "?" ] || [ "$c" = "?" ]; then
+      echo "CHECK carrier $dep: UNKNOWN (ue -C=$c, target=${target_du:-?})"
+    elif [ "$c" = "${DU_C[$target_du]}" ]; then
+      echo "CHECK carrier $dep: OK (-C $c = $target_du)"
+    else
+      echo "CHECK carrier $dep: PROBLEM (ue -C $c but $target_du runs ${DU_C[$target_du]}) -> UE cannot decode SIB1"
+    fi
+  done
+
+  # (b) CU-CP <-> AMF (NG) association
+  local cu
+  cu="$(kubectl -n "$NS" logs deploy/oai-cu-cp --tail=1500 2>/dev/null | grep -E "NGSetupResponse|NGAP_DEREGISTERED_GNB_IND|No AMF is associated" | tail -1)"
+  case "$cu" in
+    *NGSetupResponse*) echo "CHECK cu-cp NG link: OK" ;;
+    "") echo "CHECK cu-cp NG link: UNKNOWN (no NG line in last 1500 log lines)" ;;
+    *) echo "CHECK cu-cp NG link: PROBLEM ($cu) -> kubectl -n $NS rollout restart deploy/oai-cu-cp" ;;
+  esac
+
+  # (c) core service routing / authentication
+  local scp rej
+  scp="$(kubectl -n "$CORE_NS" logs deploy/open5gs-scp --since=10m 2>/dev/null | grep -c "No route to host")"
+  rej="$(kubectl -n "$CORE_NS" logs deploy/open5gs-amf --since=10m 2>/dev/null | grep -c "Registration reject")"
+  [ "${scp:-0}" -eq 0 ] && echo "CHECK core SCP routing: OK" \
+    || echo "CHECK core SCP routing: PROBLEM ($scp 'No route to host' in 10 min) -> restart udr, udm, ausf"
+  [ "${rej:-0}" -eq 0 ] && echo "CHECK AMF registrations: OK" \
+    || echo "CHECK AMF registrations: PROBLEM ($rej 'Registration reject' in 10 min)"
+
+  # (d) UE pods stuck in a restart loop
+  local bad
+  bad="$(kubectl -n "$NS" get pods 2>/dev/null | grep -E "oai-nr-ue" | grep -cE "CrashLoopBackOff|Error")"
+  [ "${bad:-0}" -eq 0 ] && echo "CHECK UE pods: OK" || echo "CHECK UE pods: PROBLEM ($bad in CrashLoopBackOff/Error)"
+}
+
 report() {
+  auto_checks
+
   section "PODS ($NS)"
   kubectl -n "$NS" get pods -o wide
 
@@ -26,7 +92,8 @@ report() {
     cm="oai-nrue-config$i"
     serv="$(kubectl -n "$NS" get cm "$cm" -o jsonpath='{.data.nr-ue\.conf}' 2>/dev/null \
       | grep -o 'serveraddr *= *"[^"]*"' | head -1)"
-    pod="$(kubectl -n "$NS" get pods -o name 2>/dev/null | grep "pod/$dep-" | head -1 | cut -d/ -f2)"
+    # select by label: grepping "pod/oai-nr-ue-" also matched oai-nr-ue-2..5
+    pod="$(kubectl -n "$NS" get pods -l "app=$dep" -o name 2>/dev/null | head -1 | cut -d/ -f2)"
     echo "--- $dep | configmap: ${serv:-?} | pod: ${pod:-none}"
     kubectl -n "$NS" get deploy "$dep" -o jsonpath='deploy args: {.spec.template.spec.containers[0].args}{"\n"}' 2>/dev/null
     [ -n "$pod" ] || continue

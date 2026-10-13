@@ -546,9 +546,11 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
         data = request.get_json(silent=True) or {}
         raw_count = data.get("count", request.form.get("count", ""))
         if raw_count == "":
-            ues = all_status()
-            attached = [u for u in ues if u.get("attached")]
-            return max(1, len(attached))
+            # No explicit count: consider the whole pool. selected_attached_ues()
+            # already keeps only attached UEs. Using the number of attached UEs
+            # here as an index cap silently dropped the last UE (ue5) whenever
+            # another UE was detached.
+            return MAX_UES
         try:
             count = int(raw_count)
         except Exception:
