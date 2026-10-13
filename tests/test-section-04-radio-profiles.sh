@@ -116,8 +116,7 @@ else
 fi
 
 for marker in \
-  "Radio / Modulation Profile Control" \
-  "Radio / Modulation Profile Control" \
+  "radioProfileRoot" \
   "radio-results"
 do
   if grep -q "$marker" "$OUT/dashboard.html"; then

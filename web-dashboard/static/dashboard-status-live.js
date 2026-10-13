@@ -69,9 +69,8 @@ async function reloadStatus() {
     if (data.links) {
       document.getElementById("grafanaLink").href = data.links.grafana;
     }
-    pollOk("status");
   } catch (err) {
-    pollFail("status");
+    // Echec d'une requete automatique: on garde les dernieres donnees affichees.
   }
 }
 
@@ -139,9 +138,8 @@ async function loadMetrics() {
     if (txHistory.length > 60) txHistory.shift();
 
     drawGraph();
-    pollOk("metrics");
   } catch (err) {
-    pollFail("metrics");
+    // Echec d'une requete automatique: on garde les dernieres donnees affichees.
   }
 }
 
@@ -185,15 +183,4 @@ function drawGraph() {
 
   line(rxHistory, "#15803d");
   line(txHistory, "#4f46e5");
-
-  ctx.fillStyle = "#374151";
-  ctx.font = "14px Arial";
-  ctx.fillText("RX Mbps", 18, 24);
-  ctx.fillStyle = "#15803d";
-  ctx.fillRect(88, 14, 18, 4);
-
-  ctx.fillStyle = "#374151";
-  ctx.fillText("TX Mbps", 130, 24);
-  ctx.fillStyle = "#4f46e5";
-  ctx.fillRect(200, 14, 18, 4);
 }

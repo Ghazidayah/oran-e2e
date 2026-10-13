@@ -105,7 +105,8 @@ if command -v node >/dev/null 2>&1; then
     web-dashboard/static/mixed-du-table.js \
     web-dashboard/static/dashboard-multi-ue.js \
     web-dashboard/static/dashboard-inline.js \
-    web-dashboard/static/dashboard-status-live.js
+    web-dashboard/static/dashboard-status-live.js \
+    web-dashboard/static/common.js
   do
     [ -f "$js" ] && run_check "JS syntax: $js" node --check "$js"
   done
@@ -179,9 +180,9 @@ from pathlib import Path
 html = Path(sys.argv[1]).read_text(errors="ignore")
 
 checks = [
-    ("Radio / Modulation Profile", ["radioProfileRoot", "Radio / Modulation Profile Control"]),
+    ("Radio / Modulation Profile", ["radioProfileRoot"]),
     ("Frequency scenarios", ["realFrequencyRoot", "Frequency Scenarios", "Run"]),
-    ("End-to-End UE Validation Scenarios", ["End-to-End UE Validation Scenarios", "Run Connectivity", "Run All"]),
+    ("End-to-End UE Validation Scenarios", ["End-to-End UE Validation Scenarios", "UE Check", "Run All"]),
     ("Slice traffic", ["slicePanel", "Run eMBB Slice", "Run URLLC Slice", "Run mMTC Slice"]),
     ("RAN/Core pods tables", ["RAN Pods", "Core Pods"]),
     ("Real-Time Multi-UE Data Transfer", ["Real-Time Multi-UE Data Transfer", "Total Download RX", "Active UE Metrics"]),
@@ -211,7 +212,7 @@ if legacy_found:
 else:
     print("[PASS] Old top F1 handover section not present")
 
-print(f"RADIO_COUNT={html.count('Radio / Modulation Profile Control')}")
+print(f"RADIO_COUNT={html.count('id=\"radioProfileRoot\"')}")
 print(f"LOWER_HANDOVER_COUNT={html.count('mixedDuLowerHandoverSection')}")
 print(f"MULTI_UE_CONTROL_COUNT={html.count('Multi-UE Control')}")
 

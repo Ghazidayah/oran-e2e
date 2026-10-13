@@ -213,10 +213,10 @@ h3 {
 .multi-ue-header h2 {
   margin-top: 0;
   margin-bottom: 14px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: .06em;
   color: var(--muted);
   padding-left: 8px;
   border-left: 2px solid var(--accent);
@@ -266,20 +266,6 @@ h3 {
 .warn   { color: var(--warn); }
 .bad    { color: var(--err); }
 .small  { color: var(--muted); font-size: 14px; }
-
-/* Shown by auto-refresh.js while any poll cannot reach the server */
-.conn-banner {
-  position: sticky;
-  top: 54px;
-  z-index: 190;
-  padding: 10px 28px;
-  background: rgba(180,83,9,.12);
-  border-bottom: 1px solid var(--warn);
-  color: var(--warn);
-  font-size: 14px;
-  font-weight: 600;
-}
-.conn-banner[hidden] { display: none; }
 
 /* ── Buttons ─────────────────────────────────────────────────────────── */
 
@@ -356,44 +342,6 @@ a.button:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-/* ── JS-driven button state overrides ────────────────────────────────── */
-
-button.action-running,
-a.button.action-running {
-  opacity: 0.9;
-  cursor: wait !important;
-  position: relative;
-}
-
-button.action-running,
-button.ue-btn-running {
-  background: rgba(180,83,9,.12) !important;
-  border-color: var(--warn) !important;
-  color: var(--warn) !important;
-  cursor: wait !important;
-}
-
-button.action-success,
-button.ue-btn-success {
-  background: rgba(21,128,61,.12) !important;
-  border-color: var(--ok) !important;
-  color: var(--ok) !important;
-  box-shadow: none !important;
-}
-
-button.action-failed,
-button.ue-btn-failed {
-  background: rgba(185,28,28,.12) !important;
-  border-color: var(--err) !important;
-  color: var(--err) !important;
-  box-shadow: none !important;
-}
-
-button.ue-btn-disabled {
-  opacity: 0.4 !important;
-  cursor: not-allowed !important;
 }
 
 button.ui-pressed:not(:disabled),
@@ -493,24 +441,12 @@ code {
 
 canvas {
   width: 100%;
-  height: 220px;
+  height: 320px;
   background: var(--log-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
-.button-spinner {
-  width: 10px;
-  height: 10px;
-  display: inline-block;
-  vertical-align: -1px;
-  margin-right: 5px;
-  border-radius: 50%;
-  border: 2px solid rgba(15,23,42,.15);
-  border-top-color: var(--accent);
-  animation: dashboardSpin 0.75s linear infinite;
-}
-@keyframes dashboardSpin { to { transform: rotate(360deg); } }
 
 /* ── Handover panel ───────────────────────────────────────────────────── */
 
@@ -535,7 +471,7 @@ canvas {
 /* DU cards: one per UE, DU0/DU1 toggle shows the serving DU */
 .du-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 14px;
   margin-top: 14px;
 }
@@ -666,7 +602,10 @@ canvas {
   opacity: 0.45;
   cursor: not-allowed;
 }
-.multi-ue-controls button { min-width: 80px; }
+/* Wide enough for the "Running..." label, so the layout does not move while a button runs. */
+.multi-ue-actions button,
+.multi-ue-controls button { min-width: 100px; }
+#realFreqRunBtn { min-width: 100px; }
 
 .ue-scenario-select {
   color: var(--text) !important;
@@ -738,28 +677,6 @@ canvas {
 }
 .scenario-result-title h3 { margin: 0; font-size: 16px; }
 
-.scenario-status {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 2px;
-  padding: 3px 8px;
-  font-size: 12px;
-  font-weight: 800;
-  font-family: var(--mono);
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.scenario-status.ok {
-  background: rgba(21,128,61,.10);
-  color: var(--ok);
-  border: 1px solid rgba(21,128,61,.28);
-}
-.scenario-status.failed {
-  background: rgba(185,28,28,.10);
-  color: var(--err);
-  border: 1px solid rgba(185,28,28,.28);
-}
-
 .scenario-result-table {
   width: 100%;
   border-collapse: collapse;
@@ -789,24 +706,46 @@ canvas {
   font-family: var(--mono);
 }
 
-/* ── Interactive scenario buttons (onclick-based) ────────────────────── */
+/* ── Launch buttons: equal size, spread over the full section width ───── */
 
-button[onclick*="runUeScenarioInteractive"],
-button[onclick*="runActionInteractive"] {
-  min-width: 120px;
-  min-height: 32px;
-  border-radius: var(--radius);
-  font-weight: 700;
+.run-grid {
+  grid-template-columns: repeat(4, minmax(0, 240px));
+  gap: 18px 40px;
+  justify-content: center;
 }
-button[onclick*="runUeScenarioInteractive"]:hover:not(:disabled),
-button[onclick*="runActionInteractive"]:hover:not(:disabled) {
-  transform: none;
-  box-shadow: none;
+.slice-grid {
+  grid-template-columns: repeat(3, minmax(0, 300px));
+  gap: 18px 48px;
+  justify-content: center;
 }
-button[onclick*="runUeScenarioInteractive"]:active:not(:disabled),
-button[onclick*="runActionInteractive"]:active:not(:disabled) {
-  transform: none;
+.run-grid h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
 }
+.run-grid button {
+  width: 100%;
+  min-height: 44px;
+}
+.slice-grid button {
+  min-height: 56px;
+  padding: 14px 20px;
+}
+
+/* ── Live transfer chart legend (outside the canvas) ──────────────────── */
+
+.chart-legend {
+  display: flex;
+  gap: 22px;
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 8px; }
+.legend-line { display: inline-block; width: 22px; height: 4px; }
+.legend-line.rx { background: #15803d; }
+.legend-line.tx { background: #4f46e5; }
 
 /* ── Small utilities (replace repeated inline styles) ────────────────── */
 
@@ -819,10 +758,13 @@ button[onclick*="runActionInteractive"]:active:not(:disabled) {
 
 @media (max-width: 1000px) {
   .cards { grid-template-columns: repeat(2, 1fr); }
+  .slice-grid { grid-template-columns: repeat(3, 1fr); }
+  .du-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 700px) {
-  .cards { grid-template-columns: 1fr; }
+  .cards, .slice-grid { grid-template-columns: 1fr; }
+  .du-grid { grid-template-columns: repeat(2, 1fr); }
   .live-metrics-table, .multi-ue-table { display: block; overflow-x: auto; }
   main > section, .card { max-width: 100%; min-width: 0; }
   .metric { overflow-wrap: anywhere; }

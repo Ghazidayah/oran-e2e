@@ -27,7 +27,7 @@ START_DASHBOARD="${ORAN_START_DASHBOARD:-1}"
 # Mixed-DU recovery is a HANDOVER-DEMO routine, not a bootstrap step: it switches
 # UEs to DU1 and runs traffic tests. Running it on cold start (before UEs attach)
 # both wastes ~6 min and thrashes UEs out of attaching. OFF by default; the normal
-# attach path (reconcile_ue_sessions) brings UEs up. Set ORAN_RECOVER_MIXED_DU=1
+# attach path (UEs self-attach once restored) brings them up. Set ORAN_RECOVER_MIXED_DU=1
 # only when you explicitly want to stage/demo the mixed-DU handover layout.
 RECOVER_MIXED_DU="${ORAN_RECOVER_MIXED_DU:-0}"
 TARGET_NAMESPACES="${ORAN_PLATFORM_NAMESPACES:-oran-core oran-ran monitoring}"
@@ -105,27 +105,6 @@ wait_deploy_if_needed() {
   fi
 }
 
-wait_statefulset_if_needed() {
-  ns="$1"
-  name="$2"
-  timeout="${3:-240s}"
-
-  if ! namespace_exists "$ns"; then
-    return 0
-  fi
-
-  if ! kubectl -n "$ns" get "statefulset/$name" >/dev/null 2>&1; then
-    return 0
-  fi
-
-  replicas="$(state_replicas "$ns" statefulset "$name")"
-  replicas="${replicas:-0}"
-
-  if [ "$replicas" -gt 0 ]; then
-    echo "Waiting for $ns statefulset/$name..."
-    kubectl -n "$ns" rollout status "statefulset/$name" --timeout="$timeout" || true
-  fi
-}
 
 start_dashboard() {
   if [ "$START_DASHBOARD" != "1" ]; then
@@ -272,39 +251,6 @@ ensure_cu_plane_healthy() {
   return 1
 }
 
-reconcile_ue_sessions() {
-  if [ "${ORAN_RECONCILE_UES:-1}" != "1" ]; then
-    echo "[SKIP] ORAN_RECONCILE_UES=${ORAN_RECONCILE_UES:-1}"
-    return 0
-  fi
-
-  local rec="$ROOT_DIR/scripts/recover-ue-sessions.sh"
-  if [ ! -x "$rec" ]; then
-    echo "[SKIP] recover-ue-sessions.sh not found"
-    return 0
-  fi
-
-  section "Reconciling UE PDU sessions"
-
-  # Pods can be Ready while their oaitun_ue1 tunnel has not formed yet.
-  # Let freshly-restored UEs self-attach before we judge them.
-  local settle="${ORAN_UE_SETTLE_SECONDS:-45}"
-  echo "Settling ${settle}s before first UE health check..."
-  sleep "$settle"
-
-  # Diagnose + restart ONLY the UEs that still have no working tunnel.
-  # recover-ue-sessions.sh waits up to 240s/UE for tunnels to re-form.
-  "$rec" --fix --yes || true
-
-  section "Final UE health confirmation"
-  if "$rec" | grep -q "VERDICT=ALL_HEALTHY"; then
-    echo "All UEs healthy."
-  else
-    echo "[WARN] UEs still not all healthy after reconcile."
-    echo "[WARN] Inspect DU1 + UE logs before demoing (UE2-5 home on DU1)."
-  fi
-}
-
 echo "===== O-RAN platform start ====="
 echo "Root dir: $ROOT_DIR"
 echo "State file: $STATE_FILE"
@@ -368,7 +314,7 @@ ensure_core_amf_ready() {
   if [ "${seen:-0}" -ge 1 ]; then
     echo "AMF discovered ${seen} NF profile(s) via NRF - UE identity resolution ready."
   else
-    echo "[WARN] AMF shows no 'NF registered' yet; reconcile will restart UEs to retry."
+    echo "[WARN] AMF shows no 'NF registered' yet; UEs may need a manual restart if they fail to attach."
   fi
 }
 
@@ -396,7 +342,6 @@ start_dashboard
 ensure_core_amf_ready
 ensure_cu_plane_healthy
 recover_mixed_du_if_available
-reconcile_ue_sessions
 
 section "Final pod state"
 for ns in $TARGET_NAMESPACES; do

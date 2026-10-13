@@ -1,33 +1,15 @@
 (function () {
-  function byId(id) { return document.getElementById(id); }
-  function setText(id, val) {
-    var el = byId(id);
-    if (el) el.textContent = val == null ? "-" : String(val);
-  }
+  var byId = OranUI.byId;
+  var setText = OranUI.setText;
+  var api = OranUI.jsonApi;
 
   var running = false;
-
-  function setBusy(busy) {
-    running = !!busy;
-    var el = byId("realFreqRunBtn");
-    if (el) el.disabled = running;
-  }
-
-  async function api(path, opts) {
-    var res = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts || {}));
-    var text = await res.text();
-    var data;
-    try { data = text ? JSON.parse(text) : {}; }
-    catch (e) { data = { ok: false, error: text || String(e) }; }
-    if (!res.ok) throw new Error(data.error || data.message || text || ("HTTP " + res.status));
-    return data;
-  }
 
   function renderBandResults(rows) {
     var body = byId("freqBandResultsBody");
     if (!body) return;
     if (!rows || !rows.length) {
-      body.innerHTML = '<tr><td colspan="11">No runs yet. Click Run to start.</td></tr>';
+      body.innerHTML = '<tr><td colspan="10">No runs yet. Click Run to start.</td></tr>';
       return;
     }
     var F_REF = 2593.35;
@@ -56,7 +38,6 @@
         "<td>" + (freqMhz > 0 ? K.toFixed(2) : "-") + "</td>" +
         "<td>" + capMbit + "</td>" +
         "<td>" + (r.ping_avg || "-") + "</td>" +
-        "<td>" + (r.ping_loss || "-") + "</td>" +
         "<td style='font-weight:bold;color:" + mbpsColor + "'>" + mbpsDisplay + "</td>" +
         "<td style='font-size:0.85em'>" + (r.timestamp || "-") + "</td>" +
         "</tr>"
@@ -71,10 +52,8 @@
       var data = await api("/api/real-frequency/status");
       var keys = data.carrier_keys || {};
       var lines = [
-        "ok=" + data.ok,
         "active_profile=" + (data.active_profile || "-"),
         "du_deploy=" + (data.du_deploy || "-"),
-        "du_cm=" + (data.du_cm || "-"),
         "tunnel_ready=" + (data.tunnel_ready || "-"),
         "",
         "===== Current DU carrier keys =====",
@@ -82,9 +61,7 @@
       Object.keys(keys).forEach(function (k) { lines.push("  " + k + " = " + keys[k]); });
       setText("realFreqSummary", lines.join("\n"));
       hasStatus = true;
-      pollOk("freq-status");
     } catch (e) {
-      pollFail("freq-status");
       if (!hasStatus) setText("realFreqSummary", "ERROR reading retune status:\n" + String(e));
     }
   }
@@ -93,14 +70,13 @@
     try {
       var r = await api("/api/real-frequency/kpi-results");
       renderBandResults(r.rows || []);
-      pollOk("freq-results");
     } catch (e) {
-      pollFail("freq-results");
+      // Echec d'une requete automatique: on garde les dernieres donnees affichees.
     }
   }
 
-  async function runBandFreq(profile, btn) {
-    setBusy(true);
+  async function runBandFreq(profile) {
+    running = true;
     setText("realFreqLog",
       "Running " + profile + ": REAL carrier retune (restarts DU0+UE1, ~2-3 min), then EMULATED netem KPI where a band model exists...");
     try {
@@ -111,14 +87,14 @@
       setText("realFreqLog", (data.ok ? "[DONE] " : "[FAILED] ") + profile + "\n\n" + (data.log || ""));
       await refreshResults();
       await refreshStatus();
+      return !!data.ok;
     } catch (e) {
       setText("realFreqLog", "ERROR: " + String(e));
+      return false;
     } finally {
-      setBusy(false);
+      running = false;
     }
   }
-
-  window.runBandFreq = runBandFreq;
 
   document.addEventListener("DOMContentLoaded", function () {
     var root = byId("realFrequencyRoot");
@@ -127,7 +103,7 @@
     var runBtn = byId("realFreqRunBtn");
     if (runBtn) runBtn.addEventListener("click", function () {
       var sel = byId("realFreqSelect");
-      if (sel) runBandFreq(sel.value, runBtn);
+      if (sel) OranUI.runWithButton(runBtn, [runBtn], function () { return runBandFreq(sel.value); });
     });
 
     setText("realFreqLog", "Ready.");

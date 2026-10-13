@@ -71,22 +71,6 @@ print(m.group(1) if m else "")
 '
 }
 
-ue_slice_from_cm() {
-  local ns="${1:-oran-ran}"
-  local cm="${2:-oai-nrue-config}"
-
-  kubectl -n "$ns" get cm "$cm" -o jsonpath='{.data.nr-ue\.conf}' 2>/dev/null \
-    | python3 -c '
-import sys, re
-text=sys.stdin.read()
-sst=re.search(r"nssai_sst\s*=\s*([^;,\n}]+)", text)
-sd=re.search(r"nssai_sd\s*=\s*([^;,\n}]+)", text)
-sst_val = sst.group(1).strip() if sst else "unknown"
-sd_val = sd.group(1).strip() if sd else "unknown"
-print("nssai_sst={} nssai_sd={}".format(sst_val, sd_val))
-'
-}
-
 wait_exact_ue_tunnel() {
   local ns="${1:-oran-ran}"
   local dep="${2:-oai-nr-ue}"

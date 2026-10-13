@@ -81,7 +81,7 @@ else
 fi
 
 for marker in \
-  "Radio / Modulation Profile Control" \
+  "radioProfileRoot" \
   "End-to-End UE Validation Scenarios" \
   "Real S-NSSAI Slice Traffic" \
   "Real-Time Multi-UE Data Transfer" \

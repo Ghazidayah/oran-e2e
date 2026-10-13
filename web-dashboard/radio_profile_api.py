@@ -1,15 +1,13 @@
 import json
-import os
 import re
 import subprocess
-from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
+from settings import REPO
 
 radio_bp = Blueprint("radio_profile", __name__)
 
-REPO = Path(os.environ.get("ORAN_REPO", Path.home() / "oran-e2e"))
 RESULTS_FILE = REPO / "web-dashboard" / "radio-profile-results.json"
 
 PROFILE_MCS = {

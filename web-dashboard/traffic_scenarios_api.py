@@ -4,19 +4,21 @@ Runs the scenario scripts under scripts/traffic/ as background jobs and exposes
 them under /api/traffic/*. Previously a separate Flask process on port 5055;
 now served by the dashboard on the same port as everything else.
 """
-import os
 import json
-import time
-import uuid
+import os
 import subprocess
 import threading
+import time
+import uuid
 from pathlib import Path
+
 from flask import Blueprint, jsonify
+
+from settings import PROOF_DIR, REPO
 
 traffic_bp = Blueprint("traffic_scenarios", __name__)
 
-REPO = Path(os.environ.get("ORAN_REPO", Path.home() / "oran-e2e"))
-PROOF = Path.home() / "oran-proof" / "phase2-traffic-api"
+PROOF = PROOF_DIR / "phase2-traffic-api"
 PROOF.mkdir(parents=True, exist_ok=True)
 
 SCENARIOS = {
@@ -223,9 +225,6 @@ def get_job(job_id):
         "job": job,
         "output": output,
     })
-
-
-
 
 
 REAL_SLICE_PROFILES = {

@@ -1,19 +1,21 @@
+import json
 import os
 import re
-import json
 import subprocess
-from pathlib import Path
 from datetime import datetime
-from flask import Flask, render_template, jsonify
-from multi_ue_api import register_multi_ue_routes
+
+from flask import Flask, jsonify, render_template
+
 from handover_api import handover_bp
+from mixed_du_handover_api import install_mixed_du_handover_api
+from multi_ue_api import register_multi_ue_routes
 from radio_profile_api import radio_bp
 from real_frequency_api import real_freq_bp
+from settings import PROOF_DIR
+from settings import REPO as BASE_DIR
 from traffic_kpi_api import traffic_kpi_bp
 from traffic_scenarios_api import traffic_bp
 
-BASE_DIR = Path.home() / "oran-e2e"
-PROOF_DIR = Path.home() / "oran-proof"
 RUNS_DIR = PROOF_DIR / "web-dashboard-runs"
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -773,7 +775,7 @@ def _parse_slice_output(text, profile):
         "tcp_mbps":     "-",
         "retransmits":  "-",
         "udp_loss_pct": "-",
-        "udp_jitter_ms":"-",
+        "udp_jitter_ms": "-",
         "verdict":      "UNKNOWN",
         "time":         datetime.now().isoformat(timespec="seconds"),
     }
@@ -881,23 +883,9 @@ def api_real_slice(profile):
 
 register_multi_ue_routes(app, run_cmd, BASE_DIR)
 
-
-# BEGIN MIXED-DU HANDOVER API
-try:
-    from mixed_du_handover_api import install_mixed_du_handover_api
-    install_mixed_du_handover_api(app)
-    print("[dashboard] Mixed-DU handover API installed")
-except Exception as exc:
-    print(f"[dashboard] Mixed-DU handover API not installed: {exc}")
-# END MIXED-DU HANDOVER API
-
-
-
-
-# BEGIN RADIO PROFILE API BLUEPRINT
+install_mixed_du_handover_api(app)
 app.register_blueprint(radio_bp, url_prefix="/api/radio")
-print("[dashboard] Radio profile blueprint installed at /api/radio")
-# END RADIO PROFILE API BLUEPRINT
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=18080)
+    app.run(host="0.0.0.0", port=int(os.environ.get("ORAN_DASHBOARD_PORT", "18080")))

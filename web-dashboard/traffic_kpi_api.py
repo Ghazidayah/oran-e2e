@@ -1,11 +1,14 @@
-import re
 import json
 import pathlib
+import re
+
 from flask import Blueprint, jsonify
+
+from settings import PROOF_DIR
 
 traffic_kpi_bp = Blueprint("traffic_kpi", __name__)
 
-PROOF = pathlib.Path.home() / "oran-proof" / "phase2-traffic-api"
+PROOF = PROOF_DIR / "phase2-traffic-api"
 
 SCENARIO_LABELS = {
     "image": "Image Download",

@@ -542,22 +542,6 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
         },
     }
 
-    # Friendly names used by the per-UE scenario matrix.
-    # These aliases keep the existing scenario implementation intact while letting the UI
-    # expose simpler choices like "light" and "heavy" per UE.
-    SCENARIO_ALIASES = {
-        "none": "none",
-        "off": "none",
-        "skip": "none",
-        "light": "stability",
-        "light_traffic": "stability",
-        "heavy": "stress",
-        "heavy_traffic": "stress",
-        "kpi": "throughput",
-        "stream": "video",
-        "video_like": "video",
-    }
-
     def requested_ue_count():
         data = request.get_json(silent=True) or {}
         raw_count = data.get("count", request.form.get("count", ""))
@@ -782,11 +766,12 @@ exit 0
     PHASE4_MULTI_UE_EMBB_LABELS = {
         "attach_pdu": "Attach + PDU",
         "connectivity": "Connectivity",
-        "image": "Image Download eMBB",
-        "video_download": "Video Download eMBB",
-        "web": "Web Browsing eMBB",
-        "streaming": "Streaming-like HLS eMBB",
-        "tcp_download": "TCP Download KPI eMBB",
+        "image": "Image Download",
+        "video_download": "Video Download",
+        "web": "Web Browsing",
+        "streaming": "Streaming-like HLS",
+        "tcp_download": "TCP Download KPI",
+        "udp": "UDP Jitter / Loss",
         "stop": "Stop traffic",
     }
 
@@ -850,17 +835,44 @@ exit 0
         sock.close()
 
         log_path = Path(run_dir) / "http-server.log"
-        log = open(log_path, "w")
-
-        proc = subprocess.Popen(
-            ["python3", "-m", "http.server", str(port), "--bind", "0.0.0.0"],
-            cwd=media_root,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        with open(log_path, "w") as log:
+            proc = subprocess.Popen(
+                ["python3", "-m", "http.server", str(port), "--bind", "0.0.0.0"],
+                cwd=media_root,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
 
         time.sleep(1)
+        return proc, port
+
+    UDP_ECHO_CODE = (
+        "import socket, sys\n"
+        "s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\n"
+        "s.bind(('0.0.0.0', int(sys.argv[1])))\n"
+        "while True:\n"
+        "    data, addr = s.recvfrom(65535)\n"
+        "    s.sendto(data, addr)\n"
+    )
+
+    def phase4_multi_ue_start_udp_echo():
+        """UDP echo server on the host: every UE sends its probes here and counts the echoes."""
+        import socket
+        import subprocess
+        import time
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(("0.0.0.0", 0))
+        port = sock.getsockname()[1]
+        sock.close()
+
+        proc = subprocess.Popen(
+            ["python3", "-c", UDP_ECHO_CODE, str(port)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        time.sleep(0.5)
         return proc, port
 
     def phase4_multi_ue_client_script():
@@ -894,6 +906,63 @@ paths_by_scenario = {
     ],
     "tcp_download": ["/videos/sample-video.mp4", "/videos/sample-video.mp4"],
 }
+
+if scenario == "udp":
+    import struct
+
+    udp_host = sys.argv[4]
+    udp_port = int(sys.argv[5])
+    count, size, interval = 500, 1000, 0.005
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((bind_ip, 0))
+    seen = set()
+    rtts = []
+
+    def receive_until(deadline):
+        while True:
+            remaining = deadline - time.time()
+            if remaining <= 0 or len(seen) >= count:
+                return
+            sock.settimeout(remaining)
+            try:
+                data, _ = sock.recvfrom(65535)
+            except socket.timeout:
+                return
+            seq, sent_at = struct.unpack("!Id", data[:12])
+            if seq not in seen:
+                seen.add(seq)
+                rtts.append((time.time() - sent_at) * 1000.0)
+
+    t0_all = time.time()
+    next_send = t0_all
+    for seq in range(count):
+        sock.sendto(struct.pack("!Id", seq, time.time()).ljust(size, b"x"), (udp_host, udp_port))
+        next_send += interval
+        receive_until(next_send)
+    receive_until(time.time() + 1.5)
+
+    duration = time.time() - t0_all
+    received = len(seen)
+    loss = (count - received) * 100.0 / count
+    jitter = (sum(abs(a - b) for a, b in zip(rtts[1:], rtts[:-1])) / (len(rtts) - 1)) if len(rtts) > 1 else 0.0
+    avg_rtt = (sum(rtts) / len(rtts)) if rtts else 0.0
+    mbps = (received * size * 8 / duration / 1000000) if duration > 0 else 0.0
+    ok = received > 0 and loss <= 10
+
+    print("Scenario: udp")
+    print("Slice: eMBB")
+    print("SST: 1")
+    print("Packets sent/received: {}/{}".format(count, received))
+    print("avg_rtt_ms={}".format(round(avg_rtt, 3)))
+    print("jitter_ms={}".format(round(jitter, 3)))
+    print("rx_delta_bytes={}".format(received * size))
+    print("tx_delta_bytes={}".format(count * size))
+    print("duration_sec={}".format(round(duration, 3)))
+    print("approx_total_mbps={}".format(round(mbps, 6)))
+    print("packet_loss={}%".format(round(loss, 2)))
+    print("verdict={}".format("OK" if ok else "FAIL"))
+    sys.exit(0 if ok else 1)
 
 paths = paths_by_scenario.get(scenario)
 if not paths:
@@ -954,7 +1023,7 @@ print("verdict={}".format(result["verdict"]))
 sys.exit(0 if ok else 1)
 """
 
-    def phase4_multi_ue_run_one_job(job, base_url, proof_dir):
+    def phase4_multi_ue_run_one_job(job, base_url, proof_dir, udp_target=None):
         import shlex
 
         ue_name = str(job.get("ue") or "").strip().lower()
@@ -1026,11 +1095,12 @@ sys.exit(0 if ok else 1)
             return result
 
         client_code = phase4_multi_ue_client_script()
-        shell = "cat > /tmp/multi_ue_realistic_client.py <<'PYCLIENT'\n{}\nPYCLIENT\npython3 /tmp/multi_ue_realistic_client.py {} {} {}".format(
+        client_args = [scenario, base_url, tunnel_ip]
+        if scenario == "udp":
+            client_args += list(udp_target)
+        shell = "cat > /tmp/multi_ue_realistic_client.py <<'PYCLIENT'\n{}\nPYCLIENT\npython3 /tmp/multi_ue_realistic_client.py {}".format(
             client_code,
-            shlex.quote(scenario),
-            shlex.quote(base_url),
-            shlex.quote(tunnel_ip),
+            " ".join(shlex.quote(str(arg)) for arg in client_args),
         )
 
         cmd = "kubectl -n {} exec {} -- sh -lc {}".format(
@@ -1110,22 +1180,30 @@ sys.exit(0 if ok else 1)
         Path(proof_dir).mkdir(parents=True, exist_ok=True)
 
         needs_media = any(j["scenario"] in ("image", "video_download", "web", "streaming", "tcp_download") for j in normalized_jobs)
-        server_proc = None
+        needs_udp = any(j["scenario"] == "udp" for j in normalized_jobs)
+        server_procs = []
         base_url = ""
+        udp_target = None
 
         try:
+            if needs_media or needs_udp:
+                node_ip = phase4_multi_ue_node_ip()
             if needs_media:
                 media_root = phase4_multi_ue_make_media_root(proof_dir)
-                server_proc, port = phase4_multi_ue_start_http_server(media_root, proof_dir)
-                node_ip = phase4_multi_ue_node_ip()
+                http_proc, port = phase4_multi_ue_start_http_server(media_root, proof_dir)
+                server_procs.append(http_proc)
                 base_url = "http://{}:{}".format(node_ip, port)
+            if needs_udp:
+                udp_proc, udp_port = phase4_multi_ue_start_udp_echo()
+                server_procs.append(udp_proc)
+                udp_target = (node_ip, udp_port)
 
             results = []
             max_workers = min(len(normalized_jobs), MAX_UES)
 
             with ThreadPoolExecutor(max_workers=max_workers) as pool:
                 futures = {
-                    pool.submit(phase4_multi_ue_run_one_job, job, base_url, proof_dir): job
+                    pool.submit(phase4_multi_ue_run_one_job, job, base_url, proof_dir, udp_target): job
                     for job in normalized_jobs
                 }
 
@@ -1183,13 +1261,13 @@ sys.exit(0 if ok else 1)
             return jsonify(payload)
 
         finally:
-            if server_proc is not None:
+            for proc in server_procs:
                 try:
-                    server_proc.terminate()
-                    server_proc.wait(timeout=5)
+                    proc.terminate()
+                    proc.wait(timeout=5)
                 except Exception:
                     try:
-                        server_proc.kill()
+                        proc.kill()
                     except Exception:
                         pass
 

@@ -209,6 +209,7 @@ One Flask process on port **18080** serves the UI and every API. Modules in `web
 | File | Role |
 |---|---|
 | `app.py` | Application, main routes, command runner, blueprint registration |
+| `settings.py` | Shared paths (repo root, proof directory) |
 | `traffic_scenarios_api.py` | `/api/traffic/*`: realistic traffic scenarios and real-slice traffic jobs |
 | `traffic_kpi_api.py` | Parses job logs into consolidated KPI results (`/api/e2e-kpi/results`) |
 | `multi_ue_api.py` | Multi-UE control and multi-UE eMBB scenarios |
@@ -216,10 +217,10 @@ One Flask process on port **18080** serves the UI and every API. Modules in `web
 | `handover_api.py` | `/api/handover/status` (uses `actions/f1_status.sh`) |
 | `radio_profile_api.py` | Modulation profiles (QPSK / 16QAM / 64QAM / auto) |
 | `real_frequency_api.py` | Carrier retune and band KPI comparison |
-| `templates/index.html`, `static/` | Single-page UI, one CSS file, JavaScript modules |
+| `templates/index.html`, `static/` | Single-page UI, one CSS file, JavaScript modules (`common.js` holds the shared helpers) |
 
-Install dependencies with `pip install -r web-dashboard/requirements.txt`. The port (18080) and
-the repo path (`~/oran-e2e`) are fixed in `app.py`.
+Install dependencies with `pip install -r web-dashboard/requirements.txt`. The port defaults to 18080
+(`ORAN_DASHBOARD_PORT`) and the repo root to the parent of `web-dashboard/` (`ORAN_REPO`).
 
 ### UI sections
 
@@ -229,7 +230,7 @@ the repo path (`~/oran-e2e`) are fixed in `app.py`.
 | Status cards | Core / RAN + UE / Monitoring / UE tunnel (refreshed every 10 s) | `GET /api/status` |
 | Radio / Modulation | Profile select, **Apply + KPI Test**, KPI table | `/api/radio/*` |
 | Frequency | Band select (the `n78 3320 MHz (baseline)` entry restores the original carrier), **Run**, KPI table | `/api/real-frequency/*` |
-| End-to-End scenarios | **Check Serving DU**, attach/PDU, connectivity, six traffic scenarios, **Run All** | `/api/action/ownership`, `/api/ues/scenario/*`, `/api/traffic/run/*` |
+| End-to-End scenarios | **UE Check** (serving DU, attach + PDU, connectivity in sequence), six traffic scenarios, **Run All** | `/api/action/ownership`, `/api/ues/scenario/*`, `/api/traffic/run/*` |
 | Slices | eMBB / URLLC / mMTC traffic, results table | `/api/real-slice/*` |
 | Pods | RAN and core pod tables | `/api/status` |
 | Live transfer | Aggregate RX/TX chart and per-UE rates | `/api/ues/live_metrics` |
@@ -252,7 +253,7 @@ long-running buttons disable themselves until their job finishes.
 | `scripts/radio/` | `switch-ue-modulation-profile-du-aware.sh` |
 | `scripts/handover/` | `switch-ue-du-target.sh`, `recover-mixed-du-state.sh` (needs the dashboard running) |
 | `tests/` | `test-section-01` … `07` and `run-full-platform-acceptance.sh` |
-| `tools/` | `uectl.sh`, `compute-fspl-k.sh`, `audit-dashboard-and-platform.sh`, `audit-frequency-retune-readiness.sh`, `test-traffic-scenarios.sh`, `gather-report-data.sh` |
+| `tools/` | `uectl.sh`, `compute-fspl-k.sh`, `audit-dashboard-and-platform.sh`, `audit-frequency-retune-readiness.sh`, `test-traffic-scenarios.sh`, `gather-report-data.sh`, `diagnose-du-layout.sh` (read-only UE/DU snapshot) |
 
 ```bash
 ./tests/run-full-platform-acceptance.sh          # whole platform, never stops at the first failure

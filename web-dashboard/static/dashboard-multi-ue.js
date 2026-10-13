@@ -5,13 +5,12 @@ let desiredUeCountUserEdited = false;
   const ueScenarioSelections = {};
   const perUeScenarioOptions = [
     ["none", "None"],
-    ["attach_pdu", "Attach + PDU"],
-    ["connectivity", "Connectivity"],
-    ["image", "Image Download eMBB"],
-    ["video_download", "Video Download eMBB"],
-    ["web", "Web Browsing eMBB"],
-    ["streaming", "Streaming-like HLS eMBB"],
-    ["tcp_download", "TCP Download KPI eMBB"],
+    ["image", "Image Download"],
+    ["video_download", "Video Download"],
+    ["web", "Web Browsing"],
+    ["streaming", "Streaming-like HLS"],
+    ["tcp_download", "TCP Download KPI"],
+    ["udp", "UDP Jitter / Loss"],
   ];
 
   function setPerUeScenario(ueName, scenario) {
@@ -48,6 +47,41 @@ let desiredUeCountUserEdited = false;
     });
   }
 
+  // The button that started the current operation shows "Running..." (same wording as the other
+  // launch buttons). Row buttons are re-rendered by every refresh, so the label is painted again
+  // after each render.
+  let runningOp = null;
+
+  function paintRunning() {
+    if (!runningOp) return;
+    const button = document.querySelector(`[data-op="${runningOp}"]`);
+    if (!button || button.dataset.originalText) return;
+    button.dataset.originalText = button.textContent;
+    button.style.minWidth = `${button.offsetWidth}px`;
+    button.textContent = 'Running...';
+  }
+
+  function clearRunning() {
+    runningOp = null;
+    document.querySelectorAll('[data-op]').forEach((button) => {
+      if (!button.dataset.originalText) return;
+      button.textContent = button.dataset.originalText;
+      button.style.minWidth = '';
+      delete button.dataset.originalText;
+    });
+  }
+
+  function beginOp(op) {
+    runningOp = op;
+    setMultiUeBusy(true);
+    paintRunning();
+  }
+
+  function endOp() {
+    clearRunning();
+    setMultiUeBusy(false);
+  }
+
   async function refreshF1ModeForMultiUe() {
     try {
       const response = await fetch('/api/handover/status');
@@ -80,26 +114,11 @@ let desiredUeCountUserEdited = false;
     if (output) output.textContent = text || '';
   }
 
-  function escapeHtml(value) {
-    return String(fallbackValue(value, ''))
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+  const escapeHtml = OranUI.escapeHtml;
 
   function scenarioMetric(output, regex) {
     const match = String(output || '').match(regex);
     return match ? match[1] : '';
-  }
-
-  function scenarioPacketLoss(output) {
-    const str = String(output || '');
-    const scenario = str.match(/packet_loss=([0-9.]+)%/);
-    if (scenario) return scenario[1] + '%';
-    const ping = str.match(/\d+(?:\.\d+)?% packet loss/g) || [];
-    return ping.length ? ping.join(' / ') : '-';
   }
 
   function scenarioNameForRow(data, result) {
@@ -115,8 +134,6 @@ let desiredUeCountUserEdited = false;
     if (!panel) return;
 
     const results = Array.isArray(data.results) ? data.results : [];
-    const statusClass = data.ok ? 'ok' : 'failed';
-    const statusText = data.ok ? 'SUCCESS' : 'FAILED';
     const scenarioTitle = data.mode === 'per_ue'
       ? 'Per-UE Independent Scenario Results'
       : `Multi-UE Scenario Results: ${data.label || data.scenario || 'scenario'}`;
@@ -125,8 +142,6 @@ let desiredUeCountUserEdited = false;
       ? results.map((result) => {
           const output = result.output || '';
           const duration = scenarioMetric(output, /duration_sec=([0-9]+)/);
-          const rx = scenarioMetric(output, /rx_delta_bytes=([0-9]+)/);
-          const tx = scenarioMetric(output, /tx_delta_bytes=([0-9]+)/);
           const mbps = scenarioMetric(output, /approx_total_mbps=([0-9.]+)/);
           return `
             <tr>
@@ -135,14 +150,12 @@ let desiredUeCountUserEdited = false;
               <td>${result.ok ? '<span class="multi-ue-badge multi-ue-attached">OK</span>' : '<span class="multi-ue-badge multi-ue-stopped">FAILED</span>'}</td>
               <td><code>${escapeHtml(result.tunnel_ip || '-')}</code></td>
               <td>${escapeHtml(fallbackValue(result.exit, '-'))}</td>
-              <td>${escapeHtml(scenarioPacketLoss(output))}</td>
               <td>${duration ? `${escapeHtml(duration)}s` : '-'}</td>
-              <td>${rx || tx ? `${escapeHtml(rx || '-')} / ${escapeHtml(tx || '-')} B` : '-'}</td>
               <td>${mbps ? `${escapeHtml(mbps)} Mbps` : '-'}</td>
             </tr>
           `;
         }).join('')
-      : '<tr><td colspan="9">No scenario runs yet. Run scenarios to populate.</td></tr>';
+      : '<tr><td colspan="7">No scenario runs yet. Run scenarios to populate.</td></tr>';
 
     const rawBlocks = results.map((result) =>
       `===== ${result.ue || '-'} | ${scenarioNameForRow(data, result)} | ${result.ok ? 'OK' : 'FAILED'} =====\n${result.output || ''}`
@@ -154,7 +167,6 @@ let desiredUeCountUserEdited = false;
     const headerMeta = results.length ? `
       <div class="scenario-result-title">
         <h3>${escapeHtml(scenarioTitle)}</h3>
-        <span class="scenario-status ${statusClass}">${statusText}</span>
       </div>
       ${skipped}` : '';
 
@@ -168,9 +180,7 @@ let desiredUeCountUserEdited = false;
             <th>Result</th>
             <th>Tunnel IP</th>
             <th>Exit</th>
-            <th>Packet loss</th>
             <th>Duration</th>
-            <th>RX / TX delta</th>
             <th>Approx Mbps</th>
           </tr>
         </thead>
@@ -199,14 +209,11 @@ let desiredUeCountUserEdited = false;
       const tbody = document.getElementById('multiUeTableBody');
 
       if (!data.ok) {
-        summary.textContent = 'Failed to load UE status';
         tbody.innerHTML = '<tr><td colspan="8">Failed to load UE status</td></tr>';
         return;
       }
 
-      summary.textContent = f1ModeActiveForMultiUe
-        ? `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running - Multi-UE disabled in F1 mode`
-        : `${data.attached_count}/${data.max_ues} attached, ${data.running_count}/${data.max_ues} running`;
+      summary.textContent = f1ModeActiveForMultiUe ? 'Multi-UE disabled in F1 mode' : '';
 
       const desiredSelect = document.getElementById('desiredUeCount');
       if (
@@ -238,18 +245,18 @@ let desiredUeCountUserEdited = false;
             <td>${bytes}</td>
             <td>
               <div class="multi-ue-actions">
-                <button data-multi-ue-button="true" data-locked="${ue.ready ? "true" : "false"}" ${startDisabled} onclick="startUe('${ue.name}')">Start</button>
-                <button data-multi-ue-button="true" data-locked="${(ue.name === "ue1" || !ue.ready) ? "true" : "false"}" ${stopDisabled} title="${ue.name === "ue1" ? "UE1 is the baseline UE; stop is disabled in the UI." : "Scale this UE deployment to zero."}" onclick="stopUe('${ue.name}')">Stop</button>
-                <button data-multi-ue-button="true" data-locked="${ue.attached ? "false" : "true"}" ${pingDisabled} title="Test this UE PDU tunnel." onclick="pingUe('${ue.name}')">Ping</button>
+                <button data-multi-ue-button="true" data-op="start:${ue.name}" data-locked="${ue.ready ? "true" : "false"}" ${startDisabled} onclick="startUe('${ue.name}')">Start</button>
+                <button data-multi-ue-button="true" data-op="stop:${ue.name}" data-locked="${(ue.name === "ue1" || !ue.ready) ? "true" : "false"}" ${stopDisabled} title="${ue.name === "ue1" ? "UE1 is the baseline UE; stop is disabled in the UI." : "Scale this UE deployment to zero."}" onclick="stopUe('${ue.name}')">Stop</button>
+                <button data-multi-ue-button="true" data-op="ping:${ue.name}" data-locked="${ue.attached ? "false" : "true"}" ${pingDisabled} title="Test this UE PDU tunnel." onclick="pingUe('${ue.name}')">Ping</button>
               </div>
             </td>
           </tr>
         `;
       }).join('');
 
-      setMultiUeBusy(false);
+      setMultiUeBusy(multiUeBusy);
+      paintRunning();
       hasMultiUeData = true;
-      pollOk("multi-ue");
 
       // A previous transient failure may have left an error in the output box - clear it.
       const outEl = document.getElementById('multiUeOutput');
@@ -262,19 +269,18 @@ let desiredUeCountUserEdited = false;
         await new Promise((r) => setTimeout(r, 2000));
         return refreshMultiUes(true);
       }
-      pollFail("multi-ue");
       if (!hasMultiUeData) {
         setMultiUeOutput(`Failed to refresh UEs: ${error}, retried once. Is the dashboard up?`);
       }
     }
   }
 
-  async function multiUePost(url, label) {
+  async function multiUePost(url, label, op) {
     if (multiUeBusy) return;
     await refreshF1ModeForMultiUe();
     if (blockMultiUeIfF1Mode(label)) return;
 
-    setMultiUeBusy(true);
+    beginOp(op);
     setMultiUeOutput(`${label}...`);
 
     try {
@@ -286,20 +292,20 @@ let desiredUeCountUserEdited = false;
     } catch (error) {
       setMultiUeOutput(`${label} failed: ${error}`);
     } finally {
-      setMultiUeBusy(false);
+      endOp();
     }
   }
 
   async function startUe(ueName) {
-    await multiUePost(`/api/ue/${ueName}/start`, `Starting ${ueName}`);
+    await multiUePost(`/api/ue/${ueName}/start`, `Starting ${ueName}`, `start:${ueName}`);
   }
 
   async function stopUe(ueName) {
-    await multiUePost(`/api/ue/${ueName}/stop`, `Stopping ${ueName}`);
+    await multiUePost(`/api/ue/${ueName}/stop`, `Stopping ${ueName}`, `stop:${ueName}`);
   }
 
   async function pingUe(ueName) {
-    await multiUePost(`/api/ue/${ueName}/ping`, `Pinging ${ueName}`);
+    await multiUePost(`/api/ue/${ueName}/ping`, `Pinging ${ueName}`, `ping:${ueName}`);
   }
 
   function selectedPerUeScenarioJobs() {
@@ -322,7 +328,7 @@ let desiredUeCountUserEdited = false;
       return;
     }
 
-    setMultiUeBusy(true);
+    beginOp('run-selected');
     setMultiUeOutput('Running independent per-UE eMBB realistic scenarios in parallel...\n' + jobs.map((job) => `${job.ue}: ${job.scenario}`).join('\n'));
 
     try {
@@ -337,7 +343,7 @@ let desiredUeCountUserEdited = false;
     } catch (error) {
       setMultiUeOutput(`Per-UE scenarios failed: ${error}`);
     } finally {
-      setMultiUeBusy(false);
+      endOp();
     }
   }
 
@@ -349,7 +355,7 @@ let desiredUeCountUserEdited = false;
     const count = Number(document.getElementById('desiredUeCount').value);
     desiredUeCountUserEdited = false;
 
-    setMultiUeBusy(true);
+    beginOp('apply');
     setMultiUeOutput(`Applying desired UE count: ${count}...`);
 
     try {
@@ -365,7 +371,7 @@ let desiredUeCountUserEdited = false;
     } catch (error) {
       setMultiUeOutput(`Apply desired UE count failed: ${error}`);
     } finally {
-      setMultiUeBusy(false);
+      endOp();
     }
   }
 
@@ -382,6 +388,7 @@ let desiredUeCountUserEdited = false;
 
   refreshF1ModeForMultiUe().then(refreshMultiUes);
   setInterval(async () => {
+    if (multiUeBusy) return;
     await refreshF1ModeForMultiUe();
     await refreshMultiUes();
   }, 10000);

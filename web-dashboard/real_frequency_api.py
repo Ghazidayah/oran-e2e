@@ -7,9 +7,10 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
+from settings import PROOF_DIR, REPO
+
 real_freq_bp = Blueprint("real_freq_bp", __name__)
 
-REPO = Path(os.environ.get("ORAN_REPO", Path(__file__).resolve().parents[1]))
 SCRIPT = REPO / "scripts" / "frequency" / "switch-ue-actual-frequency-retune-du-aware.sh"
 RESULTS_FILE = Path(__file__).resolve().with_name("real-frequency-results.json")
 KPI_RESULTS_FILE = Path(__file__).resolve().with_name("freq-kpi-results.json")
@@ -61,9 +62,10 @@ def _ceiling_mbit():
     Ne PAS hardcoder. Mesure live: ~36 (34-36). Fallback 33 = filet
     de securite seulement (si la calibration n'a jamais tourne)."""
     try:
-        return int(open(os.path.expanduser("~/oran-proof/ceiling-mbit.txt")).read().strip())
+        return int((PROOF_DIR / "ceiling-mbit.txt").read_text().strip())
     except Exception:
         return 33
+
 
 _CEIL = _ceiling_mbit()
 

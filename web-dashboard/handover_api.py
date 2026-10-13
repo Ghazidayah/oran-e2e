@@ -1,6 +1,7 @@
 import os
 import subprocess
 from datetime import datetime
+
 from flask import Blueprint, jsonify
 
 handover_bp = Blueprint("handover", __name__)
@@ -65,4 +66,3 @@ def handover_status():
     result["label"] = "F1 RFsim handover topology"
 
     return jsonify(result)
-

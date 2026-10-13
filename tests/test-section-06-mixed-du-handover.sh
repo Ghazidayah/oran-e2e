@@ -171,8 +171,7 @@ fi
 
 for marker in \
   "/api/handover/mixed-du/status" \
-  "/api/handover/mixed-du/switch" \
-  "/api/handover/mixed-du/run"
+  "/api/handover/mixed-du/switch"
 do
   if grep -q "$marker" "$OUT/mixed-du-table.js"; then
     pass "mixed-du-table.js uses $marker"

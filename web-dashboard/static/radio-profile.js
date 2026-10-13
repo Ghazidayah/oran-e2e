@@ -61,17 +61,8 @@
     `;
   }
 
-  async function api(path, options = {}) {
-    const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || JSON.stringify(data));
-    return data;
-  }
-
-  function setText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = (text === undefined || text === null) ? "-" : text;
-  }
+  const api = OranUI.jsonApi;
+  const setText = OranUI.setText;
 
   function log(text) { setText("rp-log", text || ""); }
 
@@ -114,9 +105,8 @@
     try {
       const r = await api("/api/radio/results");
       renderRows([...(r.rows || []), ...(r.reference_rows || [])]);
-      pollOk("radio-results");
     } catch (e) {
-      pollFail("radio-results");
+      // Echec d'une requete automatique: on garde les dernieres donnees affichees.
     }
   }
 
@@ -132,8 +122,10 @@
       });
       log(r.log);
       await refreshResults();
+      return r;
     } catch (e) {
       log("Error: " + String(e));
+      return null;
     } finally {
       busy = false;
     }
@@ -149,8 +141,10 @@
       });
       log(r.log);
       await refreshResults();
+      return r;
     } catch (e) {
       log("Error: " + String(e));
+      return null;
     } finally {
       busy = false;
     }
@@ -164,14 +158,15 @@
       if (el) el.addEventListener("click", handler);
     }
 
-    bindClick("rp-apply-kpi", async () => {
+    const applyBtn = document.getElementById("rp-apply-kpi");
+    bindClick("rp-apply-kpi", () => OranUI.runWithButton(applyBtn, [applyBtn], async () => {
       const profile = selectedProfile();
-      await applyProfile(profile).catch(e => log(String(e)));
-      // Only proceed to KPI if apply did not log an error.
-      const logEl = document.getElementById("rp-log");
-      if (logEl && String(logEl.textContent).startsWith("Error:")) return;
-      await runKpi(profile).catch(e => log(String(e)));
-    });
+      // Only proceed to the KPI test if the apply request itself did not fail.
+      const applied = await applyProfile(profile);
+      if (!applied) return false;
+      const kpi = await runKpi(profile);
+      return !!kpi && applied.ok !== false && kpi.ok !== false;
+    }));
 
     await refreshResults();
     window.autoRefresh(refreshResults, 30000, () => busy);

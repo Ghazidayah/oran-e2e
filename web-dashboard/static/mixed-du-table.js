@@ -1,37 +1,8 @@
 (function () {
-  function byId(id) {
-    return document.getElementById(id);
-  }
-
-  function setText(id, value) {
-    var el = byId(id);
-    if (el) el.textContent = value == null ? "-" : String(value);
-  }
-
-  async function jsonApi(path, options) {
-    var res = await fetch(path, Object.assign({
-      headers: { "Content-Type": "application/json" }
-    }, options || {}));
-
-    var text = await res.text();
-    var data;
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch (e) {
-      data = { ok: false, error: text || String(e) };
-    }
-
-    if (!res.ok) {
-      throw new Error(data.error || data.message || text || ("HTTP " + res.status));
-    }
-    return data;
-  }
-
-  function escapeText(v) {
-    return String(v == null ? "" : v).replace(/[&<>"']/g, function (ch) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
-    });
-  }
+  var byId = OranUI.byId;
+  var setText = OranUI.setText;
+  var jsonApi = OranUI.jsonApi;
+  var escapeText = OranUI.escapeHtml;
 
   function toggleHalf(ue, du, current, switchable) {
     var active = current === du;
@@ -78,20 +49,15 @@
       var data = await jsonApi("/api/handover/mixed-du/status");
 
       var lines = [
-        "mode=" + (data.mode || "-"),
         "DU0 ready=" + data.du0_ready,
         "DU1 ready=" + data.du1_ready,
-        "attached=" + (data.attached_count || 0) + "/" + (data.expected_count || "-"),
-        "topology ready=" + data.topology_ready,
-        "handover ready=" + data.handover_ready
+        "attached=" + (data.attached_count || 0) + "/" + (data.expected_count || "-")
       ];
 
       setText("mixedDuOutput", lines.join("\n"));
       renderUeRows(data.ues || []);
       hasData = true;
-      pollOk("du");
     } catch (e) {
-      pollFail("du");
       if (!hasData) setText("mixedDuOutput", "ERROR refreshing status:\n" + String(e));
     }
   }

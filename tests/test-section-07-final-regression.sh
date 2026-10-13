@@ -65,7 +65,7 @@ else
 fi
 
 for marker in \
-  "Radio / Modulation Profile Control" \
+  "radioProfileRoot" \
   "Frequency Scenarios" \
   "Scenario KPI Results" \
   "realFreqLog" \
@@ -96,7 +96,8 @@ for asset in \
   dashboard-multi-ue.js \
   radio-profile.js \
   mixed-du-table.js \
-  dashboard-status-live.js
+  dashboard-status-live.js \
+  common.js
 do
   if curl -fsS --max-time 20 "$BASE/static/$asset" > "$OUT/$asset"; then
     pass "static asset served: $asset"

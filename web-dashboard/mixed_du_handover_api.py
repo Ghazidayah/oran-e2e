@@ -5,15 +5,14 @@ import subprocess
 import threading
 import time
 import urllib.request
-from pathlib import Path
 
 from flask import jsonify, request
 
+from settings import REPO
 
 NS = os.environ.get("ORAN_RAN_NS", "oran-ran")
 PORT = os.environ.get("ORAN_DASHBOARD_PORT", "18080")
 SELF_URL = os.environ.get("ORAN_DASHBOARD_SELF_URL", f"http://127.0.0.1:{PORT}")
-REPO = Path(os.environ.get("ORAN_REPO", Path(__file__).resolve().parents[1]))
 
 SWITCH_SCRIPT = REPO / "scripts" / "handover" / "switch-ue-du-target.sh"
 
