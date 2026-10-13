@@ -21,6 +21,10 @@
 #            the same before or after a DU handover.
 # Note     : the number of resource blocks (106) and the numerology (1)
 #            NEVER change. Only the frequency varies.
+# Peers    : the other UEs (ue2..ue5) served by the SAME DU are realigned too, with
+#            scripts/handover/switch-ue-du-target.sh, once the DU carrier has changed
+#            (otherwise they keep the old -C and loop on "Got NACK ... SIB1").
+#            Disable with REALIGN_PEERS=0.
 # Usage    : bash scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh <profile>
 # ---------------------------------------------------------------------------
 set -u
@@ -389,6 +393,41 @@ run_validation(){
   return 1
 }
 
+# The retune above only touches the DU and UE1. Any other UE attached to the same DU
+# must follow the new carrier: switch-ue-du-target.sh re-reads the DU carrier from its
+# F1 ConfigMap (already patched) and realigns -C / --band / serveraddr of that UE.
+realign_peer_ues(){
+  [ "${REALIGN_PEERS:-1}" = "1" ] || return 0
+  section "Realign the other UEs served by $DU_DEPLOY"
+
+  local du="${DU_DEPLOY#oai-}"
+  local rfsim="${DU_DEPLOY}-rfsim"
+  local sw="$REPO/scripts/handover/switch-ue-du-target.sh"
+  local n sa out
+
+  if [ ! -f "$sw" ]; then
+    warn "$sw not found: other UEs were NOT realigned"
+    return 0
+  fi
+
+  for n in 2 3 4 5; do
+    sa="$(kubectl -n "$NS" get cm "oai-nrue-config-$n" -o jsonpath='{.data.nr-ue\.conf}' 2>/dev/null \
+          | grep -o 'serveraddr *= *"[^"]*"' | head -1)"
+    case "$sa" in
+      *"$rfsim"*) ;;
+      *) echo "ue$n: not on $du (${sa:-unknown}), skipped"; continue ;;
+    esac
+    echo "ue$n is on $du: realigning on the new carrier"
+    out="$(NS="$NS" bash "$sw" "ue$n" "$du" 2>&1)"
+    echo "$out" | grep -E '^(INFO|PASS|FAIL)|VERDICT' || true
+    if echo "$out" | grep -q 'VERDICT=UE_DU_SWITCH_OK'; then
+      pass "ue$n realigned on $du"
+    else
+      warn "ue$n not realigned on $du (see $LOG)"
+    fi
+  done
+}
+
 restore_internal(){
   section "AUTO RESTORE n78-current"
 
@@ -406,6 +445,7 @@ restore_internal(){
   rollout_and_wait || true
   wait_ue_tunnel || true
   run_validation || true
+  realign_peer_ues || true
 }
 
 main(){
@@ -443,6 +483,7 @@ main(){
     exit 1
   fi
 
+  realign_peer_ues
   capture_state after
   echo "PASS=$PASS WARN=$WARN FAIL=$FAIL"
   echo "VERDICT=ACTUAL_FREQUENCY_RETUNE_${TARGET_NAME}_PASS" | tee "$PROOF_DIR/final-verdict.txt"
