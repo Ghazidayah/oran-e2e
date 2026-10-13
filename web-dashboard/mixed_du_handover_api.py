@@ -388,7 +388,7 @@ def _switch_ue():
     try:
         _HANDOVER_STATE.update({"in_progress": True, "ue": ue, "target": target, "started_at": time.time()})
 
-        r = _run([str(SWITCH_SCRIPT), ue, target], timeout=330)
+        r = _run([str(SWITCH_SCRIPT), ue, target], timeout=420)
         output = (r.get("stdout", "") + "\n" + r.get("stderr", "")).strip()
         ok = "VERDICT=UE_DU_SWITCH_OK" in output
 

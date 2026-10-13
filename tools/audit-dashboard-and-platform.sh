@@ -263,26 +263,12 @@ def load(name):
 handover = load("api-handover-status.json")
 if handover:
     allowed = set(handover.get("allowed_ues", []))
-    blocked = set(handover.get("blocked_ues", []))
     ues = handover.get("ues", [])
-    ue1 = next((u for u in ues if u.get("name") == "ue1"), {})
-
-    if "ue1" in allowed:
-        print("[FAIL] Handover logic: ue1 is allowed to switch, but expected ue1 protected")
-        failed += 1
-    elif "ue1" not in blocked and ue1.get("protected") is not True:
-        print("[FAIL] Handover logic: ue1 protection not visible")
-        failed += 1
+    switchable = {u.get("name") for u in ues if u.get("switchable")}
+    if {"ue1", "ue2", "ue3", "ue4", "ue5"}.issubset(allowed | switchable):
+        print("[PASS] Handover logic: ue1-ue5 switchable")
     else:
-        print("[PASS] Handover logic: ue1 protected from lower table switching")
-
-    if {"ue2", "ue3", "ue4", "ue5"}.issubset(allowed) or all(
-        (u.get("name") in ["ue2","ue3","ue4","ue5"] and u.get("switchable")) or u.get("name") == "ue1"
-        for u in ues
-    ):
-        print("[PASS] Handover logic: ue2-ue5 switchable")
-    else:
-        print("[FAIL] Handover logic: ue2-ue5 switchable state incomplete")
+        print("[FAIL] Handover logic: ue1-ue5 switchable state incomplete")
         failed += 1
 
     print(f"[INFO] Handover attached_count={handover.get('attached_count')} expected_count={handover.get('expected_count')} topology_ready={handover.get('topology_ready')} handover_ready={handover.get('handover_ready')}")

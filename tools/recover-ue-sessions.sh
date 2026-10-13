@@ -14,9 +14,9 @@
 # Default is DRY-RUN (diagnose only). Pass --fix to actually restart the bad UEs.
 #
 # Usage:
-#   scripts/recover-ue-sessions.sh            # diagnose only
-#   scripts/recover-ue-sessions.sh --fix      # diagnose + restart unhealthy UEs
-#   scripts/recover-ue-sessions.sh --fix --yes   # skip the confirm prompt
+#   tools/recover-ue-sessions.sh            # diagnose only
+#   tools/recover-ue-sessions.sh --fix      # diagnose + restart unhealthy UEs
+#   tools/recover-ue-sessions.sh --fix --yes   # skip the confirm prompt
 
 set -uo pipefail
 

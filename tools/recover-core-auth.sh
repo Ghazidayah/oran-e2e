@@ -3,8 +3,8 @@
 # (re)created: the SCP/NRF keeps a stale UDR/UDM endpoint ("No route to host" in the SCP log).
 # Restarting udr -> udm -> ausf makes them re-register. MongoDB and the AMF are not touched.
 #
-#   scripts/recover-core-auth.sh          # diagnose only
-#   scripts/recover-core-auth.sh --fix    # restart udr, udm, ausf, then the UEs that are not attached
+#   tools/recover-core-auth.sh          # diagnose only
+#   tools/recover-core-auth.sh --fix    # restart udr, udm, ausf, then the UEs that are not attached
 set -u
 CORE_NS="${CORE_NS:-oran-core}"
 RAN_NS="${NS:-oran-ran}"

@@ -92,13 +92,13 @@ oran-e2e/
 ├── config/ues.yaml           UE fleet definition (read by tools/uectl.sh)
 ├── evidence/pcap/            Wireshark captures (E1AP, F1AP+RRC, N2 NGAP, N3 GTP-U)
 ├── manifests/
-│   ├── core/                 Open5GS configs and live captures (amf/smf/upf/nssf, Helm values)
+│   ├── core/                 Open5GS configs (amf/smf/upf/nssf, Helm values)
 │   ├── network/              Multus network-attachment definitions (N2, N3)
 │   └── ran/
-│       ├── e1/               CU-CP / CU-UP configs and deployments
+│       ├── e1/               CU-CP / CU-UP configs and deployments (e1-split.yaml)
 │       ├── f1/               DU configs, DU deployments and rfsim services
-│       ├── mixed-du-live/    Manifests synced from the live cluster (UE1-5, DU0/DU1)
 │       ├── multi-ue/         Generated UE2-5 manifests (scripts/ue/generate-5ue-manifests.sh)
+│       ├── oai-nr-ue.yaml    UE1 deployment
 │       └── nrue.lab.conf     UE1 config, source of the key/opc used for the generated UEs
 ├── monitoring/grafana/       Grafana dashboard JSON
 ├── scripts/                  Platform operation (called by the dashboard, tests and each other)
@@ -106,7 +106,6 @@ oran-e2e/
 │   ├── run-web-dashboard.sh / stop-web-dashboard.sh   Start / stop the dashboard
 │   ├── deploy-core.sh             Rebuild core configuration and restart the core
 │   ├── validate-f1-ran.sh / validate-e2e.sh   Topology and end-to-end checks
-│   ├── recover-ue-sessions.sh     Diagnose-first UE session recovery
 │   ├── frequency/  handover/  radio/  slicing/  traffic/  ue/
 ├── tests/                    Section tests 01-07 and the full acceptance suite
 ├── tools/                    Manual helpers, never called by other code
@@ -158,7 +157,7 @@ kubectl -n oran-ran scale deploy/oai-du0 deploy/oai-du1 --replicas=1
 ```
 
 `scripts/deploy-core.sh` rebuilds the core configuration from `manifests/core/`; the files there
-are byte-identical to the live configuration, so it is a no-op on content but still restarts the
+match the live configuration, so it is a no-op on content but still restarts the
 affected network functions. Which ConfigMap each function really reads:
 
 | Function | ConfigMap (key) |
@@ -253,7 +252,7 @@ long-running buttons disable themselves until their job finishes.
 | `scripts/radio/` | `switch-ue-modulation-profile-du-aware.sh` |
 | `scripts/handover/` | `switch-ue-du-target.sh`, `recover-mixed-du-state.sh` (needs the dashboard running) |
 | `tests/` | `test-section-01` … `07` and `run-full-platform-acceptance.sh` |
-| `tools/` | `uectl.sh`, `compute-fspl-k.sh`, `audit-dashboard-and-platform.sh`, `audit-frequency-retune-readiness.sh`, `test-traffic-scenarios.sh`, `gather-report-data.sh`, `diagnose-du-layout.sh` (read-only UE/DU snapshot) |
+| `tools/` | `uectl.sh`, `compute-fspl-k.sh`, `audit-dashboard-and-platform.sh`, `audit-frequency-retune-readiness.sh`, `test-traffic-scenarios.sh`, `gather-report-data.sh`, `diagnose-du-layout.sh` (read-only UE/DU snapshot), `diagnose-udp-multi-ue.sh` (UDP path check), `recover-ue-sessions.sh`, `recover-core-auth.sh` |
 
 ```bash
 ./tests/run-full-platform-acceptance.sh          # whole platform, never stops at the first failure
@@ -275,7 +274,7 @@ Section tests: 01 baseline end-to-end, 02 realistic traffic, 03 real slices, 04 
    upgrade`, or anything that restarts core or RAN pods.
 2. **A core (AMF/SMF/UPF/MongoDB) or CU restart wipes all PDU sessions.** UEs usually re-register
    and re-form tunnels with new addresses, but some keep a stale `oaitun_ue1`. Do not blind-restart
-   all UEs: run `scripts/recover-ue-sessions.sh` (read-only diagnosis) and add `--fix` to restart
+   all UEs: run `tools/recover-ue-sessions.sh` (read-only diagnosis) and add `--fix` to restart
    only the UEs that fail.
 3. **`sed` edits to `.conf` files must be whitespace-agnostic.** The configs align values with long
    runs of spaces: `sed -E 's/(key[[:space:]]*=[[:space:]]*)OLD;/\1NEW;/'`, then `grep` to confirm
@@ -309,9 +308,9 @@ the main scripts; DU/UE changes must be reversible to the n78 / DU baseline.
 
 **CU segfault (exit 139).** `oai-cu-cp` restarts, no OOMKill event, all PDU sessions drop. This is
 an intermittent upstream fault of image `oai-gnb:2025.w45` under RFsim load (a few restarts per
-day), not a memory problem. Wait for the pod to restart, then run `scripts/recover-ue-sessions.sh`
+day), not a memory problem. Wait for the pod to restart, then run `tools/recover-ue-sessions.sh`
 and, if any UE is `NO_POD`, `UNHEALTHY(no-pod)` or `UNHEALTHY(ping-fail)`,
-`scripts/recover-ue-sessions.sh --fix` (add `--yes` to skip the prompt). It compares each UE's
+`tools/recover-ue-sessions.sh --fix` (add `--yes` to skip the prompt). It compares each UE's
 tunnel address with the SMF's latest assignment, pings the gateway 10.45.0.1 through the tunnel and
 restarts only the failing UEs. Do not change the CU image without re-validating everything.
 
@@ -325,8 +324,20 @@ kubectl -n oran-ran logs deploy/oai-cu-cp --tail=20 | grep -i "AMF\|ngap"
 kubectl -n oran-ran rollout restart deploy/oai-cu-cp
 kubectl -n oran-ran rollout status  deploy/oai-cu-cp --timeout=3m
 kubectl -n oran-ran rollout restart deploy/oai-du0 deploy/oai-du1
-scripts/recover-ue-sessions.sh --fix
+tools/recover-ue-sessions.sh --fix
 ```
+
+**UE does not attach after a DU switch or a frequency test.**
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| UE log repeats `Got NACK on NR-BCCH-DL-SCH-Message (SIB1)` | UE carrier `-C` differs from the DU carrier | `scripts/handover/switch-ue-du-target.sh` re-aligns it; after a frequency test run `scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh restore` |
+| CU-CP log `No AMF is associated to the gNB` | NG link to the AMF lost | restart `oai-cu-cp`, then cu-up, du0, du1, then `tools/recover-ue-sessions.sh --fix` |
+| AMF `Registration reject [9]`, SCP `No route to host` | stale UDR/UDM endpoint after the core was recreated | `tools/recover-core-auth.sh --fix` |
+
+`tools/diagnose-du-layout.sh <label>` prints an AUTOMATIC CHECKS block that names these causes.
+Multi-UE UDP: `tools/diagnose-udp-multi-ue.sh ueN` shows where datagrams are lost (the echo
+server must stay bound to the node IP, otherwise the UPF NAT drops the replies).
 
 **Registration rejected / no Allowed NSSAI.** Check, in order: the AMF ConfigMap
 (`kubectl -n oran-core get cm open5gs-oai-prep -o jsonpath='{.data.amf\.yaml}' | grep -A5 s_nssai`,

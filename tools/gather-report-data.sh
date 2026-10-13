@@ -31,7 +31,7 @@ say PART "1/5  PARAMETERS / CONFIGS"
 # DU radio + slice config
 cp manifests/ran/f1/du0.conf manifests/ran/f1/du1.conf "$B/params/" 2>/dev/null
 # UE configmaps (serveraddr / DU targeting + S-NSSAI)
-cp manifests/ran/mixed-du-live/*.yaml "$B/params/" 2>/dev/null
+cp manifests/ran/oai-nr-ue.yaml manifests/ran/multi-ue/*.yaml "$B/params/" 2>/dev/null
 # capability parameter scripts (slice tc/netem, modulation MCS, frequency ARFCN, handover)
 cp scripts/slicing/apply-slice-resource-profile.sh \
    scripts/slicing/run-real-slice-traffic.sh \

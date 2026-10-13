@@ -11,7 +11,7 @@
 #   3. Waits for the tunnel directly instead of "rollout status": ue1 has a postStart hook
 #      that keeps the pod from becoming ready until the tunnel exists.
 #
-# Env: NS (default oran-ran), BACKUP_DIR, DRY_RUN=1 (print the plan, change nothing),
+# Env: NS (default oran-ran), DRY_RUN=1 (print the plan, change nothing),
 #      ATTACH_TIMEOUT (seconds, default 300).
 set +e
 set +u
@@ -48,11 +48,8 @@ case "$TARGET" in
   *) echo "Unsupported target: $TARGET"; usage; echo "VERDICT=INVALID_DU_TARGET"; exit 0 ;;
 esac
 
-STAMP="$(date +%Y%m%d-%H%M%S)"
-# Backups live outside the repository so the working tree stays clean.
-BACKUP_DIR="${BACKUP_DIR:-$HOME/oran-proof/du-switch-backups/$UE-$TARGET-$STAMP}"
 WORK="$(mktemp -d /tmp/du-switch.XXXXXX)"
-mkdir -p "$BACKUP_DIR"
+trap 'rm -rf "$WORK"' EXIT
 
 pass() { echo "PASS: $*"; }
 fail() { echo "FAIL: $*"; }
@@ -88,7 +85,6 @@ except Exception:
 }
 
 echo "Switching $UE to $RFSIM_TARGET in namespace $NS"
-echo "Backup dir: $BACKUP_DIR"
 
 # ---------------------------------------------------------------- 1. target DU carrier
 DU_FREQ="$(kubectl -n "$NS" get cm "$DU_CM" -o jsonpath='{.data.gnb\.conf}' 2>/dev/null | python3 -c '
@@ -116,9 +112,7 @@ fi
 read -r TARGET_C_HZ TARGET_BAND TARGET_SSB_ARFCN <<<"$DU_FREQ"
 info "$TARGET carrier: SSB ARFCN=$TARGET_SSB_ARFCN -> -C $TARGET_C_HZ (band $TARGET_BAND)"
 
-# ---------------------------------------------------------------- 2. backups + plan
-kubectl -n "$NS" get cm "$CM" -o yaml > "$BACKUP_DIR/$CM.before.yaml" 2>/dev/null
-kubectl -n "$NS" get deploy "$DEP" -o yaml > "$BACKUP_DIR/$DEP.before.yaml" 2>/dev/null
+# ---------------------------------------------------------------- 2. plan
 kubectl -n "$NS" get deploy "$DEP" -o json > "$WORK/dep.json" 2>/dev/null
 if [ ! -s "$WORK/dep.json" ]; then
   fail "cannot read deployment $DEP"

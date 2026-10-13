@@ -2,8 +2,8 @@
 # =============================================================================
 # bootstrap-platform.sh - Fresh Ubuntu 22.04 host → running O-RAN E2E platform
 # -----------------------------------------------------------------------------
-# Sources for the values below: manifests/core/open5gs-{amf,upf}-deploy-live.yaml
-# and scripts/deploy-core.sh. Where a value could not be confirmed from the repo
+# Sources for the values below: scripts/deploy-core.sh and the manifests under
+# manifests/. Where a value could not be confirmed from the repo
 # (the monitoring chart), it is marked best-effort and skippable.
 #
 # *** Still only as tested as the repo it reads from. Review before running
@@ -228,8 +228,7 @@ kubectl -n oran-core patch deploy open5gs-upf --type merge -p \
 
 # FIX (this was the unresolved MANUAL step): a fresh Gradiant install does NOT
 # mount open5gs-oai-prep into the AMF/UPF containers. Values below are read
-# directly from the live AMF/UPF deployments (manifests/core/open5gs-{amf,upf}
-# -deploy-live.yaml), not placeholders.
+# from the live AMF/UPF deployments, not placeholders.
 #
 # 7.1 - create open5gs-oai-prep FIRST so the volume patch below doesn't leave
 # pods stuck in ContainerCreateConfigError waiting on a ConfigMap that isn't
@@ -317,7 +316,7 @@ bash "$REPO/scripts/ue/provision-5ue-subscribers.sh"
 kubectl -n oran-ran create configmap oai-nrue-config \
   --from-file=nr-ue.conf="$REPO/manifests/ran/nrue.lab.conf" \
   --dry-run=client -o yaml | kubectl apply -f -
-apply_stripped "$REPO/manifests/ran/mixed-du-live/deploy-oai-nr-ue.yaml" oran-ran
+apply_stripped "$REPO/manifests/ran/oai-nr-ue.yaml" oran-ran
 
 bash "$REPO/scripts/ue/generate-5ue-manifests.sh"
 kubectl apply -f "$REPO/manifests/ran/multi-ue/"

@@ -330,7 +330,7 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
                 "output": "\n".join(x for x in outputs if x),
                 "error": (
                     "{} started but tunnel did not form (DU1 attach race)"
-                    " - run recover-ue-sessions.sh --fix".format(ue_name)
+                    " - run tools/recover-ue-sessions.sh --fix".format(ue_name)
                 ),
                 "status": today,
             }
@@ -1343,16 +1343,7 @@ sys.exit(0 if ok else 1)
         timeout = int(profile.get("timeout", 120))
 
         for ue in target_ues:
-            if profile["kind"] in ("ping", "traffic"):
-                script = build_ping_or_traffic_script(ue, profile)
-            elif profile["kind"] == "background":
-                script = build_video_script(ue)
-            elif profile["kind"] == "stop":
-                script = build_stop_script()
-            else:
-                script = "echo unsupported scenario kind; exit 1"
-
-            jobs.append((ue, script))
+            jobs.append((ue, build_script_for_profile(ue, profile)))
 
         results = []
         with ThreadPoolExecutor(max_workers=len(jobs)) as pool:

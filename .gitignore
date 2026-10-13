@@ -24,21 +24,14 @@ oran-proof/
 
 # Dashboard runtime artifacts
 web-dashboard/.venv/
-web-dashboard/*.log
-web-dashboard/app.py.backup-*
 web-dashboard/__pycache__/
+.ruff_cache/
 
 # Editor / OS
 .DS_Store
 .vscode/
 .idea/
 
-# Local dashboard/script backups
-*.bak.*
-web-dashboard/*.bak.*
-web-dashboard/templates/*.bak.*
-scripts/ue/*.bak.*
-backups/
 # Stale kubectl/mongo snapshot captures (runtime, never commit)
 all.txt
 configmaps.txt
@@ -53,8 +46,11 @@ web-dashboard/freq-kpi-results.json
 web-dashboard/real-slice-results.json
 web-dashboard/frequency-profile-results.json
 web-dashboard/multi-ue-results.json
-*.bak-*
 
 # Exception: packet captures kept as evidence
 !evidence/pcap/*.pcap
 !evidence/pcap/*.pcapng
+
+# Local backups (never commit)
+backups/
+*.bak.*
