@@ -136,8 +136,9 @@ Run artefacts (logs, verdicts, KPI summaries) are written **outside the reposito
 ./scripts/bootstrap-platform.sh
 
 # 2. Restart an already-deployed platform (normal path).
-#    platform-start.sh restores replica counts from ~/.oran-lab/platform-replicas.tsv,
-#    which platform-stop.sh writes: run one stop/start cycle to create it.
+#    platform-start.sh restores replica counts from ~/.oran-lab/platform-replicas.tsv
+#    (written by platform-stop.sh). If that file does not exist, it falls back to
+#    a built-in default (all workloads at replicas=1): no prior stop is needed.
 ./platform-start.sh
 ./platform-stop.sh
 
@@ -336,8 +337,11 @@ tools/recover-ue-sessions.sh --fix
 | AMF `Registration reject [9]`, SCP `No route to host` | stale UDR/UDM endpoint after the core was recreated | `tools/recover-core-auth.sh --fix` |
 
 `tools/diagnose-du-layout.sh <label>` prints an AUTOMATIC CHECKS block that names these causes.
-Multi-UE UDP: `tools/diagnose-udp-multi-ue.sh ueN` shows where datagrams are lost (the echo
-server must stay bound to the node IP, otherwise the UPF NAT drops the replies).
+Multi-UE UDP: `tools/diagnose-udp-multi-ue.sh ueN` shows where datagrams are lost. Each UE
+gets its own echo server (own port), bound to the node IP (otherwise the UPF NAT drops the
+replies); the client waits for one echo (`warmup=OK`) before the measured run. A failing UE
+prints `--- UDP diagnostics ---` in its result (`summary.json` under
+`~/oran-proof/phase4-multi-ue-embb-realistic/`).
 
 **Registration rejected / no Allowed NSSAI.** Check, in order: the AMF ConfigMap
 (`kubectl -n oran-core get cm open5gs-oai-prep -o jsonpath='{.data.amf\.yaml}' | grep -A5 s_nssai`,

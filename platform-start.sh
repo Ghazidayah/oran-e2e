@@ -14,6 +14,10 @@
 #            3) profile-registration settle delay
 #            4) amf and smf LAST, against an already-populated NRF
 #            5) CU plane, then DU, then the terminal fleet
+# State    : replica counts come from ~/.oran-lab/platform-replicas.tsv when
+#            platform-stop.sh wrote it; otherwise a built-in default is used
+#            (every workload of the 3 namespaces at replicas=1), so a first
+#            start works without any prior stop.
 # Variables: ORAN_CORE_GATE, ORAN_CORE_REGISTER_SETTLE
 # Usage    : bash ./platform-start.sh
 # ---------------------------------------------------------------------------
@@ -43,6 +47,27 @@ have_cmd() {
 
 namespace_exists() {
   kubectl get namespace "$1" >/dev/null 2>&1
+}
+
+# Built-in default state, used when platform-stop.sh never wrote STATE_FILE
+# (first start, fresh host, deleted ~/.oran-lab). Every Deployment/StatefulSet
+# found in the platform namespaces gets replicas=1: this is the validated
+# layout (core NFs, CU-CP, CU-UP, DU0, DU1, 5 UEs, monitoring). The file is
+# generated in /tmp and NOT saved in ~/.oran-lab, so it never hides a real
+# snapshot written later by platform-stop.sh.
+build_default_state() {
+  out="$1"
+  : > "$out"
+  for ns in $TARGET_NAMESPACES; do
+    namespace_exists "$ns" || continue
+    for kind in deploy statefulset; do
+      kubectl -n "$ns" get "$kind" -o custom-columns=NAME:.metadata.name --no-headers 2>/dev/null \
+        | while read -r name; do
+            [ -z "${name:-}" ] && continue
+            echo "$ns $kind $name 1" >> "$out"
+          done
+    done
+  done
 }
 
 state_replicas() {
@@ -253,7 +278,7 @@ ensure_cu_plane_healthy() {
 
 echo "===== O-RAN platform start ====="
 echo "Root dir: $ROOT_DIR"
-echo "State file: $STATE_FILE"
+echo "State file: $STATE_FILE (fallback to defaults if absent)"
 echo "Dashboard port: $PORT"
 echo "Recover Mixed-DU: $RECOVER_MIXED_DU"
 
@@ -262,11 +287,19 @@ have_cmd kubectl || {
   exit 1
 }
 
-if [ ! -s "$STATE_FILE" ]; then
-  echo "ERROR: no saved replica state found."
-  echo "Expected: $STATE_FILE"
-  echo "Run ./platform-stop.sh once while the platform is running."
-  exit 1
+if [ -s "$STATE_FILE" ]; then
+  echo "Replica state: saved snapshot ($STATE_FILE)"
+else
+  echo "[INFO] No saved replica state at $STATE_FILE (platform-stop.sh never ran)."
+  echo "[INFO] Using built-in default: every workload at replicas=1."
+  STATE_FILE="$(mktemp /tmp/platform-replicas-default.XXXXXX)"
+  trap 'rm -f "$STATE_FILE"' EXIT
+  build_default_state "$STATE_FILE"
+  if [ ! -s "$STATE_FILE" ]; then
+    echo "ERROR: no saved state and no workloads found in: $TARGET_NAMESPACES"
+    echo "Deploy the platform first: ./scripts/bootstrap-platform.sh"
+    exit 1
+  fi
 fi
 
 # ---- 5GC startup ordering: AMF/SMF must start AFTER NF discovery is populated --

@@ -356,9 +356,9 @@ pgrep -f "web-dashboard/app.py" >/dev/null || echo "[WARN] dashboard not running
 # The traffic API (/api/traffic/*) is served by the dashboard itself - no separate process.
 
 echo
-echo "NOTE: platform-start.sh is the RESTART path - it needs"
-echo "~/.oran-lab/platform-replicas.tsv (written by platform-stop.sh)."
-echo "Run one stop/start cycle later to seed it."
+echo "NOTE: platform-start.sh is the RESTART path. It reuses the replica counts"
+echo "saved by platform-stop.sh, or defaults to every workload at replicas=1"
+echo "when no snapshot exists - no prior stop is required."
 
 # FIX: don't swallow validation failures behind a blind "Bootstrap done."
 f1_ok=1; e2e_ok=1
