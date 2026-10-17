@@ -55,6 +55,11 @@ namespace_exists() {
 # layout (core NFs, CU-CP, CU-UP, DU0, DU1, 5 UEs, monitoring). The file is
 # generated in /tmp and NOT saved in ~/.oran-lab, so it never hides a real
 # snapshot written later by platform-stop.sh.
+# Legacy monolithic gNB deployments (oai-gnb, oai-gnb-b) still exist in the
+# cluster but belong to the pre-split architecture: they must stay at 0, so
+# they are excluded from the default (override: ORAN_DEFAULT_EXCLUDE="...").
+DEFAULT_EXCLUDE="${ORAN_DEFAULT_EXCLUDE:-oai-gnb oai-gnb-b}"
+
 build_default_state() {
   out="$1"
   : > "$out"
@@ -64,6 +69,7 @@ build_default_state() {
       kubectl -n "$ns" get "$kind" -o custom-columns=NAME:.metadata.name --no-headers 2>/dev/null \
         | while read -r name; do
             [ -z "${name:-}" ] && continue
+            case " $DEFAULT_EXCLUDE " in *" $name "*) continue ;; esac
             echo "$ns $kind $name 1" >> "$out"
           done
     done
