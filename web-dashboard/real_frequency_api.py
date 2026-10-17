@@ -136,6 +136,27 @@ def _save_results(data):
     RESULTS_FILE.write_text(json.dumps(data, indent=2, sort_keys=True))
 
 
+# After a scenario, put the carrier back on the reference profile so the platform
+# is never left on a test band (a stale DU carrier leaves the UEs looping on
+# "Got NACK ... SIB1" at the next start). Disable: ORAN_FREQ_AUTO_RESTORE=0, or
+# send {"auto_restore": false} in the POST body to keep the tested band.
+BASELINE_PROFILE = "n78-current"
+AUTO_RESTORE = os.environ.get("ORAN_FREQ_AUTO_RESTORE", "1") == "1"
+
+
+def _auto_restore(profile, enabled):
+    """Return (restored_ok, log). restored_ok is None when no restore was needed."""
+    if not enabled or profile == BASELINE_PROFILE:
+        return None, ""
+    res = _run(BASELINE_PROFILE, timeout=900)
+    log = "\n\n--- AUTO RESTORE " + BASELINE_PROFILE + " ---\n" + res.get("output", "")
+    if res["ok"]:
+        data = _load_results()
+        data["active_profile"] = BASELINE_PROFILE
+        _save_results(data)
+    return res["ok"], log
+
+
 def _run(profile, timeout=900):
     if profile not in PROFILES and profile != "status":
         return {"ok": False, "returncode": 2, "output": f"Unknown real-frequency profile: {profile}"}
@@ -215,6 +236,8 @@ def run_band():
     if profile not in PROFILES:
         return jsonify({"ok": False, "error": f"Unknown profile: {profile}"}), 400
 
+    auto_restore = bool(payload.get("auto_restore", AUTO_RESTORE))
+
     # Step 1 - REAL carrier retune
     res = _run(profile, timeout=900)
     parsed = _parse_carrier_keys(res.get("output", ""))
@@ -234,12 +257,14 @@ def run_band():
         data = _load_results()
         data["active_profile"] = profile
         _save_results(data)
+        restored, restore_log = _auto_restore(profile, auto_restore)
         return jsonify({
-            "ok": True,
+            "ok": restored is not False,
             "profile": profile,
             "row": None,
             "retune_verdict": parsed["verdict"] or "PASS",
-            "log": retune_log,
+            "restored": restored,
+            "log": retune_log + restore_log,
         })
 
     # Step 2 - EMULATED netem KPI (only runs if retune succeeded)
@@ -270,11 +295,15 @@ def run_band():
     data["active_profile"] = profile
     _save_results(data)
 
+    # The KPI row is already saved above: restoring afterwards loses no result.
+    restored, restore_log = _auto_restore(profile, auto_restore)
+
     return jsonify({
-        "ok":      row["verdict"] == "PASS",
+        "ok":      row["verdict"] == "PASS" and restored is not False,
         "profile": profile,
         "row":     row,
-        "log":     retune_log + "\n\n--- EMULATED KPI ---\n" + kpi_log,
+        "restored": restored,
+        "log":     retune_log + "\n\n--- EMULATED KPI ---\n" + kpi_log + restore_log,
     })
 
 
@@ -285,7 +314,7 @@ def _get_ue_pod():
         ["kubectl", "-n", "oran-ran", "get", "pod", "-l", "app=oai-nr-ue",
          "--field-selector=status.phase=Running",
          "-o", "jsonpath={.items[0].metadata.name}"],
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20,
+        text=True, capture_output=True, timeout=20,
     )
     return proc.stdout.strip()
 
@@ -321,7 +350,7 @@ def _run_kpi_test(profile):
     chk = subprocess.run(
         ["kubectl", "-n", "oran-ran", "exec", pod, "--",
          "ip", "addr", "show", "oaitun_ue1"],
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20,
+        text=True, capture_output=True, timeout=20,
     )
     if chk.returncode != 0:
         return {"ok": False, "error": "oaitun_ue1 not up", "log": "oaitun_ue1 not found in UE pod"}
@@ -349,7 +378,7 @@ def _run_kpi_test(profile):
         show = subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--",
              "tc", "qdisc", "show", "dev", "oaitun_ue1"],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10,
+            text=True, capture_output=True, timeout=10,
         )
         log.append(f"tc state: {show.stdout.strip()}")
 
@@ -373,7 +402,7 @@ def _run_kpi_test(profile):
         subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--", "sh", "-lc",
              "tc qdisc del dev oaitun_ue1 root 2>/dev/null; true"],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15,
+            text=True, capture_output=True, timeout=15,
         )
         log.append("netem cleared")
 
