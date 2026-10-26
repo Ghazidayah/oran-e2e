@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# Measuring upstream TCP throughput from a terminal.
+# Measuring TCP DOWNLOAD throughput (host server -> terminal).
 #
 # Role     : measure a terminal's sustained throughput across the full 5G
 #            chain, and extract retransmissions.
@@ -8,9 +8,12 @@
 #            terminal pod and BINDS to its session address (-B flag). Traffic
 #            therefore cannot take the pod's own network path: it goes
 #            through tunnel -> DU -> CU-UP -> UPF -> ogstun.
+#            Default direction is DOWNLOAD: the client uses reverse mode (-R),
+#            so the host server sends and the terminal receives.
+#            DIRECTION=upload restores the old terminal -> host direction.
 # Output   : archived iperf3 JSON report, plus a summary line
 #            "Throughput Mbps:" consumed by calling scripts.
-# Variables: NS, UE_DEP, DURATION (default 15 s)
+# Variables: NS, UE_DEP, DURATION (default 15 s), DIRECTION (download|upload)
 # Usage    : bash scripts/traffic/run-iperf-tcp.sh
 # ---------------------------------------------------------------------------
 set -euo pipefail
@@ -22,6 +25,7 @@ UE_DEP="${UE_DEP:-oai-nr-ue}"
 NS="${NS:-oran-ran}"
 PORT="${PORT:-5201}"
 DURATION="${DURATION:-15}"
+DIRECTION="${DIRECTION:-download}"
 BASE="${BASE:-$HOME/oran-proof/phase2-realistic-traffic}"
 RUN_ID="$(date +%Y%m%d-%H%M%S)"
 DIR="$BASE/$RUN_ID"
@@ -33,6 +37,13 @@ echo "RUN_ID=$RUN_ID"
 echo "PROOF_DIR=$DIR"
 echo "PORT=$PORT"
 echo "DURATION=$DURATION"
+echo "DIRECTION=$DIRECTION"
+
+case "$DIRECTION" in
+  download) REVERSE_FLAG="-R" ;;
+  upload)   REVERSE_FLAG="" ;;
+  *) echo "[FAIL] DIRECTION must be 'download' or 'upload' (got '$DIRECTION')"; exit 1 ;;
+esac
 
 echo "===== 1. CHECK IPERF3 ON HOST ====="
 if ! command -v iperf3 >/dev/null 2>&1; then
@@ -70,19 +81,20 @@ kubectl -n "$NS" exec "$UE" -- ip route get "$NODE_IP" | tee "$DIR/ue-route-to-i
 echo "===== 6. OAITUN BEFORE ====="
 kubectl -n "$NS" exec "$UE" -- ip -s link show oaitun_ue1 | tee "$DIR/oaitun-before.txt"
 
-echo "===== 7. RUN IPERF3 TCP CLIENT FROM UE THROUGH oaitun_ue1 ====="
+echo "===== 7. RUN IPERF3 TCP CLIENT ($DIRECTION) FROM UE THROUGH oaitun_ue1 ====="
+# shellcheck disable=SC2086
 kubectl -n "$NS" exec "$UE" -- \
-  iperf3 -c "$NODE_IP" -B "$UE_IP" -p "$PORT" -t "$DURATION" -J \
+  iperf3 -c "$NODE_IP" -B "$UE_IP" -p "$PORT" -t "$DURATION" $REVERSE_FLAG -J \
   | tee "$DIR/iperf3-tcp-result.json"
 
 echo "===== 8. OAITUN AFTER ====="
 kubectl -n "$NS" exec "$UE" -- ip -s link show oaitun_ue1 | tee "$DIR/oaitun-after.txt"
 
 echo "===== 9. PARSE TCP KPI ====="
-python3 - "$DIR/iperf3-tcp-result.json" "$DIR/summary.txt" <<'PY'
+python3 - "$DIR/iperf3-tcp-result.json" "$DIR/summary.txt" "$DIRECTION" <<'PY'
 import json, sys
 
-json_path, summary_path = sys.argv[1], sys.argv[2]
+json_path, summary_path, direction = sys.argv[1], sys.argv[2], sys.argv[3]
 data = json.load(open(json_path))
 
 end = data.get("end", {})
@@ -97,6 +109,7 @@ bytes_sent = sender.get("bytes")
 retransmits = sender.get("retransmits", "N/A")
 
 summary = f"""Scenario: iperf3_tcp
+Direction: {direction}
 Verdict: OK
 Throughput Mbps: {mbps:.3f}
 Duration seconds: {seconds}

@@ -4,9 +4,6 @@
   <meta charset="utf-8">
   <title>O-RAN Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- dashboard-action-feedback-style:start -->
-<!-- dashboard-action-feedback-style:end -->
-
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -59,13 +56,12 @@
 <section class="panel handover-panel" id="radioProfileRoot"></section>
 
 <section class="panel" id="realFrequencyRoot">
-  <h2>Frequency Scenarios <span class="badge real" title="The carrier frequency is actually retuned on the DU">REAL carrier</span> <span class="badge emulated" title="Throughput and latency are emulated with tc netem from the FSPL model, not measured over a real radio link">EMULATED KPI</span></h2>
+  <h2>Frequency Scenarios <span class="badge real" title="The carrier frequency is actually retuned on the DU">REAL carrier</span> <span class="badge emulated" title="Throughput and latency are emulated with tc netem from a path loss and Shannon model, not measured over a real radio link">EMULATED KPI</span></h2>
 
   <div class="controls-row">
     <label for="realFreqSelect">Band profile:</label>
     <select id="realFreqSelect">
-      <option value="n78-current">n78 3320 MHz (baseline)</option>
-      <option value="n78-3500">n78 3500 MHz</option>
+      <option value="n78-3500">n78 3500 MHz (baseline)</option>
       <option value="n41-2600">n41 2600 MHz</option>
       <option value="n77-4174">n77 4174 MHz</option>
     </select>
@@ -75,7 +71,7 @@
   <h4>Current DU Carrier Keys</h4>
   <pre id="realFreqSummary">Loading retune status...</pre>
 
-  <h3 class="mt-22">Scenario KPI Results <span class="badge real" title="The carrier frequency is actually retuned on the DU">REAL carrier</span> <span class="badge emulated" title="Throughput and latency are emulated with tc netem from the FSPL model, not measured over a real radio link">EMULATED KPI</span></h3>
+  <h3 class="mt-22">Scenario KPI Results <span class="badge real" title="The carrier frequency is actually retuned on the DU">REAL carrier</span> <span class="badge emulated" title="Throughput and latency are emulated with tc netem from a path loss and Shannon model, not measured over a real radio link">EMULATED KPI</span></h3>
   <div class="radio-table-wrap">
     <table class="radio-results">
       <thead>
@@ -85,15 +81,16 @@
           <th>SSB / PointA <span class="badge real badge-xs" title="Real value applied to the DU">REAL</span></th>
           <th>Attach <span class="badge real badge-xs" title="Real value applied to the DU">REAL</span></th>
           <th>ΔPL (dB)</th>
+          <th>SNR (dB)</th>
           <th>K</th>
           <th>Cap (Mbit)</th>
-          <th>Ping avg <span class="badge emulated badge-xs" title="Emulated with tc netem (FSPL model)">EMU</span></th>
-          <th>TCP Mbps <span class="badge emulated badge-xs" title="Emulated with tc netem (FSPL model)">EMU</span></th>
+          <th>Ping avg <span class="badge emulated badge-xs" title="Emulated with tc netem (path loss and Shannon model)">EMU</span></th>
+          <th>TCP Mbps <span class="badge emulated badge-xs" title="Emulated with tc netem (path loss and Shannon model)">EMU</span></th>
           <th>Time</th>
         </tr>
       </thead>
       <tbody id="freqBandResultsBody">
-        <tr><td colspan="10">No runs yet. Click Run to start.</td></tr>
+        <tr><td colspan="11">No runs yet. Click Run to start.</td></tr>
       </tbody>
     </table>
   </div>
@@ -117,7 +114,7 @@
     </div>
 
     <div>
-      <h3>iperf3 TCP Throughput</h3>
+      <h3>iperf3 TCP Download</h3>
       <button onclick="runTrafficScenario('iperf-tcp', this)">Run TCP</button>
     </div>
 
@@ -336,9 +333,6 @@
 </section>
 
 </main>
-<!-- dashboard-action-feedback-script:start -->
-<!-- dashboard-action-feedback-script:end -->
-
   <script src="{{ url_for('static', filename='common.js') }}"></script>
   <script src="{{ url_for('static', filename='auto-refresh.js') }}"></script>
   <script src="{{ url_for('static', filename='dashboard-status-live.js') }}"></script>

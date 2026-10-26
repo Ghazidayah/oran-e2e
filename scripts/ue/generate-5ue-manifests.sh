@@ -139,7 +139,7 @@ spec:
         - --numerology
         - "1"
         - -C
-        - "3319680000"
+        - "3499680000"
         - --ssb
         - "516"
         - --rfsimulator.serveraddr

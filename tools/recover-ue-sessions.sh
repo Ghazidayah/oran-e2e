@@ -9,9 +9,18 @@
 #   2) finds the SMF's most-recent IPv4[] assignment for that IMSI,
 #   3) compares it to the IP actually on the pod's oaitun_ue1,
 #   4) pings the DN gateway (10.45.0.1) through the tunnel,
-# and only rollout-restarts the UEs that MISMATCH or FAIL the data-plane check.
+# and only rollout-restarts the UEs whose data-plane check FAILS.
 #
-# Default is DRY-RUN (diagnose only). Pass --fix to actually restart the bad UEs.
+# Status of each UE:
+#   HEALTHY      ping OK and the tunnel IP equals the SMF-assigned IP
+#   CHECK        ping OK but the tunnel IP differs from the SMF-assigned IP
+#                (an anomaly to look at; the session works, so it is NOT restarted)
+#   UNKNOWN      ping OK but the SMF IP could not be read, so the IP could not
+#                be verified (never counted as healthy)
+#   UNHEALTHY    no pod, no tunnel or ping failing: the only status that --fix restarts
+# VERDICT=ALL_HEALTHY is printed only when every UE is HEALTHY.
+#
+# Default is DRY-RUN (diagnose only). Pass --fix to actually restart the UNHEALTHY UEs.
 #
 # Usage:
 #   tools/recover-ue-sessions.sh            # diagnose only
@@ -75,6 +84,8 @@ if [ -z "$SMF_LOG" ]; then
 fi
 
 UNHEALTHY=()
+CHECK=()
+UNKNOWN=()
 printf "\n%-14s %-16s %-15s %-15s %-8s %s\n" "DEPLOY" "IMSI" "POD_TUNNEL" "SMF_IPv4" "PING" "STATUS"
 printf -- "------------------------------------------------------------------------------------------\n"
 
@@ -99,18 +110,23 @@ for dep in "${UE_DEPLOYMENTS[@]}"; do
   fi
   ping_ok=0; [ -n "$ploss" ] && [ "$ploss" -lt 100 ] && ping_ok=1
 
-  ip_ok=1
-  if [ -n "$SMF_LOG" ] && [ -n "$smf_ip" ] && [ -n "$pod_tun" ] && [ "$pod_tun" != "$smf_ip" ]; then
-    ip_ok=0
+  # ip_state: match | mismatch | unknown
+  ip_state="unknown"
+  if [ -n "$SMF_LOG" ] && [ -n "$smf_ip" ] && [ -n "$pod_tun" ]; then
+    if [ "$pod_tun" = "$smf_ip" ]; then ip_state="match"; else ip_state="mismatch"; fi
   fi
 
-  if [ "$ping_ok" = 1 ] && [ "$ip_ok" = 1 ]; then
-    status="HEALTHY"
-  elif [ "$ping_ok" = 1 ] && [ "$ip_ok" = 0 ]; then
-    status="CHECK(ip-mismatch,ping-ok)"
-  else
+  if [ "$ping_ok" != 1 ]; then
     status="UNHEALTHY(ping-fail)"
     UNHEALTHY+=("$dep")
+  elif [ "$ip_state" = "match" ]; then
+    status="HEALTHY"
+  elif [ "$ip_state" = "mismatch" ]; then
+    status="CHECK(ip-mismatch,ping-ok)"
+    CHECK+=("$dep")
+  else
+    status="UNKNOWN(smf-ip-unverified,ping-ok)"
+    UNKNOWN+=("$dep")
   fi
 
   printf "%-14s %-16s %-15s %-15s %-8s %s\n" \
@@ -119,9 +135,21 @@ for dep in "${UE_DEPLOYMENTS[@]}"; do
 done
 
 echo
+if [ "${#CHECK[@]}" -gt 0 ]; then
+  echo "CHECK (IP differs from the SMF, ping works, NOT restarted): ${CHECK[*]}"
+fi
+if [ "${#UNKNOWN[@]}" -gt 0 ]; then
+  echo "UNKNOWN (SMF IP could not be verified, NOT restarted): ${UNKNOWN[*]}"
+fi
+
 if [ "${#UNHEALTHY[@]}" -eq 0 ]; then
-  echo "RESULT: all UEs healthy - no recovery needed."
-  echo "VERDICT=ALL_HEALTHY"
+  if [ "${#CHECK[@]}" -eq 0 ] && [ "${#UNKNOWN[@]}" -eq 0 ]; then
+    echo "RESULT: all UEs healthy - no recovery needed."
+    echo "VERDICT=ALL_HEALTHY"
+  else
+    echo "RESULT: no UE is failing, but some sessions are not verified. Inspect them (SMF log, UE log) before concluding."
+    echo "VERDICT=CHECK_NEEDED"
+  fi
   exit 0
 fi
 

@@ -60,7 +60,7 @@ UE_POOL = {
 }
 
 
-def register_multi_ue_routes(app, run_cmd, base_dir=None):
+def register_multi_ue_routes(app, run_cmd):
     def ue_cfg(ue_name):
         return UE_POOL.get(str(ue_name).lower())
 
@@ -555,10 +555,8 @@ def register_multi_ue_routes(app, run_cmd, base_dir=None):
             count = int(raw_count)
         except Exception:
             count = 1
-        if count < 1:
-            count = 1
-        if count > MAX_UES:
-            count = MAX_UES
+        count = max(count, 1)
+        count = min(count, MAX_UES)
         return count
 
     def selected_attached_ues(count):
@@ -730,10 +728,8 @@ exit 0
                 count = int(raw_count)
             except Exception:
                 count = MAX_UES
-        if count < 1:
-            count = 1
-        if count > MAX_UES:
-            count = MAX_UES
+        count = max(count, 1)
+        count = min(count, MAX_UES)
 
         # Polled continuously by the live chart - sequential kubectl execs made
         # each poll ~5s, so short traffic bursts sampled as zero. Parallelize.
@@ -852,6 +848,7 @@ exit 0
     UDP_ECHO_CODE = (
         "import socket, sys\n"
         "s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\n"
+        "s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4194304)\n"
         "s.bind((sys.argv[2], int(sys.argv[1])))\n"
         "while True:\n"
         "    data, addr = s.recvfrom(65535)\n"
@@ -859,7 +856,8 @@ exit 0
     )
 
     def phase4_multi_ue_start_udp_echo(node_ip):
-        """UDP echo server on the host: every UE sends its probes here and counts the echoes.
+        """UDP echo server on the host, ONE PER UE (own port): a UE sends its probes here and
+        counts the echoes. Sharing one single-threaded server between UEs couples their flows.
 
         It is bound to the node IP the UEs target, not to 0.0.0.0: with a wildcard bind the
         kernel picks the reply source from the route to the UPF pod (the cni0 address), the
@@ -936,9 +934,25 @@ if scenario == "udp":
             except socket.timeout:
                 return
             seq, sent_at = struct.unpack("!Id", data[:12])
+            if seq >= count:
+                continue
             if seq not in seen:
                 seen.add(seq)
                 rtts.append((time.time() - sent_at) * 1000.0)
+
+    # Warm-up: one echo must come back before the measured run (up to 15 s), so a cold path
+    # (first packets after idle, scheduling request on the radio link) is not counted as loss.
+    warm_t0 = time.time()
+    warm_ok = False
+    while not warm_ok and time.time() - warm_t0 < 15:
+        sock.sendto(struct.pack("!Id", 0xFFFFFFFF, time.time()).ljust(64, b"x"), (udp_host, udp_port))
+        sock.settimeout(1.0)
+        try:
+            data, _ = sock.recvfrom(65535)
+            warm_ok = struct.unpack("!I", data[:4])[0] == 0xFFFFFFFF
+        except socket.timeout:
+            pass
+    print("warmup={} ({}s)".format("OK" if warm_ok else "NO_ECHO", round(time.time() - warm_t0, 1)))
 
     t0_all = time.time()
     next_send = t0_all
@@ -1212,7 +1226,7 @@ sys.exit(0 if ok else 1)
         needs_udp = any(j["scenario"] == "udp" for j in normalized_jobs)
         server_procs = []
         base_url = ""
-        udp_target = None
+        udp_targets = {}
 
         try:
             if needs_media or needs_udp:
@@ -1223,16 +1237,18 @@ sys.exit(0 if ok else 1)
                 server_procs.append(http_proc)
                 base_url = "http://{}:{}".format(node_ip, port)
             if needs_udp:
-                udp_proc, udp_port = phase4_multi_ue_start_udp_echo(node_ip)
-                server_procs.append(udp_proc)
-                udp_target = (node_ip, udp_port)
+                for j in normalized_jobs:
+                    if j["scenario"] == "udp" and j["ue"] not in udp_targets:
+                        udp_proc, udp_port = phase4_multi_ue_start_udp_echo(node_ip)
+                        server_procs.append(udp_proc)
+                        udp_targets[j["ue"]] = (node_ip, udp_port)
 
             results = []
             max_workers = min(len(normalized_jobs), MAX_UES)
 
             with ThreadPoolExecutor(max_workers=max_workers) as pool:
                 futures = {
-                    pool.submit(phase4_multi_ue_run_one_job, job, base_url, proof_dir, udp_target): job
+                    pool.submit(phase4_multi_ue_run_one_job, job, base_url, proof_dir, udp_targets.get(job["ue"])): job
                     for job in normalized_jobs
                 }
 

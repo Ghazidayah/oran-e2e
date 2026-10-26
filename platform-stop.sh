@@ -4,6 +4,9 @@
 #
 # Role     : photograph the current state before stopping, to keep a record
 #            of what was running at shutdown time.
+# Note     : platform-start.sh no longer reads anything from this script. It
+#            generates its own replica file (all replicas=1). The replica counts
+#            captured here are kept ONLY as a record inside the snapshot folder.
 # Captures : deployments, pods, services, endpoints and volumes, for each of
 #            the three namespaces.
 # Then     : workloads are stopped in the reverse order of startup.
@@ -12,14 +15,12 @@
 set -euo pipefail
 
 ROOT_DIR="${ORAN_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-STATE_DIR="${HOME}/.oran-lab"
-STATE_FILE="${STATE_DIR}/platform-replicas.tsv"
 SNAP_DIR="${HOME}/oran-proof/platform-power"
 TS="$(date +%Y%m%d-%H%M%S)"
 PORT="${ORAN_DASHBOARD_PORT:-18080}"
 TARGET_NAMESPACES="${ORAN_PLATFORM_NAMESPACES:-oran-ran oran-core monitoring}"
 
-mkdir -p "$STATE_DIR" "$SNAP_DIR"
+mkdir -p "$SNAP_DIR"
 
 section() {
   echo
@@ -142,27 +143,16 @@ done
 
 echo "Snapshot saved to: $SNAP"
 
-section "Saving current replica counts"
-TMP_STATE="${STATE_FILE}.tmp"
-: > "$TMP_STATE"
+section "Recording current replica counts (record only)"
+REC_FILE="$SNAP/replicas-before-stop.tsv"
+: > "$REC_FILE"
 
 for ns in $TARGET_NAMESPACES; do
-  save_replicas_for_namespace "$ns" "$TMP_STATE"
+  save_replicas_for_namespace "$ns" "$REC_FILE"
 done
 
-TOTAL_REPLICAS="$(awk '{s += $4} END {print s+0}' "$TMP_STATE")"
-
-if [ "$TOTAL_REPLICAS" -eq 0 ]; then
-  echo "[WARN] Saved state has total replicas=0."
-  echo "[WARN] Keeping file anyway: $TMP_STATE"
-  mv "$TMP_STATE" "$STATE_FILE"
-else
-  mv "$TMP_STATE" "$STATE_FILE"
-  echo "Replica state saved to: $STATE_FILE"
-fi
-
-section "Saved state file"
-cat "$STATE_FILE" || true
+echo "Replica record saved to: $REC_FILE"
+echo "(platform-start.sh does not use it: it generates its own state, replicas=1)"
 
 stop_dashboard
 

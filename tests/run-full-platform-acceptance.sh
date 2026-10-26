@@ -219,7 +219,8 @@ declare -A SECTION_NAME=(
 )
 
 run_section() {
-  local n="$1" f="$REPO/${SECTION_FILE[$n]}" label="section $n: ${SECTION_NAME[$n]}"
+  local n="$1"
+  local f="$REPO/${SECTION_FILE[$n]}" label="section $n: ${SECTION_NAME[$n]}"
   for s in $SKIP_SECTIONS; do [ "$s" = "$n" ] && { record "$label" SKIP "skipped via SKIP_SECTIONS/QUICK"; return; }; done
   if [ ! -f "$f" ]; then record "$label" SKIP "script not found: ${SECTION_FILE[$n]}"; return; fi
   local log="$OUT/section-$n.log"
@@ -267,8 +268,8 @@ else
     fi
   done
   # restore baseline carrier
-  ( cd "$REPO" && timeout "$FREQ_TIMEOUT" bash "$FREQ" n78-current ) >"$OUT/freq-restore.log" 2>&1 \
-    && say "   (restored baseline n78-current)" || say "   [warn] baseline restore had issues - see freq-restore.log"
+  ( cd "$REPO" && timeout "$FREQ_TIMEOUT" bash "$FREQ" n78-3500 ) >"$OUT/freq-restore.log" 2>&1 \
+    && say "   (restored baseline n78-3500)" || say "   [warn] baseline restore had issues - see freq-restore.log"
 fi
 
 # =============================================================================

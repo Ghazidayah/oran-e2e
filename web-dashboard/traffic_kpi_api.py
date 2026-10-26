@@ -12,7 +12,7 @@ PROOF = PROOF_DIR / "phase2-traffic-api"
 
 SCENARIO_LABELS = {
     "image": "Image Download",
-    "iperf-tcp": "iperf3 TCP Throughput",
+    "iperf-tcp": "iperf3 TCP Download",
     "udp": "Custom UDP Jitter/Loss",
     "video": "Video Download",
     "web": "Web Browsing",

@@ -767,7 +767,6 @@ def _parse_slice_output(text, profile):
         "profile":      profile,
         "label":        info.get("label", profile),
         "sst":          info.get("sst", "?"),
-        "sd":           "0xffffff",
         "granted_sst":  "-",
         "tunnel_ip":    "-",
         "ping_avg_ms":  "-",
@@ -881,7 +880,7 @@ def api_real_slice(profile):
     })
 
 
-register_multi_ue_routes(app, run_cmd, BASE_DIR)
+register_multi_ue_routes(app, run_cmd)
 
 install_mixed_du_handover_api(app)
 app.register_blueprint(radio_bp, url_prefix="/api/radio")

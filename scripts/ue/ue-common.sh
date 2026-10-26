@@ -95,3 +95,51 @@ wait_exact_ue_tunnel() {
   echo "|"
   return 1
 }
+
+# ---------------------------------------------------------------------------
+# Rate helpers shared by the slicing and FSPL scripts.
+# tc is given rates in kbit/s so that small values (1.05 Mbit/s, 35 kbit/s)
+# are not rounded down to whole Mbit/s.
+# ---------------------------------------------------------------------------
+
+# rate_kbit <percent> <ceiling_mbit>  ->  prints "<N>kbit" (never below 1kbit)
+rate_kbit() {
+  awk -v pct="$1" -v ceil="$2" 'BEGIN{
+    k = pct * ceil * 10;            # pct/100 * ceil(Mbit) * 1000 = pct*ceil*10 kbit
+    n = int(k + 0.5); if (n < 1) n = 1;
+    printf "%dkbit", n }'
+}
+
+# tc_rate_to_kbit "<text printed by tc, e.g. 1050Kbit or 35Mbit>" -> integer kbit
+tc_rate_to_kbit() {
+  awk -v s="$1" 'BEGIN{
+    if (match(s, /[0-9]+(\.[0-9]+)?/) == 0) { print ""; exit }
+    v = substr(s, RSTART, RLENGTH) + 0; u = tolower(substr(s, RSTART + RLENGTH));
+    if (u ~ /^gbit/) v *= 1000000; else if (u ~ /^mbit/) v *= 1000;
+    else if (u ~ /^kbit/) v *= 1; else if (u ~ /^bit/) v /= 1000; else { print ""; exit }
+    printf "%d", v + 0.5 }'
+}
+
+# tc_verify_rate <ns> <pod> <expected_kbit>
+# Reads the rate really installed on the tbf of both the tunnel (upload) and
+# ifb_ue1 (download), and checks it matches the expected one within 2%.
+# Prints one line per interface; returns 0 only if both match.
+tc_verify_rate() {
+  local ns="$1" pod="$2" expected="$3" dev out got diff tol ok=0
+  for dev in oaitun_ue1 ifb_ue1; do
+    out="$(kubectl -n "$ns" exec "$pod" -- tc qdisc show dev "$dev" 2>/dev/null \
+            | grep -m1 ' tbf ' | grep -oE 'rate [0-9.]+[A-Za-z]+' | head -1 | awk '{print $2}')"
+    got="$(tc_rate_to_kbit "$out")"
+    if [ -z "$got" ]; then
+      echo "  check $dev: no tbf rate found (expected ${expected}kbit)"; ok=1; continue
+    fi
+    diff=$(( got > expected ? got - expected : expected - got ))
+    tol=$(( expected / 50 )); [ "$tol" -lt 1 ] && tol=1
+    if [ "$diff" -le "$tol" ]; then
+      echo "  check $dev: applied=${got}kbit expected=${expected}kbit OK"
+    else
+      echo "  check $dev: applied=${got}kbit expected=${expected}kbit MISMATCH"; ok=1
+    fi
+  done
+  return $ok
+}

@@ -89,7 +89,6 @@ mapping is resolved at runtime from each UE's `--rfsimulator.serveraddr` deploym
 
 ```
 oran-e2e/
-├── config/ues.yaml           UE fleet definition (read by tools/uectl.sh)
 ├── evidence/pcap/            Wireshark captures (E1AP, F1AP+RRC, N2 NGAP, N3 GTP-U)
 ├── manifests/
 │   ├── core/                 Open5GS configs (amf/smf/upf/nssf, Helm values)
@@ -108,7 +107,7 @@ oran-e2e/
 │   ├── validate-f1-ran.sh / validate-e2e.sh   Topology and end-to-end checks
 │   ├── frequency/  handover/  radio/  slicing/  traffic/  ue/
 ├── tests/                    Section tests 01-07 and the full acceptance suite
-├── tools/                    Manual helpers, never called by other code
+├── tools/                    Diagnostic and recovery helpers, called by the platform scripts
 ├── web-dashboard/            Flask dashboard and per-feature API modules
 ├── platform-start.sh         Restart the platform (restores replica counts)
 └── platform-stop.sh          Stop the platform (snapshot + scale to zero)
@@ -229,7 +228,7 @@ Install dependencies with `pip install -r web-dashboard/requirements.txt`. The p
 | Top bar | Section links, **Evidence Report** (text report of platform state), Grafana link | `POST /api/action/report` |
 | Status cards | Core / RAN + UE / Monitoring / UE tunnel (refreshed every 10 s) | `GET /api/status` |
 | Radio / Modulation | Profile select, **Apply + KPI Test**, KPI table | `/api/radio/*` |
-| Frequency | Band select (the `n78 3320 MHz (baseline)` entry restores the original carrier), **Run**, KPI table | `/api/real-frequency/*` |
+| Frequency | Band select (the `n78 3500 MHz (baseline)` entry restores the original carrier), **Run**, KPI table | `/api/real-frequency/*` |
 | End-to-End scenarios | **UE Check** (serving DU, attach + PDU, connectivity in sequence), six traffic scenarios, **Run All** | `/api/action/ownership`, `/api/ues/scenario/*`, `/api/traffic/run/*` |
 | Slices | eMBB / URLLC / mMTC traffic, results table | `/api/real-slice/*` |
 | Pods | RAN and core pod tables | `/api/status` |
@@ -248,19 +247,18 @@ long-running buttons disable themselves until their job finishes.
 |---|---|
 | `scripts/ue/` | `ue-common.sh` (shared helpers), `generate-5ue-manifests.sh`, `provision-5ue-subscribers.sh` |
 | `scripts/slicing/` | `switch-ue-slice.sh`, `validate-current-slice.sh`, `apply-slice-resource-profile.sh`, `run-real-slice-traffic.sh` |
-| `scripts/traffic/` | One script per scenario (image, video, web, streaming, iperf TCP, UDP), `run-all-realistic-traffic.sh`, `measure-ceiling.sh` |
+| `scripts/traffic/` | One script per scenario (image, video, web, streaming, iperf TCP download, UDP), `run-all-realistic-traffic.sh`, `measure-ceiling.sh` |
 | `scripts/frequency/` | `switch-ue-actual-frequency-retune-du-aware.sh`, `apply-fspl-band-profile.sh` |
 | `scripts/radio/` | `switch-ue-modulation-profile-du-aware.sh` |
 | `scripts/handover/` | `switch-ue-du-target.sh`, `recover-mixed-du-state.sh` (needs the dashboard running) |
-| `tests/` | `test-section-01` … `07` and `run-full-platform-acceptance.sh` |
-| `tools/` | `uectl.sh`, `compute-fspl-k.sh`, `audit-dashboard-and-platform.sh`, `audit-frequency-retune-readiness.sh`, `test-traffic-scenarios.sh`, `gather-report-data.sh`, `diagnose-du-layout.sh` (read-only UE/DU snapshot), `diagnose-udp-multi-ue.sh` (UDP path check), `recover-ue-sessions.sh`, `recover-core-auth.sh` |
+| `tests/` | `test-section-01` … `07`, `run-full-platform-acceptance.sh`, and `test-offline-rates-and-sessions.sh` (no cluster needed) |
+| `tools/` | `diagnose-du-layout.sh` (read-only UE/DU snapshot), `recover-ue-sessions.sh` |
 
 ```bash
 ./tests/run-full-platform-acceptance.sh          # whole platform, never stops at the first failure
 QUICK=1 ./tests/run-full-platform-acceptance.sh  # shorter run
 ./tests/test-section-03-real-slices.sh           # one section
-./tools/test-traffic-scenarios.sh                # every traffic scenario through the API
-./tools/uectl.sh status                          # UE fleet helper (run from the repo root)
+./tests/test-offline-rates-and-sessions.sh       # rate maths and UE diagnosis, no cluster
 ```
 
 Section tests: 01 baseline end-to-end, 02 realistic traffic, 03 real slices, 04 radio profiles,
@@ -284,7 +282,7 @@ Section tests: 01 baseline end-to-end, 02 realistic traffic, 03 real slices, 04 
    `resourceVersion` and is rejected (`Conflict: object has been modified`). Strip
    `resourceVersion/uid/creationTimestamp/managedFields/generation` and `status`, or rebuild with
    `kubectl create cm ... --dry-run=client -o yaml | kubectl apply -f -`.
-5. **The DU0 n78 baseline lives in `manifests/ran/f1/du0.conf`** (band 78, SSB 621312, F1
+5. **The DU0 n78 baseline lives in `manifests/ran/f1/du0.conf`** (band 78, SSB 633312, F1
    10.10.0.121). Restore DU0 from this file, not from a backup copy.
 6. After any RF experiment on DU0/UE1, **restore n78** and confirm UE1 pings with 0 % loss.
 7. Report what the logs show. Call a result validated only with end-to-end proof (tunnel + ping or
@@ -313,7 +311,9 @@ day), not a memory problem. Wait for the pod to restart, then run `tools/recover
 and, if any UE is `NO_POD`, `UNHEALTHY(no-pod)` or `UNHEALTHY(ping-fail)`,
 `tools/recover-ue-sessions.sh --fix` (add `--yes` to skip the prompt). It compares each UE's
 tunnel address with the SMF's latest assignment, pings the gateway 10.45.0.1 through the tunnel and
-restarts only the failing UEs. Do not change the CU image without re-validating everything.
+restarts only the failing UEs. A UE whose address differs from the SMF (`CHECK`) or whose SMF address
+could not be read (`UNKNOWN`) is reported but not restarted, and `VERDICT=ALL_HEALTHY` is printed only
+when every UE is verified (otherwise `VERDICT=CHECK_NEEDED`). Do not change the CU image without re-validating everything.
 
 **UE tunnels not forming after a core/CU restart.** Same recovery as above.
 
@@ -334,10 +334,9 @@ tools/recover-ue-sessions.sh --fix
 |---|---|---|
 | UE log repeats `Got NACK on NR-BCCH-DL-SCH-Message (SIB1)` | UE carrier `-C` differs from the DU carrier | `scripts/handover/switch-ue-du-target.sh` re-aligns it; after a frequency test run `scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh restore` |
 | CU-CP log `No AMF is associated to the gNB` | NG link to the AMF lost | restart `oai-cu-cp`, then cu-up, du0, du1, then `tools/recover-ue-sessions.sh --fix` |
-| AMF `Registration reject [9]`, SCP `No route to host` | stale UDR/UDM endpoint after the core was recreated | `tools/recover-core-auth.sh --fix` |
 
 `tools/diagnose-du-layout.sh <label>` prints an AUTOMATIC CHECKS block that names these causes.
-Multi-UE UDP: `tools/diagnose-udp-multi-ue.sh ueN` shows where datagrams are lost. Each UE
+Multi-UE UDP: each UE
 gets its own echo server (own port), bound to the node IP (otherwise the UPF NAT drops the
 replies); the client waits for one echo (`warmup=OK`) before the measured run. A failing UE
 prints `--- UDP diagnostics ---` in its result (`summary.json` under
@@ -353,7 +352,7 @@ the MongoDB subscriber slices
 **Frequency or DU switch left UE1 stranded.**
 
 ```bash
-bash scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh restore   # back to n78-current
+bash scripts/frequency/switch-ue-actual-frequency-retune-du-aware.sh restore   # back to n78-3500
 bash scripts/handover/recover-mixed-du-state.sh                                # or POST /api/handover/mixed-du/recover
 ```
 
@@ -410,15 +409,22 @@ the script guard still accepts it). Per-slice QoS profiles are emulated: rate is
 measured ceiling (`scripts/traffic/measure-ceiling.sh` writes `~/oran-proof/ceiling-mbit.txt`;
 fallback 33 Mbit/s): eMBB 100 %, URLLC 3 %, mMTC 0.1 %, with one-way `netem` delays of 0 / 0 / 1000 ms
 beyond the baseline, applied in both directions (the downstream path is mirrored through `ifb_ue1`).
+Rates are computed and given to `tc` in kbit/s (35 Mbit/s ceiling: 35000 / 1050 / 35 kbit/s), then read
+back from `tc` and the script ends with `..._RATE_MISMATCH` if the installed rate differs.
 
 ### Modulation
 
-| Profile | Max MCS | Modulation | Measured uplink |
+| Profile | Max MCS | Modulation | Measured uplink (before TCP became download) |
 |---|---|---|---|
 | qpsk-robust | 4 | QPSK | ~ 6.7 Mbit/s |
 | qam16-balanced | 13 | 16QAM | ~ 17.7-19 Mbit/s |
 | qam64-throughput | 28 | 64QAM | ~ 30-36 Mbit/s |
 | scheduler-auto | none | adaptive | climbs to 64QAM under load |
+
+After **Apply + KPI Test**, the dashboard automatically puts the DU back on `scheduler-auto` (even if the
+test failed), so a forced MCS never lowers the throughput of the next scenarios. Disable with
+`ORAN_RADIO_AUTO_RESTORE=0`, or send `{"auto_restore": false}` to `/api/radio/kpi-test`; a plain
+**Apply** keeps the profile until you restore it.
 
 `qam256-max` tops out at 64QAM: the OAI UE does not advertise `pdsch-256QAM-FR1`.
 
@@ -429,17 +435,24 @@ n77 4174 MHz. `n28 700 MHz` (FDD) is sync-only in RFsim because of a Msg3 PUSCH 
 RFsim FDD. The two experiments are distinct: **Real Carrier Retune** reconfigures the DU carrier
 (real), **Band KPI Comparison** keeps the DU on n78 and shapes traffic with `netem` (emulated).
 
-The emulated degradation follows free-space path loss relative to the n41 reference carrier:
-`dPL = 20·log10(f_target / f_ref)` dB and `K = 10^(-dPL/10)`; distance cancels in the difference.
+The emulated degradation follows the Shannon capacity. The free-space path loss relative to the n41
+reference carrier is `dPL = 20·log10(f_target / f_ref)` dB (distance cancels in the difference), then
+`SNR_target = SNR_ref - dPL` (dB) and `K = log2(1 + SNR_target) / log2(1 + SNR_ref)` with linear SNR
+values. The bandwidth cancels because it is the same for every band. `SNR_ref` is an assumed value set
+with `SNR_REF` (default 20 dB); it is not measured, so the result should be read as a range
+(10 dB: n78 K 0.78, n77 K 0.66 / 20 dB: 0.87 and 0.80 / 30 dB: 0.91 and 0.86). The cap is a modelled
+value (Shannon is a theoretical upper bound), not a measurement of a real radio channel. The dashboard
+Frequency tab shows an SNR column; set the same `SNR_REF` before starting the dashboard and before
+running the scripts.
 
-| Band | Carrier (MHz) | dPL (dB) | K | Cap (% of ceiling) |
-|---|---|---|---|---|
-| n41 | 2593.35 | 0.00 | 1.00 | 100 % |
-| n78 | 3499.68 | ≈ 2.61 | ≈ 0.55 | ≈ 55 % |
-| n77 | 4173.60 | ≈ 4.14 | ≈ 0.39 | ≈ 39 % |
+| Band | Carrier (MHz) | dPL (dB) | SNR (dB) | K | Cap (% of ceiling) |
+|---|---|---|---|---|---|
+| n41 | 2593.35 | 0.00 | 20.00 | 1.00 | 100 % |
+| n78 | 3499.68 | ≈ 2.60 | ≈ 17.40 | ≈ 0.87 | ≈ 87 % |
+| n77 | 4173.60 | ≈ 4.13 | ≈ 15.87 | ≈ 0.80 | ≈ 80 % |
 
-`tools/compute-fspl-k.sh <f_ref_MHz> <f_target_MHz>` computes the coefficient. `n78-current` is SSB
-621312 (3319.68 MHz) and `n78-3500` is SSB 633312 (3499.68 MHz); `restore` returns to `n78-current`.
+The coefficient is computed by `scripts/frequency/apply-fspl-band-profile.sh`. The baseline carrier is
+`n78-3500` (SSB 633312, 3499.68 MHz, in the DU configs and the UE manifests); `restore` returns to it.
 `FSPL_CAP=1` opts in to applying the FSPL cap during retune scenarios.
 
 ---

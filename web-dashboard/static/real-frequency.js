@@ -5,28 +5,41 @@
 
   var running = false;
 
+  var currentSnrRef = 20;
+
+  // Shannon model, same formulas as real_frequency_api.py.
+  function bandK(freqMhz, snrRef) {
+    var dpl = 20 * Math.log10(freqMhz / 2593.35);
+    var snrT = snrRef - dpl;
+    var k = Math.log(1 + Math.pow(10, snrT / 10)) / Math.log(1 + Math.pow(10, snrRef / 10));
+    return { dpl: dpl, snr: snrT, k: k };
+  }
+
   function renderBandResults(rows) {
     var body = byId("freqBandResultsBody");
     if (!body) return;
     if (!rows || !rows.length) {
-      body.innerHTML = '<tr><td colspan="10">No runs yet. Click Run to start.</td></tr>';
+      body.innerHTML = '<tr><td colspan="11">No runs yet. Click Run to start.</td></tr>';
       return;
     }
-    var F_REF = 2593.35;
     body.innerHTML = rows.map(function (r) {
       var attachOk = (r.retune_verdict || r.verdict || "").indexOf("PASS") !== -1 ||
                      (r.retune_verdict || r.verdict || "").indexOf("OK") !== -1;
       var attachColor = attachOk ? "var(--ok)" : "var(--err)";
-      var mbps = parseFloat(r.tcp_mbps) || 0;
-      var mbpsColor = mbps > 10 ? "var(--ok)" : mbps > 5 ? "var(--warn)" : "var(--err)";
       var mbpsDisplay = (r.tcp_mbps && r.tcp_mbps !== "?") ? r.tcp_mbps + " Mbps" : "-";
 
       var freqMhz = parseFloat(r.freq_mhz) || 0;
-      var deltaPl = freqMhz > 0 ? 20 * Math.log10(freqMhz / F_REF) : 0;
-      var K = Math.pow(10, -deltaPl / 10);
-      var pct = Math.round(K * 100);
-      var capMatch = (r.netem || "").match(/rate\s+(\d+(?:\.\d+)?)mbit/);
-      var capMbit = capMatch ? capMatch[1] : "-";
+      var m = freqMhz > 0 ? bandK(freqMhz, r.snr_ref_db || currentSnrRef) : { dpl: 0, snr: null, k: 0 };
+      var deltaPl = m.dpl;
+      var K = m.k;
+      var snrText = (freqMhz > 0 && m.snr !== null) ? m.snr.toFixed(2) : "-";
+      var capMatch = (r.netem || "").match(/rate\s+(\d+(?:\.\d+)?)(mbit|kbit)/i);
+      var capMbit = "-";
+      if (capMatch) {
+        var capVal = parseFloat(capMatch[1]);
+        if (capMatch[2].toLowerCase() === "kbit") capVal = capVal / 1000;
+        capMbit = String(Math.round(capVal * 100) / 100);
+      }
 
       return (
         "<tr>" +
@@ -35,10 +48,11 @@
         "<td style='font-size:0.85em;font-family:monospace'>" + (r.ssb ? r.ssb + " / " + (r.pointa || "-") : "-") + "</td>" +
         "<td style='color:" + attachColor + ";font-weight:bold'>" + (r.retune_verdict || r.verdict || "-") + "</td>" +
         "<td>" + (freqMhz > 0 ? deltaPl.toFixed(2) : "-") + "</td>" +
+        "<td>" + snrText + "</td>" +
         "<td>" + (freqMhz > 0 ? K.toFixed(2) : "-") + "</td>" +
         "<td>" + capMbit + "</td>" +
         "<td>" + (r.ping_avg || "-") + "</td>" +
-        "<td style='font-weight:bold;color:" + mbpsColor + "'>" + mbpsDisplay + "</td>" +
+        "<td style='color:#000'>" + mbpsDisplay + "</td>" +
         "<td style='font-size:0.85em'>" + (r.timestamp || "-") + "</td>" +
         "</tr>"
       );
@@ -69,6 +83,7 @@
   async function refreshResults() {
     try {
       var r = await api("/api/real-frequency/kpi-results");
+      if (r.snr_ref_db) currentSnrRef = r.snr_ref_db;
       renderBandResults(r.rows || []);
     } catch (e) {
       // Echec d'une requete automatique: on garde les dernieres donnees affichees.

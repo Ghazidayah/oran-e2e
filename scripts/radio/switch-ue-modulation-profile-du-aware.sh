@@ -105,7 +105,7 @@ kubectl -n "$RAN_NS" rollout restart deploy "$UE_DEPLOY" >/dev/null
 kubectl -n "$RAN_NS" rollout status deploy "$UE_DEPLOY" --timeout=8m
 
 # wait for tunnel
-for i in $(seq 1 90); do
+for _ in $(seq 1 90); do
   POD="$(kubectl -n "$RAN_NS" get pod -l "$UE_APP_LABEL" --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
   [ -n "$POD" ] && kubectl -n "$RAN_NS" exec "$POD" -- ip addr show oaitun_ue1 >/dev/null 2>&1 && break
   sleep 2

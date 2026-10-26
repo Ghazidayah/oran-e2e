@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import subprocess
@@ -15,26 +16,12 @@ SCRIPT = REPO / "scripts" / "frequency" / "switch-ue-actual-frequency-retune-du-
 RESULTS_FILE = Path(__file__).resolve().with_name("real-frequency-results.json")
 KPI_RESULTS_FILE = Path(__file__).resolve().with_name("freq-kpi-results.json")
 
-# Selectable retune profiles (n78-current is the baseline: retune only, no emulated KPI)
+# Selectable retune profiles (n78-3500 is the baseline carrier the platform starts on)
 PROFILES = {
-    "n78-current": {
-        "freq_mhz": 3319.68,
-        "band": "n78",
-        "description": "Baseline n78, SSB 621312, PointA 620040",
-        "ssb": "621312",
-        "pointa": "620040",
-    },
-    "n78-raster-high": {
-        "freq_mhz": 3321.12,
-        "band": "n78",
-        "description": "n78 raster-high, SSB 621408, PointA 620136",
-        "ssb": "621408",
-        "pointa": "620136",
-    },
     "n78-3500": {
         "freq_mhz": 3499.68,
         "band": "n78",
-        "description": "n78 3500 MHz, SSB 633312, PointA 632040",
+        "description": "Baseline n78 3500 MHz, SSB 633312, PointA 632040",
         "ssb": "633312",
         "pointa": "632040",
     },
@@ -57,9 +44,9 @@ PROFILES = {
 
 # Representative tc netem profiles per band - EMULATED, not measured from RFsim
 def _ceiling_mbit():
-    """Plafond reel = debit UL TCP non-capped (UE1 isole). AUTO-MESURE par
+    """Plafond reel = debit DL TCP non-capped (UE1 isole). AUTO-MESURE par
     scripts/traffic/measure-ceiling.sh, qui ecrit ~/oran-proof/ceiling-mbit.txt.
-    Ne PAS hardcoder. Mesure live: ~36 (34-36). Fallback 33 = filet
+    Ne PAS hardcoder. Ancienne mesure (en UL): ~36. A refaire en DL. Fallback 33 = filet
     de securite seulement (si la calibration n'a jamais tourne)."""
     try:
         return int((PROOF_DIR / "ceiling-mbit.txt").read_text().strip())
@@ -69,6 +56,16 @@ def _ceiling_mbit():
 
 _CEIL = _ceiling_mbit()
 
+
+def _rate_kbit(fraction):
+    """Rate string for tc in kbit (not rounded down to whole Mbit/s)."""
+    return f"{max(1, int(round(fraction * _CEIL * 1000)))}kbit"
+
+# Le pourcentage de chaque bande est calcule (loi de Shannon), rien n'est ecrit en dur:
+#   dPL = 20*log10(f_cible/f_ref)            (la distance s'elimine)
+#   SNR_cible = SNR_ref - dPL  (dB)           SNR_ref = variable SNR_REF, 20 dB par defaut
+#   K = log2(1+SNR_cible) / log2(1+SNR_ref)   (SNR en lineaire, la largeur de bande s'elimine)
+# Le resultat est un debit MODELISE, pas la mesure d'un canal radio reel.
 # Debit par bande = % du plafond mesure, DECROISSANT avec la frequence: une bande
 # plus haute subit plus d'attenuation (path loss) -> moins de debit, a budget radio
 # egal. RFsim n'a PAS de modele de propagation: ce profil est EMULE (tc netem rate)
@@ -81,35 +78,59 @@ _CEIL = _ceiling_mbit()
 # La latence n'est PAS differenciee par bande: physiquement elle ne depend pas de
 # la bande -> on ne faconne que le debit; le ping reflete la base RFsim (~15ms),
 # identique pour toutes les bandes.
+F_REF_MHZ = 2593.35  # n41, porteuse de reference
+try:
+    SNR_REF_DB = float(os.environ.get("SNR_REF", "20"))
+except ValueError:
+    SNR_REF_DB = 20.0
+
+
+def _band_k(freq_mhz):
+    """Return (dPL dB, SNR cible dB, K, pourcentage entier) pour une porteuse en MHz."""
+    dpl = 20.0 * math.log10(freq_mhz / F_REF_MHZ)
+    snr_t = SNR_REF_DB - dpl
+    k = math.log(1.0 + 10.0 ** (snr_t / 10.0)) / math.log(1.0 + 10.0 ** (SNR_REF_DB / 10.0))
+    return dpl, snr_t, k, int(k * 100 + 0.5)
+
+
+def _band_netem(profile, label):
+    """Cap d'une bande, calcule par la loi de Shannon."""
+    dpl, snr_t, k, pct = _band_k(PROFILES[profile]["freq_mhz"])
+    return {
+        "pct": pct, "rate": _rate_kbit(pct / 100.0),
+        "k": round(k, 2), "dpl_db": round(dpl, 2), "snr_db": round(snr_t, 2),
+        "label": f"{label} - Shannon K={k:.2f}",
+    }
+
+
 BAND_NETEM = {
-    "n41-2600": {
-        "pct": 100, "rate": f"{int(1.00*_CEIL)}mbit",
-        "label": "Mid-band 2600 MHz (TDD) - FSPL K=1.00 (reference)",
-    },
-    "n78-3500": {
-        "pct": 55, "rate": f"{int(0.55*_CEIL)}mbit",
-        "label": "C-band 3500 MHz (TDD) - FSPL K=0.55",
-    },
-    "n77-4174": {
-        "pct": 39, "rate": f"{int(0.39*_CEIL)}mbit",
-        "label": "Upper C-band 4174 MHz (TDD) - FSPL K=0.39",
-    },
+    "n41-2600": _band_netem("n41-2600", "Mid-band 2600 MHz (TDD)"),
+    "n78-3500": _band_netem("n78-3500", "C-band 3500 MHz (TDD)"),
+    "n77-4174": _band_netem("n77-4174", "Upper C-band 4174 MHz (TDD)"),
 }
 
 # KPI measurement target: UPF DN gateway (in 5G data path, ~15ms RFsim base RTT).
 # Never use an internet target: ~60-90ms internet RTT swamps the emulated deltas.
-# Rate caps sit BELOW the measured uncapped RFsim UL TCP floor (~17 Mbps, baseline
-# 17.08-17.54 Mbps x3) AND below each band's real per-band rate, so the
+# Rate caps sit BELOW the measured uncapped RFsim TCP floor (~17 Mbps in UL; to be
+# re-measured now that TCP is download) AND below each band's real per-band rate, so the
 # netem cap is the binding constraint -> measured ~= cap and band ordering is a
 # reproducible monotone DESCENT (n41 > n78 > n77), not RFsim noise. Throughput is
-# UPLINK (UE=iperf3 client to host node); netem root qdisc shapes UE egress only.
+# DOWNLOAD (iperf3 -R: host node sends, UE receives); the cap is applied on both
+# directions (netem on oaitun_ue1 egress, ifb_ue1 mirror for ingress).
 KPI_PING_TARGET = "10.45.0.1"
+
+# Nettoyage complet du faconnage: qdisc root et ingress de oaitun_ue1 + interface ifb_ue1.
+TC_CLEAR = (
+    "tc qdisc del dev oaitun_ue1 root 2>/dev/null; "
+    "tc qdisc del dev oaitun_ue1 ingress 2>/dev/null; "
+    "ip link del ifb_ue1 2>/dev/null"
+)
 
 
 def _default_results():
     return {
         "ok": True,
-        "active_profile": "n78-current",
+        "active_profile": "n78-3500",
         "profiles": PROFILES,
         "rows": [],
     }
@@ -125,7 +146,7 @@ def _load_results():
     except Exception:
         data = _default_results()
     data.setdefault("ok", True)
-    data.setdefault("active_profile", "n78-current")
+    data.setdefault("active_profile", "n78-3500")
     data.setdefault("profiles", PROFILES)
     data.setdefault("rows", [])
     return data
@@ -140,7 +161,7 @@ def _save_results(data):
 # is never left on a test band (a stale DU carrier leaves the UEs looping on
 # "Got NACK ... SIB1" at the next start). Disable: ORAN_FREQ_AUTO_RESTORE=0, or
 # send {"auto_restore": false} in the POST body to keep the tested band.
-BASELINE_PROFILE = "n78-current"
+BASELINE_PROFILE = "n78-3500"
 AUTO_RESTORE = os.environ.get("ORAN_FREQ_AUTO_RESTORE", "1") == "1"
 
 
@@ -281,6 +302,7 @@ def run_band():
         "retune_verdict": parsed["verdict"] or "PASS",
         "tunnel_ready":   parsed["tunnel_ready"],
         "netem":          kpi.get("netem", ""),
+        "snr_ref_db":     SNR_REF_DB,
         "ping_avg":       kpi.get("ping_avg", "?"),
         "ping_loss":      kpi.get("ping_loss", "?"),
         "tcp_mbps":       kpi.get("tcp_mbps", "?"),
@@ -360,9 +382,17 @@ def _run_kpi_test(profile):
     # Cap pose SOUS le debit reel de la bande -> netem MORD, debit mesure ~= cap.
     # Pas de delay/jitter/loss artificiels: la latence ne depend pas de la bande
     # -> ping = base RFsim reelle, identique entre bandes.
+    # Le TCP est mesure en DOWNLOAD (iperf3 -R): le cap doit donc aussi s'appliquer au
+    # sens descendant. Meme mecanisme que scripts/frequency/apply-fspl-band-profile.sh:
+    # le trafic entrant sur oaitun_ue1 est redirige vers ifb_ue1, qui porte le meme cap.
     tc_apply = (
-        "tc qdisc del dev oaitun_ue1 root 2>/dev/null; "
-        f"tc qdisc add dev oaitun_ue1 root netem rate {netem['rate']}"
+        TC_CLEAR + "; "
+        f"tc qdisc add dev oaitun_ue1 root netem rate {netem['rate']}; "
+        "ip link add ifb_ue1 type ifb && ip link set ifb_ue1 up && "
+        "tc qdisc add dev oaitun_ue1 handle ffff: ingress && "
+        "tc filter add dev oaitun_ue1 parent ffff: protocol ip u32 match u32 0 0 "
+        "action mirred egress redirect dev ifb_ue1 && "
+        f"tc qdisc add dev ifb_ue1 root netem rate {netem['rate']}"
     )
 
     ping_out = ""
@@ -373,7 +403,7 @@ def _run_kpi_test(profile):
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20,
         )
         log.append(f"netem applied: rate={netem['rate']} "
-                   f"({netem['pct']}% du plafond {_CEIL}mbit - FSPL K depuis la porteuse)")
+                   f"({netem['pct']}% du plafond {_CEIL}mbit - modele Shannon, K={netem['k']})")
 
         show = subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--",
@@ -381,6 +411,12 @@ def _run_kpi_test(profile):
             text=True, capture_output=True, timeout=10,
         )
         log.append(f"tc state: {show.stdout.strip()}")
+        show_ifb = subprocess.run(
+            ["kubectl", "-n", "oran-ran", "exec", pod, "--",
+             "tc", "qdisc", "show", "dev", "ifb_ue1"],
+            text=True, capture_output=True, timeout=10,
+        )
+        log.append(f"tc state (download, ifb_ue1): {show_ifb.stdout.strip() or show_ifb.stderr.strip()}")
 
         p = subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--",
@@ -401,7 +437,7 @@ def _run_kpi_test(profile):
     finally:
         subprocess.run(
             ["kubectl", "-n", "oran-ran", "exec", pod, "--", "sh", "-lc",
-             "tc qdisc del dev oaitun_ue1 root 2>/dev/null; true"],
+             TC_CLEAR + "; true"],
             text=True, capture_output=True, timeout=15,
         )
         log.append("netem cleared")
@@ -414,7 +450,7 @@ def _run_kpi_test(profile):
     return {
         "ok": True,
         "profile": profile,
-        "netem": f"rate {netem['rate']} ({netem['pct']}% du plafond - FSPL K depuis la porteuse)",
+        "netem": f"rate {netem['rate']} ({netem['pct']}% du plafond - modele Shannon, K={netem['k']})",
         "ping_loss": (loss_m.group(1) + "%") if loss_m else "?",
         "ping_avg": (rtt_m.group(2) + " ms") if rtt_m else "?",
         "ping_rtt": (f"{rtt_m.group(1)}/{rtt_m.group(2)}/{rtt_m.group(3)}/{rtt_m.group(4)} ms") if rtt_m else "?",
@@ -430,5 +466,6 @@ def kpi_results():
         "ok": True,
         "rows": _load_kpi_results(),
         "netem_profiles": BAND_NETEM,
-        "note": "KPIs are EMULATED via tc netem on oaitun_ue1. Differences come from the netem profile, not RFsim physics.",
+        "snr_ref_db": SNR_REF_DB,
+        "note": "KPIs are EMULATED via tc netem on oaitun_ue1 (upload) and ifb_ue1 (download). Differences come from the netem profile, not RFsim physics.",
     })

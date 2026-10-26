@@ -78,8 +78,6 @@ usage(){
   cat <<USAGE
 Usage:
   $0 status
-  $0 n78-current
-  $0 n78-raster-high
   $0 n78-3500
   $0 n41-2600
   $0 n77-4174
@@ -97,29 +95,7 @@ profile_values(){
       return 0
       ;;
 
-    n78-current|restore)
-      TARGET_NAME="n78-current"
-      TARGET_SSB="621312"
-      TARGET_POINTA="620040"
-      TARGET_BAND="78"
-      TARGET_BW="106"
-      TARGET_C_HZ="3319680000"
-      TARGET_UE_BAND="78"
-      TARGET_SSB_ARG="516"
-      ;;
-
-    n78-raster-high)
-      TARGET_NAME="n78-raster-high"
-      TARGET_SSB="621408"
-      TARGET_POINTA="620136"
-      TARGET_BAND="78"
-      TARGET_BW="106"
-      TARGET_C_HZ="3321120000"
-      TARGET_UE_BAND="78"
-      TARGET_SSB_ARG="516"
-      ;;
-
-    n78-3500)
+    n78-3500|restore)
       TARGET_NAME="n78-3500"
       TARGET_SSB="633312"
       TARGET_POINTA="632040"
@@ -157,11 +133,6 @@ profile_values(){
       TARGET_C_HZ="4173600000"
       TARGET_UE_BAND="77"
       TARGET_SSB_ARG="516"
-      ;;
-
-    n78-raster-higher)
-      fail "n78-raster-higher is experimental and not enabled in this clean validated script."
-      exit 2
       ;;
 
     n41-2600-raster|n41-oai-2593)
@@ -429,14 +400,14 @@ realign_peer_ues(){
 }
 
 restore_internal(){
-  section "AUTO RESTORE n78-current"
+  section "AUTO RESTORE n78-3500"
 
-  TARGET_NAME="n78-current"
-  TARGET_SSB="621312"
-  TARGET_POINTA="620040"
+  TARGET_NAME="n78-3500"
+  TARGET_SSB="633312"
+  TARGET_POINTA="632040"
   TARGET_BAND="78"
   TARGET_BW="106"
-  TARGET_C_HZ="3319680000"
+  TARGET_C_HZ="3499680000"
   TARGET_UE_BAND="78"
   TARGET_SSB_ARG="516"
 
@@ -468,7 +439,7 @@ main(){
 
   if ! patch_du_cm || ! patch_ue_args || ! rollout_and_wait || ! wait_ue_tunnel || ! run_validation; then
     capture_state failed
-    if [ "$PROFILE" != "restore" ] && [ "$PROFILE" != "n78-current" ]; then
+    if [ "$PROFILE" != "restore" ] && [ "$PROFILE" != "n78-3500" ]; then
       warn "profile $PROFILE failed; restoring baseline automatically"
       restore_internal
       capture_state after

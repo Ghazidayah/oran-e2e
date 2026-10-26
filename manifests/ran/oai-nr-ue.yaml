@@ -4,7 +4,7 @@ metadata:
   annotations:
     deployment.kubernetes.io/revision: "188"
     kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"name":"oai-nr-ue","namespace":"oran-ran"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"oai-nr-ue"}},"template":{"metadata":{"labels":{"app":"oai-nr-ue"}},"spec":{"containers":[{"env":[{"name":"USE_ADDITIONAL_OPTIONS","value":"-O /opt/oai-nr-ue/etc/nr-ue.conf -E --rfsim -r 106 --numerology 1 -C 3319680000 --rfsimulator.[0].serveraddr oai-gnb-rfsim --log_config.global_log_options level,nocolor,time"}],"image":"oaisoftwarealliance/oai-nr-ue:2025.w45","imagePullPolicy":"IfNotPresent","name":"oai-nr-ue","resources":{"limits":{"cpu":"4","memory":"4Gi"},"requests":{"cpu":"2","memory":"2Gi"}},"securityContext":{"capabilities":{"add":["NET_ADMIN","NET_RAW","SYS_NICE"]}},"volumeMounts":[{"mountPath":"/opt/oai-nr-ue/etc/nr-ue.conf","name":"nrue-config","subPath":"nr-ue.conf"},{"mountPath":"/dev/net/tun","name":"tun-device"}]}],"volumes":[{"configMap":{"name":"oai-nrue-config"},"name":"nrue-config"},{"hostPath":{"path":"/dev/net/tun","type":"CharDevice"},"name":"tun-device"}]}}}}
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"name":"oai-nr-ue","namespace":"oran-ran"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"oai-nr-ue"}},"template":{"metadata":{"labels":{"app":"oai-nr-ue"}},"spec":{"containers":[{"env":[{"name":"USE_ADDITIONAL_OPTIONS","value":"-O /opt/oai-nr-ue/etc/nr-ue.conf -E --rfsim -r 106 --numerology 1 -C 3499680000 --rfsimulator.[0].serveraddr oai-gnb-rfsim --log_config.global_log_options level,nocolor,time"}],"image":"oaisoftwarealliance/oai-nr-ue:2025.w45","imagePullPolicy":"IfNotPresent","name":"oai-nr-ue","resources":{"limits":{"cpu":"4","memory":"4Gi"},"requests":{"cpu":"2","memory":"2Gi"}},"securityContext":{"capabilities":{"add":["NET_ADMIN","NET_RAW","SYS_NICE"]}},"volumeMounts":[{"mountPath":"/opt/oai-nr-ue/etc/nr-ue.conf","name":"nrue-config","subPath":"nr-ue.conf"},{"mountPath":"/dev/net/tun","name":"tun-device"}]}],"volumes":[{"configMap":{"name":"oai-nrue-config"},"name":"nrue-config"},{"hostPath":{"path":"/dev/net/tun","type":"CharDevice"},"name":"tun-device"}]}}}}
   creationTimestamp: "2026-03-16T13:42:56Z"
   generation: 243
   name: oai-nr-ue
@@ -40,7 +40,7 @@ spec:
         - --numerology
         - "1"
         - -C
-        - "3319680000"
+        - "3499680000"
         - --ssb
         - "516"
         - --rfsimulator.serveraddr

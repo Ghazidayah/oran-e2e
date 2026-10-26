@@ -39,7 +39,7 @@ UE_POD=$(kubectl -n "$NS" get pods -l app=oai-nr-ue \
 
 echo "UE_POD=$UE_POD"
 
-for i in $(seq 1 90); do
+for _ in $(seq 1 90); do
   if kubectl -n "$NS" exec "$UE_POD" -- ip addr show oaitun_ue1 >/dev/null 2>&1; then
     break
   fi

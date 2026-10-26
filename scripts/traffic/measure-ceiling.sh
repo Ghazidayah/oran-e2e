@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================
-# Auto-calibration du PLAFOND de débit (UL TCP non-capé, UE1 isolé).
+# Auto-calibration du PLAFOND de débit (DL TCP non-capé, UE1 isolé).
 # Écrit la MÉDIANE entière dans ~/oran-proof/ceiling-mbit.txt + preuve JSON.
 # ---------------------------------------------------------------------------
 # Calibrating the reference throughput ceiling.
@@ -9,7 +9,7 @@
 #            relative to (slice profiles and frequency ceilings).
 # Logic    : first clears any residual tunnel shaping -- otherwise the
 #            measurement would be taken on an already-capped throughput --
-#            then runs several unconstrained upstream TCP measurements and
+#            then runs several unconstrained download TCP measurements and
 #            keeps the MEDIAN.
 # Output   : ~/oran-proof/ceiling-mbit.txt, plus a timestamped JSON record
 #            (samples, median, duration, conditions).
@@ -30,7 +30,7 @@ PROOFDIR="$HOME/oran-proof/ceiling-calibration"
 TS="$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$PROOFDIR" "$(dirname "$OUT")"
 
-echo "===== CALIBRATION PLAFOND (UL TCP non-capé, UE1 isolé) ====="
+echo "===== CALIBRATION PLAFOND (DL TCP non-capé, UE1 isolé) ====="
 echo "SAMPLES=$SAMPLES  DURATION=${DURATION}s  TS=$TS"
 
 echo "----- vidage de tout façonnage sur oaitun_ue1 -----"
@@ -59,7 +59,7 @@ import json, sys
 out, ceil, ts, dur = sys.argv[1], int(sys.argv[2]), sys.argv[3], int(sys.argv[4])
 samples = [float(x) for x in sys.argv[5:]]
 json.dump({"timestamp": ts, "samples_mbps": samples, "median_floor_mbit": ceil,
-           "duration_s": dur, "conditions": "UL TCP, UE1 isolé, netem/tbf vidés (uncapped)",
+           "duration_s": dur, "conditions": "DL TCP, UE1 isolé, netem/tbf vidés (uncapped)",
            "note": "ref pour les caps slices/fréquence (% de cette valeur). Sous charge 5-UE le débit/UE est plus bas."},
           open(out, "w"), indent=2)
 print("preuve:", out)

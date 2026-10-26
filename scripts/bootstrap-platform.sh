@@ -199,7 +199,7 @@ spec:
         multusAutoconfigDir: /var/lib/rancher/k3s/agent/etc/cni/net.d
 EOF
   echo "  waiting for Multus DaemonSet and the NAD CRD..."
-  for i in $(seq 1 30); do
+  for _ in $(seq 1 30); do
     kubectl get crd network-attachment-definitions.k8s.cni.cncf.io >/dev/null 2>&1 && break
     sleep 10
   done

@@ -216,7 +216,7 @@ PY
 
   if [ "$RUN_KPI" = "1" ]; then
     kpi_file="$OUT/kpi-${profile}.json"
-    if json_post "kpi-test $profile" "$BASE/api/radio/kpi-test" "{\"profile\":\"$profile\",\"ue\":\"ue1\"}" "$kpi_file" 1000; then
+    if json_post "kpi-test $profile" "$BASE/api/radio/kpi-test" "{\"profile\":\"$profile\",\"ue\":\"ue1\",\"auto_restore\":false}" "$kpi_file" 1000; then
       kpi_ok="$(python3 - "$kpi_file" <<'PY'
 import json, sys
 data=json.load(open(sys.argv[1]))

@@ -262,7 +262,7 @@ function renderSliceResults(rows) {
   }
   body.innerHTML = rows.map(function(r) {
     const granted = (r.granted_sst && r.granted_sst !== "-")
-      ? "SST:" + r.granted_sst + " SD:" + (r.sd || "0xffffff")
+      ? "SST:" + r.granted_sst
       : (r.granted_sst || "-");
     const v = r.verdict || "-";
     const vStyle = (v === "PASS" || v === "REAL_SLICE_SWITCH_OK")
@@ -270,16 +270,12 @@ function renderSliceResults(rows) {
       : (v.includes("FAIL") || v.includes("MISMATCH"))
       ? "color:#b91c1c;font-weight:bold"
       : "";
-    const mbps = parseFloat(r.tcp_mbps) || 0;
-    const mbpsStyle = mbps > 20 ? "color:#15803d;font-weight:bold"
-                    : mbps > 8  ? "color:#b45309;font-weight:bold"
-                    : mbps > 0  ? "color:#b91c1c;font-weight:bold" : "";
     return "<tr>" +
-      "<td><strong>" + (r.label || r.profile) + "</strong><br><small style='opacity:.7'>SST=" + r.sst + " SD=" + (r.sd || "0xffffff") + "</small></td>" +
+      "<td><strong>" + (r.label || r.profile) + "</strong></td>" +
       "<td style='font-weight:bold'>" + granted + "</td>" +
       "<td>" + (r.tunnel_ip || "-") + "</td>" +
       "<td>" + (r.ping_avg_ms || "-") + "</td>" +
-      "<td style='" + mbpsStyle + "'>" + (r.tcp_mbps || "-") + "</td>" +
+      "<td style='color:#000'>" + (r.tcp_mbps || "-") + "</td>" +
       "<td style='" + vStyle + "'>" + v + "</td>" +
       "<td style='font-size:11px;opacity:.8'>" + (r.time || "").replace("T", " ").split(".")[0] + "</td>" +
       "</tr>";

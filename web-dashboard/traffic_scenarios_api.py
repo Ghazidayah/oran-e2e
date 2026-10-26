@@ -27,7 +27,7 @@ SCENARIOS = {
         "script": "scripts/traffic/run-image-download.sh",
     },
     "iperf-tcp": {
-        "label": "iperf3 TCP Throughput",
+        "label": "iperf3 TCP Download",
         "script": "scripts/traffic/run-iperf-tcp.sh",
     },
     "udp": {

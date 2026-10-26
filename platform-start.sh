@@ -14,11 +14,12 @@
 #            3) profile-registration settle delay
 #            4) amf and smf LAST, against an already-populated NRF
 #            5) CU plane, then DU, then the terminal fleet
-# State    : replica counts come from ~/.oran-lab/platform-replicas.tsv when
-#            platform-stop.sh wrote it; otherwise a built-in default is used
-#            (every workload of the 3 namespaces at replicas=1), so a first
-#            start works without any prior stop.
-# Variables: ORAN_CORE_GATE, ORAN_CORE_REGISTER_SETTLE
+# State    : this script is SELF-SUFFICIENT. It no longer needs the file written
+#            by platform-stop.sh: it (re)generates ~/.oran-lab/platform-replicas.tsv
+#            itself at every start, with replicas=1 for every workload.
+# Variables: ORAN_CORE_GATE, ORAN_CORE_REGISTER_SETTLE,
+#            ORAN_EXCLUDE_WORKLOADS (default "oai-gnb oai-gnb-b": monolithic gNBs
+#            that must stay at 0 because the split CU/DU replaces them)
 # Usage    : bash ./platform-start.sh
 # ---------------------------------------------------------------------------
 set -euo pipefail
@@ -31,10 +32,14 @@ START_DASHBOARD="${ORAN_START_DASHBOARD:-1}"
 # Mixed-DU recovery is a HANDOVER-DEMO routine, not a bootstrap step: it switches
 # UEs to DU1 and runs traffic tests. Running it on cold start (before UEs attach)
 # both wastes ~6 min and thrashes UEs out of attaching. OFF by default; the normal
-# attach path (UEs self-attach once restored) brings them up. Set ORAN_RECOVER_MIXED_DU=1
+# attach path (reconcile_ue_sessions) brings UEs up. Set ORAN_RECOVER_MIXED_DU=1
 # only when you explicitly want to stage/demo the mixed-DU handover layout.
 RECOVER_MIXED_DU="${ORAN_RECOVER_MIXED_DU:-0}"
 TARGET_NAMESPACES="${ORAN_PLATFORM_NAMESPACES:-oran-core oran-ran monitoring}"
+# Workloads that must NOT be started (kept at 0, not written in the state file).
+# oai-gnb / oai-gnb-b are the monolithic gNBs: running them next to the split
+# CU-CP/CU-UP/DU chain would give two gNBs on the same PLMN/cell.
+EXCLUDE_WORKLOADS="${ORAN_EXCLUDE_WORKLOADS:-oai-gnb oai-gnb-b}"
 
 section() {
   echo
@@ -49,29 +54,90 @@ namespace_exists() {
   kubectl get namespace "$1" >/dev/null 2>&1
 }
 
-# Built-in default state, used when platform-stop.sh never wrote STATE_FILE
-# (first start, fresh host, deleted ~/.oran-lab). Every Deployment/StatefulSet
-# found in the platform namespaces gets replicas=1: this is the validated
-# layout (core NFs, CU-CP, CU-UP, DU0, DU1, 5 UEs, monitoring). The file is
-# generated in /tmp and NOT saved in ~/.oran-lab, so it never hides a real
-# snapshot written later by platform-stop.sh.
-# Legacy monolithic gNB deployments (oai-gnb, oai-gnb-b) still exist in the
-# cluster but belong to the pre-split architecture: they must stay at 0, so
-# they are excluded from the default (override: ORAN_DEFAULT_EXCLUDE="...").
-DEFAULT_EXCLUDE="${ORAN_DEFAULT_EXCLUDE:-oai-gnb oai-gnb-b}"
+# ---- State file generation (replaces the dependency on platform-stop.sh) ----
+# Known workloads (namespace kind name). Used even if the cluster listing is
+# empty; missing resources are simply skipped by restore_one.
+baseline_workloads() {
+  cat <<'LIST'
+oran-core deploy open5gs-mongodb
+oran-core deploy open5gs-nrf
+oran-core deploy open5gs-scp
+oran-core deploy open5gs-udr
+oran-core deploy open5gs-udm
+oran-core deploy open5gs-ausf
+oran-core deploy open5gs-bsf
+oran-core deploy open5gs-nssf
+oran-core deploy open5gs-pcf
+oran-core deploy open5gs-upf
+oran-core deploy open5gs-sepp
+oran-core deploy open5gs-webui
+oran-core deploy open5gs-amf
+oran-core deploy open5gs-smf
+oran-ran deploy oai-cu-cp
+oran-ran deploy oai-cu-up
+oran-ran deploy oai-du0
+oran-ran deploy oai-du1
+oran-ran deploy oai-nr-ue
+oran-ran deploy oai-nr-ue-2
+oran-ran deploy oai-nr-ue-3
+oran-ran deploy oai-nr-ue-4
+oran-ran deploy oai-nr-ue-5
+monitoring deploy oran-monitoring-grafana
+monitoring deploy oran-monitoring-kube-prome-operator
+monitoring deploy oran-monitoring-kube-state-metrics
+monitoring statefulset alertmanager-oran-monitoring-kube-prome-alertmanager
+monitoring statefulset prometheus-oran-monitoring-kube-prome-prometheus
+LIST
+}
 
-build_default_state() {
-  out="$1"
-  : > "$out"
+# Everything that currently exists in the target namespaces (even at replicas=0).
+discover_workloads() {
+  local ns kind
   for ns in $TARGET_NAMESPACES; do
     namespace_exists "$ns" || continue
     for kind in deploy statefulset; do
       kubectl -n "$ns" get "$kind" -o custom-columns=NAME:.metadata.name --no-headers 2>/dev/null \
-        | while read -r name; do
-            [ -z "${name:-}" ] && continue
-            case " $DEFAULT_EXCLUDE " in *" $name "*) continue ;; esac
-            echo "$ns $kind $name 1" >> "$out"
-          done
+        | awk -v ns="$ns" -v kind="$kind" 'NF {print ns, kind, $1}' || true
+    done
+  done
+}
+
+generate_state_file() {
+  section "Generating replica state file (all replicas=1)"
+  mkdir -p "$STATE_DIR"
+
+  if [ -s "$STATE_FILE" ]; then
+    cp "$STATE_FILE" "${STATE_DIR}/platform-replicas.$(date +%Y%m%d-%H%M%S).tsv" 2>/dev/null || true
+  fi
+
+  local tmp="${STATE_FILE}.tmp"
+  { baseline_workloads; discover_workloads; } \
+    | awk -v ex="$EXCLUDE_WORKLOADS" '
+        BEGIN { n = split(ex, a, " "); for (i = 1; i <= n; i++) skip[a[i]] = 1 }
+        NF >= 3 && !($3 in skip) && !seen[$1" "$2" "$3]++ { print $1, $2, $3, 1 }
+      ' > "$tmp"
+
+  if [ ! -s "$tmp" ]; then
+    echo "ERROR: could not build the workload list."
+    rm -f "$tmp"
+    exit 1
+  fi
+
+  mv "$tmp" "$STATE_FILE"
+  echo "State file written: $STATE_FILE ($(wc -l < "$STATE_FILE") workloads, all replicas=1)"
+  echo "Excluded (kept at 0): ${EXCLUDE_WORKLOADS:-none}"
+}
+
+# Make sure the excluded workloads (monolithic gNBs) are really off.
+enforce_excluded_off() {
+  local ns w
+  for ns in $TARGET_NAMESPACES; do
+    namespace_exists "$ns" || continue
+    for w in $EXCLUDE_WORKLOADS; do
+      if kubectl -n "$ns" get "deploy/$w" >/dev/null 2>&1; then
+        echo "Keeping $ns deploy/$w at replicas=0"
+        kubectl -n "$ns" scale "deploy/$w" --replicas=0 >/dev/null 2>&1 || true
+      fi
     done
   done
 }
@@ -136,6 +202,27 @@ wait_deploy_if_needed() {
   fi
 }
 
+wait_statefulset_if_needed() {
+  ns="$1"
+  name="$2"
+  timeout="${3:-240s}"
+
+  if ! namespace_exists "$ns"; then
+    return 0
+  fi
+
+  if ! kubectl -n "$ns" get "statefulset/$name" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  replicas="$(state_replicas "$ns" statefulset "$name")"
+  replicas="${replicas:-0}"
+
+  if [ "$replicas" -gt 0 ]; then
+    echo "Waiting for $ns statefulset/$name..."
+    kubectl -n "$ns" rollout status "statefulset/$name" --timeout="$timeout" || true
+  fi
+}
 
 start_dashboard() {
   if [ "$START_DASHBOARD" != "1" ]; then
@@ -177,7 +264,7 @@ check_ifb_module() {
   if lsmod 2>/dev/null | grep -q '^ifb'; then
     echo "ifb module loaded."
   else
-    echo "[WARN] ifb module NOT loaded - downlink (download) slice QoS will NOT cap."
+    echo "[WARN] ifb module NOT loaded — downlink (download) slice QoS will NOT cap."
     echo "[WARN] Load now:     sudo modprobe ifb"
     echo "[WARN] Persist boot: echo ifb | sudo tee /etc/modules-load.d/ifb.conf"
   fi
@@ -282,9 +369,42 @@ ensure_cu_plane_healthy() {
   return 1
 }
 
+reconcile_ue_sessions() {
+  if [ "${ORAN_RECONCILE_UES:-1}" != "1" ]; then
+    echo "[SKIP] ORAN_RECONCILE_UES=${ORAN_RECONCILE_UES:-1}"
+    return 0
+  fi
+
+  local rec="$ROOT_DIR/tools/recover-ue-sessions.sh"
+  if [ ! -x "$rec" ]; then
+    echo "[SKIP] recover-ue-sessions.sh not found"
+    return 0
+  fi
+
+  section "Reconciling UE PDU sessions"
+
+  # Pods can be Ready while their oaitun_ue1 tunnel has not formed yet.
+  # Let freshly-restored UEs self-attach before we judge them.
+  local settle="${ORAN_UE_SETTLE_SECONDS:-45}"
+  echo "Settling ${settle}s before first UE health check..."
+  sleep "$settle"
+
+  # Diagnose + restart ONLY the UEs that still have no working tunnel.
+  # recover-ue-sessions.sh waits up to 240s/UE for tunnels to re-form.
+  "$rec" --fix --yes || true
+
+  section "Final UE health confirmation"
+  if "$rec" | grep -q "VERDICT=ALL_HEALTHY"; then
+    echo "All UEs healthy."
+  else
+    echo "[WARN] UEs still not all healthy after reconcile."
+    echo "[WARN] Inspect DU1 + UE logs before demoing (UE2-5 home on DU1)."
+  fi
+}
+
 echo "===== O-RAN platform start ====="
 echo "Root dir: $ROOT_DIR"
-echo "State file: $STATE_FILE (fallback to defaults if absent)"
+echo "State file (generated): $STATE_FILE"
 echo "Dashboard port: $PORT"
 echo "Recover Mixed-DU: $RECOVER_MIXED_DU"
 
@@ -292,21 +412,6 @@ have_cmd kubectl || {
   echo "ERROR: kubectl not found"
   exit 1
 }
-
-if [ -s "$STATE_FILE" ]; then
-  echo "Replica state: saved snapshot ($STATE_FILE)"
-else
-  echo "[INFO] No saved replica state at $STATE_FILE (platform-stop.sh never ran)."
-  echo "[INFO] Using built-in default: every workload at replicas=1."
-  STATE_FILE="$(mktemp /tmp/platform-replicas-default.XXXXXX)"
-  trap 'rm -f "$STATE_FILE"' EXIT
-  build_default_state "$STATE_FILE"
-  if [ ! -s "$STATE_FILE" ]; then
-    echo "ERROR: no saved state and no workloads found in: $TARGET_NAMESPACES"
-    echo "Deploy the platform first: ./scripts/bootstrap-platform.sh"
-    exit 1
-  fi
-fi
 
 # ---- 5GC startup ordering: AMF/SMF must start AFTER NF discovery is populated --
 # Confirmed root cause of cold-start "Registration reject [9]" (5GMM cause #9,
@@ -351,21 +456,24 @@ ensure_core_amf_ready() {
   local seen
   seen=$(kubectl -n oran-core logs deploy/open5gs-amf --tail=200 2>/dev/null | grep -c "NF registered")
   if [ "${seen:-0}" -ge 1 ]; then
-    echo "AMF discovered ${seen} NF profile(s) via NRF - UE identity resolution ready."
+    echo "AMF discovered ${seen} NF profile(s) via NRF — UE identity resolution ready."
   else
-    echo "[WARN] AMF shows no 'NF registered' yet; UEs may need a manual restart if they fail to attach."
+    echo "[WARN] AMF shows no 'NF registered' yet; reconcile will restart UEs to retry."
   fi
 }
 
-section "Saved replica state"
+generate_state_file
+
+section "Replica state"
 cat "$STATE_FILE"
 
-section "Restoring saved replicas"
+section "Restoring replicas"
 restore_all
+enforce_excluded_off
 check_ifb_module
 
 section "Waiting for key workloads"
-for dep in mongodb amf smf upf; do
+for dep in open5gs-mongodb open5gs-nrf open5gs-scp open5gs-udr open5gs-udm open5gs-ausf open5gs-upf open5gs-amf open5gs-smf; do
   wait_deploy_if_needed oran-core "$dep" 240s
 done
 
@@ -373,14 +481,16 @@ for dep in oai-du0 oai-du1 oai-nr-ue oai-nr-ue-2 oai-nr-ue-3 oai-nr-ue-4 oai-nr-
   wait_deploy_if_needed oran-ran "$dep" 240s
 done
 
-for dep in prometheus grafana; do
+for dep in oran-monitoring-grafana oran-monitoring-kube-prome-operator oran-monitoring-kube-state-metrics; do
   wait_deploy_if_needed monitoring "$dep" 240s
 done
+wait_statefulset_if_needed monitoring prometheus-oran-monitoring-kube-prome-prometheus 240s
 
 start_dashboard
 ensure_core_amf_ready
 ensure_cu_plane_healthy
 recover_mixed_du_if_available
+reconcile_ue_sessions
 
 section "Final pod state"
 for ns in $TARGET_NAMESPACES; do

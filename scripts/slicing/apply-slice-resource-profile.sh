@@ -10,7 +10,9 @@
 #            clear  full removal, fq_codel restored
 # Rate     : never absolute. rate = PCT x calibrated_ceiling / 100, the
 #            ceiling being re-read on every run from
-#            ~/oran-proof/ceiling-mbit.txt.
+#            ~/oran-proof/ceiling-mbit.txt. Computed and given to tc in kbit
+#            (35 Mbit ceiling: eMBB 35000kbit, URLLC 1050kbit, mMTC 35kbit),
+#            then read back from tc to confirm what was really installed.
 # Mechanism: stack applied in BOTH directions.
 #            - upstream  : netem (delay) at the root on the tunnel, tbf
 #                          (rate) as a child
@@ -20,7 +22,7 @@
 #                          where the same stack is rebuilt.
 # Note     : the netem delay is ONE-WAY. The observed round-trip time is
 #            therefore floor + 2 x delay (mMTC: 10 + 2000 = 2010 ms).
-# Output   : VERDICT=UE1_RESOURCE_PROFILE_APPLIED or _CLEARED
+# Output   : VERDICT=UE1_RESOURCE_PROFILE_APPLIED, _CLEARED or _RATE_MISMATCH
 # Usage    : bash scripts/slicing/apply-slice-resource-profile.sh <profile|clear>
 # ---------------------------------------------------------------------------
 set +e; set +u
@@ -29,7 +31,7 @@ NS="${NS:-oran-ran}"; DEP="${DEP:-oai-nr-ue}"
 REPO="${REPO:-$HOME/oran-e2e}"
 source "$REPO/scripts/ue/ue-common.sh"
 
-# Plafond = débit UL TCP non-capped, AUTO-MESURE par scripts/traffic/measure-ceiling.sh
+# Plafond = débit DL TCP non-capped, AUTO-MESURE par scripts/traffic/measure-ceiling.sh
 # (UE1 isolé, ~36). rate = PCT % du plafond. eMBB 100% (~plafond, non
 # façonné) ; URLLC 3% et mMTC 0.1% MORDENT. Fallback 33 = filet de sécurité seulement.
 CEILING_MBIT="${CEILING_MBIT:-$(cat $HOME/oran-proof/ceiling-mbit.txt 2>/dev/null || echo 33)}"
@@ -61,7 +63,8 @@ if [ "$PROFILE" = "clear" ]; then
   echo "VERDICT=UE1_RESOURCE_PROFILE_CLEARED"; exit 0
 fi
 
-RATE="$(awk "BEGIN{printf \"%dmbit\", $PCT*$CEILING_MBIT/100}")"
+RATE="$(rate_kbit "$PCT" "$CEILING_MBIT")"
+RATE_KBIT="${RATE%kbit}"
 echo "Computed: rate=$RATE (=$PCT% de ${CEILING_MBIT}mbit)  burst=$BURST  tbf-lat=$LATENCY  netem-delay=$DELAY"
 
 kubectl -n "$NS" exec "$UE" -- sh -lc "
@@ -81,4 +84,9 @@ kubectl -n "$NS" exec "$UE" -- sh -lc "
   echo '--- oaitun_ue1 (egress) ---'; tc qdisc show dev oaitun_ue1
   echo '--- ifb_ue1 (ingress) ---'; tc qdisc show dev ifb_ue1
 "
-echo "VERDICT=UE1_RESOURCE_PROFILE_APPLIED"
+echo "--- verification of the rate really applied ---"
+if tc_verify_rate "$NS" "$UE" "$RATE_KBIT"; then
+  echo "VERDICT=UE1_RESOURCE_PROFILE_APPLIED"
+else
+  echo "VERDICT=UE1_RESOURCE_PROFILE_RATE_MISMATCH"
+fi

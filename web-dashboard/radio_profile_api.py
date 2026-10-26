@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import subprocess
 
@@ -96,7 +97,7 @@ def _parse_kpis(text, profile):
 
     # Prefer the clean in-network KPI ping (10.45.0.1) between our markers;
     # fall back to any rtt line only if the marked block is absent.
-    kpi_block = re.search(r"===KPIPING===(.*?)===KPIPINGEND===", text, re.S)
+    kpi_block = re.search(r"===KPIPING===(.*?)===KPIPINGEND===", text, re.DOTALL)
     rtt_src = kpi_block.group(1) if kpi_block else text
     rtts = re.findall(r"rtt min/avg/max/mdev = [0-9.]+/([0-9.]+)/", rtt_src)
     if rtts:
@@ -109,7 +110,8 @@ def _parse_kpis(text, profile):
 
     # iperf3 sustained transfer is the headline throughput. The validated MCS
     # ladder (qpsk~7 / 16QAM~17.7 / 64QAM~30, modulation-scenarios-validation.md)
-    # was measured this way: UE as iperf3 client = UPLINK. The forced DL/UL MCS
+    # was measured with the UE as iperf3 client in UPLINK; TCP is now download
+    # (iperf3 -R), so those figures must be re-measured. The forced DL/UL MCS
     # caps are applied symmetrically, so this is the throughput that scales.
     tcp = re.search(r"Throughput Mbps:\s*([0-9.]+)", text)
     if tcp:
@@ -185,6 +187,26 @@ def radio_apply():
     return jsonify({"ok": r["ok"], "profile": profile, "ue": ue, "row": row, "log": r["output"]})
 
 
+# After a KPI test, put the DU back on scheduler-auto so a forced MCS (for example
+# qpsk-robust) never stays active and lowers the throughput of the next scenarios.
+# Disable: ORAN_RADIO_AUTO_RESTORE=0, or send {"auto_restore": false} in the POST body
+# (tests/test-section-04-radio-profiles.sh does, and restores once at the end).
+BASELINE_PROFILE = "scheduler-auto"
+AUTO_RESTORE = os.environ.get("ORAN_RADIO_AUTO_RESTORE", "1") == "1"
+
+
+def _auto_restore(profile, enabled):
+    """Return (restored_ok, log). restored_ok is None when no restore was needed."""
+    if not enabled or profile == BASELINE_PROFILE:
+        return None, ""
+    r = _run(
+        f"scripts/radio/switch-ue-modulation-profile-du-aware.sh ue1 {BASELINE_PROFILE} --apply && "
+        "scripts/validate-e2e.sh",
+        timeout=420,
+    )
+    return r["ok"], "\n\n--- AUTO RESTORE " + BASELINE_PROFILE + " ---\n" + r["output"]
+
+
 @radio_bp.post("/kpi-test")
 def radio_kpi_test():
     body = request.get_json(silent=True) or {}
@@ -216,7 +238,12 @@ def radio_kpi_test():
     row["verdict"] = "PASS" if r["ok"] else "FAIL"
     rows = _save_row(row)
 
-    return jsonify({"ok": r["ok"], "profile": profile, "ue": ue, "row": row, "rows": rows, "log": r["output"]})
+    # Restore even when the test failed: a forced profile must not stay applied.
+    restored, restore_log = _auto_restore(profile, bool(body.get("auto_restore", AUTO_RESTORE)))
+    ok = r["ok"] and restored is not False
+
+    return jsonify({"ok": ok, "profile": profile, "ue": ue, "row": row, "rows": rows,
+                    "restored": restored, "log": r["output"] + restore_log})
 
 
 @radio_bp.post("/restore")

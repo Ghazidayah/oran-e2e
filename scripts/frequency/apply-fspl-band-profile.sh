@@ -8,8 +8,13 @@
 # Mechanism: REUSES the same netem + tbf + ifb stack as
 #            scripts/slicing/apply-slice-resource-profile.sh. One engine, two
 #            uses, never stacked together.
-# Calculation: K = 10^(-dPL/10), dPL = 20 x log10(f_target/f_ref), then
-#            PCT = round(K x 100) applied to the calibrated ceiling.
+# Calculation: dPL = 20 x log10(f_target/f_ref), then (Shannon capacity)
+#            SNR_target = SNR_REF - dPL (dB, SNR_REF default 20),
+#            K = log2(1+SNR_target) / log2(1+SNR_ref)  (linear SNR),
+#            PCT = round(K x 100) applied to the calibrated ceiling, then
+#            converted to kbit/s for tc and read back from tc to confirm.
+# Note     : the result is a MODELLED throughput cap (free-space path loss
+#            formula), not a measurement of a real radio channel.
 # Inputs   : a band (n41, n78, n77) or a target frequency in MHz
 # Usage    : bash scripts/frequency/apply-fspl-band-profile.sh <band|MHz>
 #            bash scripts/frequency/apply-fspl-band-profile.sh clear
@@ -20,6 +25,7 @@ REPO="${REPO:-$HOME/oran-e2e}"
 source "$REPO/scripts/ue/ue-common.sh"
 
 F_REF="${F_REF:-2593.35}"     # n41 reference carrier (MHz)
+SNR_REF="${SNR_REF:-20}"              # dB, reference SNR (assumed, not measured)
 CEILING_MBIT="${CEILING_MBIT:-$(cat $HOME/oran-proof/ceiling-mbit.txt 2>/dev/null || echo 33)}"
 BURST="${BURST:-256kb}"; LATENCY="${LATENCY:-50ms}"; DELAY="${DELAY:-2ms}"
 
@@ -43,13 +49,20 @@ case "$ARG" in
   *) F_TGT="$ARG" ;;
 esac
 
-read -r DPL K PCT <<<"$(awk -v fr="$F_REF" -v ft="$F_TGT" 'BEGIN{
-  dpl=20*log(ft/fr)/log(10); k=exp(-dpl/10*log(10));
-  printf "%.2f %.2f %d", dpl, k, (k*100)+0.5;
+case "$SNR_REF" in ''|*[!0-9.]*) echo "SNR_REF must be a number (dB)"; echo "VERDICT=BAD_SNR_REF"; exit 0 ;; esac
+
+read -r DPL SNR_T K PCT <<<"$(awk -v fr="$F_REF" -v ft="$F_TGT" -v sref="$SNR_REF" 'BEGIN{
+  dpl = 20*log(ft/fr)/log(10);
+  s_t = sref - dpl;
+  k = log(1 + exp(s_t/10*log(10))) / log(1 + exp(sref/10*log(10)));
+  printf "%.2f %.2f %.2f %d", dpl, s_t, k, (k*100)+0.5;
 }')"
-RATE="$(awk "BEGIN{printf \"%dmbit\", $PCT*$CEILING_MBIT/100}")"
+# The rate goes to tc in kbit (no rounding down to whole Mbit/s).
+RATE="$(rate_kbit "$PCT" "$CEILING_MBIT")"
+RATE_KBIT="${RATE%kbit}"
 
 echo "===== FSPL band emulation on UE1 ====="
+echo "snr_ref=${SNR_REF}dB  snr_target=${SNR_T}dB"
 echo "f_ref=${F_REF}MHz  f_target=${F_TGT}MHz  dPL=${DPL}dB  K=${K}  PCT=${PCT}%"
 echo "Pod: $UE   Ceiling: ${CEILING_MBIT}mbit   -> rate=$RATE  burst=$BURST  netem-delay=$DELAY"
 
@@ -68,4 +81,9 @@ kubectl -n "$NS" exec "$UE" -- sh -lc "
   echo '--- oaitun_ue1 (egress) ---'; tc qdisc show dev oaitun_ue1
   echo '--- ifb_ue1 (ingress) ---'; tc qdisc show dev ifb_ue1
 "
-echo "VERDICT=FSPL_BAND_APPLIED band_pct=${PCT} rate=${RATE}"
+echo "--- verification of the rate really applied ---"
+if tc_verify_rate "$NS" "$UE" "$RATE_KBIT"; then
+  echo "VERDICT=FSPL_BAND_APPLIED band_pct=${PCT} rate=${RATE}"
+else
+  echo "VERDICT=FSPL_BAND_RATE_MISMATCH band_pct=${PCT} rate=${RATE}"
+fi
