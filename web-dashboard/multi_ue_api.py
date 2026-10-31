@@ -267,10 +267,21 @@ def register_multi_ue_routes(app, run_cmd):
 
         outputs = []
 
+        # Only create the UE from its static manifest when the Deployment does not
+        # exist yet. Re-applying it on every start overwrote the live ConfigMap/args
+        # (for example -C after a DU retune or handover) with the repo defaults, so a
+        # stopped-then-started UE ended up on the wrong carrier and never decoded SIB1.
         if cfg.get("manifest"):
-            r = run_cmd("kubectl apply -f {}".format(shlex.quote(cfg["manifest"])), timeout=60)
-            outputs.append(r.get("output", ""))
-            remove_lifecycle(cfg["deployment"])
+            exists = run_cmd(
+                "kubectl -n {} get deploy {} -o name 2>/dev/null".format(
+                    UE_NAMESPACE, shlex.quote(cfg["deployment"])
+                ),
+                timeout=20,
+            ).get("output", "").strip()
+            if not exists:
+                r = run_cmd("kubectl apply -f {}".format(shlex.quote(cfg["manifest"])), timeout=60)
+                outputs.append(r.get("output", ""))
+                remove_lifecycle(cfg["deployment"])
 
         r = run_cmd(
             "kubectl -n {} scale deploy/{} --replicas=1".format(
