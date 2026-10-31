@@ -185,7 +185,11 @@ kubectl -n "$NS" exec "$UE" -- \
   | tee "$DIR/sender-result.json"
 
 echo "===== 8. READ RECEIVER RESULT ====="
-sleep 3
+# Wait for the receiver to finish and write result.json (it stops after the
+# last packet or 15 s of silence). Its exit code 2 means FAIL verdict: do not abort here.
+RECV_RC=0
+wait "$RECV_PID" || RECV_RC=$?
+echo "receiver exit code: $RECV_RC"
 cat "$DIR/receiver-console.log" | tee "$DIR/receiver-result.txt"
 
 echo "===== 9. OAITUN AFTER ====="

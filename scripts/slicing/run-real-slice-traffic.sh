@@ -18,7 +18,7 @@ case "$PROFILE" in
   urllc)
     SST="2"
     LABEL="URLLC"
-    SCENARIOS=("udp")
+    SCENARIOS=("urllc-udp")
     ;;
   mmtc)
     SST="3"
@@ -85,6 +85,10 @@ run_scenario() {
       ;;
     udp)
       scripts/traffic/run-udp-traffic.sh 2>&1 | tee "$DIR/udp.log"
+      ;;
+    urllc-udp)
+      # URLLC: small packets at low rate, under the slice rate (~160 kbit/s < 960 kbit/s)
+      COUNT=1000 SIZE=200 INTERVAL=0.01 scripts/traffic/run-udp-traffic.sh 2>&1 | tee "$DIR/urllc-udp.log"
       ;;
     mmtc-udp)
       COUNT=300 SIZE=128 INTERVAL=0.05 scripts/traffic/run-udp-traffic.sh 2>&1 | tee "$DIR/mmtc-udp.log"
